@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-08-06 — Phase 5 complete
+
+Documentation-only entry. No application source, repository source, shared
+types, migration SQL, Wrangler config, package manifest, lockfile,
+workspace config, test, CI, or Cloudflare resource changes.
+
+- **Phase 5 — Repository/data layer is complete.** Committed as
+  `4bdc487 feat: add typed repository data layer`, verified by **Pull
+  Request #8 on GitHub Actions/Linux**, rebase-merged into `main`, and
+  verified again by the **post-merge `main` CI run**.
+- Linux CI proved `getPlatformProxy`, workerd, and Wrangler type
+  generation all work on a clean runner — the parts of the **238-check**
+  suite that had previously only run on Windows.
+- Phases 0–5 complete; **Phase 6 — Admin foundation** is next and not
+  started.
+- Restated precisely: the 111 adapter checks are repository-logic tests
+  over a `node:sqlite` D1 adapter and are **not** proof of the real D1
+  binding; the separate 38-check suite is. `apps/web` and `apps/admin`
+  tests remain no-ops, and there is still no UI/component/E2E coverage.
+- **`migrations/0001_initial_schema.sql` was unchanged throughout Phase 5**
+  — no schema defect surfaced, so no forward migration was needed. The
+  remote `portfolio-cms` schema remains **intentionally unapplied**, with
+  no remote SQL mutation at any point.
+
 ## 2026-08-06 — Phase 5: repository/data layer (branch `feat/repository-data-layer`)
 
 - Added the portfolio content domain types to `packages/types`

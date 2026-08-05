@@ -6,26 +6,26 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 5 — Repository/data layer.**
+**Phase 5 — Repository/data layer: COMPLETE.** Committed as
+`4bdc487 feat: add typed repository data layer`, verified by **Pull
+Request #8 on GitHub Actions/Linux**, rebase-merged into `main`, and
+verified again by the **post-merge `main` CI run**.
 
-- **Implementation:** complete / ready for review on branch
-  `feat/repository-data-layer`.
-- **Status:** **awaiting Git/CI verification.** Not committed, not pushed,
-  and **not formally complete.**
-- **Phase 4:** Complete (merged to `main`, CI green).
-- **Phase 6:** not started.
-
-Phase 5 is not marked COMPLETE until PR CI, merge, and the post-merge
-`main` run all succeed.
+The Linux/CI gap that previously blocked completion is closed. CI proved
+on Linux that `getPlatformProxy`, workerd, and Wrangler's type generation
+all work on a clean runner — the three things that had only ever run on
+Windows.
 
 ## Active task
 
-Phase 5 — typed repository/data-access layer over the Phase 4 D1 schema.
+Phase 5 completion documentation (documentation-only; no application
+source, repository source, shared types, migration SQL, Wrangler config,
+package manifest, lockfile, workspace config, test, CI, or Cloudflare
+resource changes).
 
 ## Blockers
 
-**No implementation blocker.** The remaining gap is Linux/CI execution of
-the new repository test suite, which is pending the first push.
+**None for Phase 5.**
 
 ## Phase status summary
 
@@ -36,11 +36,60 @@ the new repository test suite, which is pending the first push.
 | Phase 2 — Static responsive portfolio | **Complete** (merged to `main`, CI green) |
 | Phase 3 — Design system | **Complete** (merged to `main`, CI green) |
 | Phase 4 — D1 schema/migrations | **Complete** (merged to `main`, CI green) |
-| Phase 5 — Repository/data layer | Implemented; **awaiting Git/CI verification** |
-| Phase 6 — Admin foundation | Not started |
+| Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
+| Phase 6 — Admin foundation | Not started (next) |
 
 Phases 6–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
+
+### Phase 5 — what was delivered
+
+**Repository boundary.** Application/server layer → repository interfaces
+→ D1 repository implementations → prepared statements → D1. React and
+Next.js application code contains **no scattered SQL**, and **Phase 5 did
+not wire the repositories into either app** — that is Phase 6+. The apps
+still render from the Phase 2 placeholder module.
+
+**Composition.** `createRepositories(db)` is the single entry point. D1 is
+**dependency-injected**; there is **no global mutable database binding**.
+A real Cloudflare D1 binding satisfies the repository contract — verified
+two ways rather than assumed:
+
+- **Runtime:** a real workerd-backed `env.DB` from Wrangler's
+  `getPlatformProxy()` passed into `createRepositories(env.DB)` with no
+  cast.
+- **Compile time:** Cloudflare's own Wrangler-generated `D1Database` type
+  asserted assignable to `D1Like`, compiled with no cast.
+
+**Domain repositories (15).** `profile`, `socialLinks`, `media`,
+`resumes`, `projects`, `technologies`, `timeline`, `education`,
+`certifications`, `skills`, `tools`, `sections`, `siteSettings`,
+`sceneSettings`, `contactMessages` — covering all 20 tables. Join and
+child tables remain **owned by their aggregate repository** rather than
+exposed as unrelated top-level CRUD: `projects` owns `project_links`,
+`project_media`, and `project_technologies`; `timeline` owns
+`timeline_highlights`; `skills` covers categories and skills.
+
+**Mapping and safety.** Explicit row-to-domain decoding with no
+`as Entity` casts; SQLite integer booleans decoded to real JavaScript
+booleans; nullable columns mapped intentionally to `null`; structurally
+invalid persisted values surfaced as persistence errors rather than
+coerced or defaulted. All dynamic values go through prepared statements
+and `.bind(...)`; dynamic column fragments come only from explicit
+per-repository allowlists; **no generic raw-SQL API is exposed**; and
+SQL-injection-style hostile values — both as data and as patch keys — were
+tested and treated as data only.
+
+**Error model.** Four cases, unchanged: `not_found`, `conflict`,
+`invalid_data`, `database_failure`. Public messages carry no SQL text or
+bound values; the original error is preserved on `cause`.
+
+**IDs and timestamps.** Application-generated **UUIDv7** via an
+**injectable id generator**, with an **injectable clock** producing
+**ISO-8601 UTC** timestamps. Deterministic UUIDv7 tests verified canonical
+format, version 7, RFC 9562 variant bits, exact 48-bit timestamp
+encoding, uniqueness (including 10,000 ids within one injected
+millisecond), and lexicographic ordering by timestamp.
 
 ## Phase 5 — completed work
 
@@ -109,15 +158,27 @@ relationships without going through the aggregate that understands them.
 
 ### Test suites — what each one actually proves
 
+**238 real checks**, all green on Windows locally and on GitHub
+Actions/Linux in CI.
+
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
-| UUIDv7 | **26/26** | pure function | Format, version/variant bits, timestamp encoding, uniqueness |
-| D1 migration smoke test | **59/59** | **real Wrangler/workerd D1** | Schema and constraints |
-| Repository integration | **111/111** | repository code over a **`node:sqlite` adapter** | Repository SQL, mapping, semantics — breadth |
-| D1 binding compatibility | **38/38** | repository code through a **real workerd D1 binding** | That `D1Like` matches the actual Cloudflare binding |
-| D1Like type compatibility | **4/4** | `tsc` over **Cloudflare-generated types** | Compile-time assignability, no cast |
+| UUIDv7 | **26/26** | pure function | Format, version/variant bits, timestamp encoding, uniqueness, ordering |
+| D1 migration smoke test | **59/59** | **real Wrangler/workerd local D1** | Schema and constraints |
+| Repository integration | **111/111** | repository code over a **`node:sqlite` D1 adapter** | Repository SQL, mapping, semantics — breadth |
+| D1 binding compatibility | **38/38** | repository code through a **real local workerd D1 binding** | That `D1Like` matches the actual Cloudflare binding |
+| D1Like type compatibility | **4/4** | `tsc` over **Wrangler-generated D1 types** | Compile-time assignability, no cast |
 | `apps/web` | — | — | **Nothing — no-op placeholder** |
 | `apps/admin` | — | — | **Nothing — no-op placeholder** |
+
+### Phase 5 — CI
+
+- **Pull Request #8 CI passed** on GitHub Actions/Linux.
+- PR #8 was **rebase-merged** into `main`.
+- The **post-merge `main` CI run passed.**
+- Linux execution therefore proved **`getPlatformProxy`, workerd, and
+  Wrangler type generation** all work on a clean CI runner — the parts of
+  the suite that had previously only ever run on Windows.
 
 **Important distinction.** The 111-check suite runs over an adapter *we
 wrote*, so on its own it cannot prove the `D1Like` contract is correct — a
@@ -183,26 +244,39 @@ implementation both turned out to be correct, but neither had been
   filesystem or Node database API, no `any`, and no absolute or
   user-specific paths**. Node-only code is confined to `scripts/`.
 
-## Phase 5 — known limitations
+## Phase 5 — schema and remote D1 status
 
-- **Not verified on Linux/CI yet** — pending first push. The binding suite
-  spawns workerd, which CI has already proven it can install (Phase 4), but
-  `getPlatformProxy` itself is new to CI.
-- **Not wired into the apps.** Deliberate; that is Phase 6+.
-- **Remote D1 batch behaviour is still unverified.** It is now proven
-  against *local* workerd, which is the same runtime, but the remote
-  service was never touched.
-- **Representative, not exhaustive, test coverage.**
-- **No bootstrap/seed operation.** Singleton-key tables still legitimately
-  return `null`; creating required rows is Phase 6 work.
+- **`migrations/0001_initial_schema.sql` remained unchanged throughout
+  Phase 5** — byte-for-byte, verified before commit.
+- **No schema defect was found** while building the repositories against
+  it, so **no forward migration was needed**.
+- **The remote `portfolio-cms` schema has still NOT been applied**
+  (`num_tables: 0`).
+- **No remote SQL mutation occurred** at any point.
+- **CI and tests remain local-only.** No `--remote` path exists in any
+  script or workflow; the binding suite runs with
+  `remoteBindings: false`, and nothing requires Cloudflare credentials.
+
+## Phase 5 — known limitations (not blockers)
+
+Phase 5 is complete. These are carried forward:
+
+- **Repositories are not yet wired into web/admin application behaviour.**
+  Deliberate; that is Phase 6+.
+- **`apps/web` and `apps/admin` still have no real automated tests** —
+  both `test` scripts remain honest no-ops.
+- **No UI, component, or end-to-end coverage yet.** That is Phase 20.
+- **Repository coverage is representative, not exhaustive** — every
+  repository is exercised, but not every method of every repository.
+- **Remote D1 remains intentionally unmigrated**, so remote batch
+  behaviour is still unverified. It is proven against *local* workerd,
+  which is the same runtime, but the remote service was never touched.
+- **No production/bootstrap seed operation yet.** Singleton reads may
+  legitimately return `null` until Phase 6/7 bootstrapping and application
+  workflows establish the required records — the schema permits zero rows
+  by design.
 - **No Zod.** Persistence-boundary decoding is hand-written; input
   validation belongs at the API/form boundary in Phase 6+.
-
-## Phase 5 — remote D1 status
-
-**Unchanged and still not migrated.** Verified read-only after all work:
-`wrangler d1 list` → `num_tables: 0`. No `--remote` command was executed;
-the string appears in the repository only inside comments forbidding it.
 
 ### Phase 4 — what was delivered
 
@@ -1052,8 +1126,8 @@ pre-existing local artifacts.
 
 ## Manual actions still required from the user
 
-- Review the Phase 5 changes on `feat/repository-data-layer` and commit
-  them (nothing has been committed).
+- Merge this documentation branch (`docs/phase-5-completion`) once
+  reviewed.
 - Decide when to apply `0001_initial_schema.sql` to the remote
   `portfolio-cms` database. It is intentionally still pending there;
   applying it is a deliberate, controlled human step, now sensible at any
