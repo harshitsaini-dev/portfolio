@@ -1,9 +1,85 @@
 # Testing
 
-## Current state (Phase 5)
+## Current state (Phase 6)
 
-`pnpm test` runs **five real suites and two no-ops**. What each one
-actually proves matters, so be precise:
+`pnpm test` runs **seven real suites and one no-op** — 327 checks. What
+each one actually proves matters, so be precise:
+
+| Suite | Checks | Executes against | Proves |
+| --- | --- | --- | --- |
+| Admin authentication | **42** | real `jose` verification, locally minted tokens | The Access JWT boundary and the development-auth guard |
+| Admin foundation | **47** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, and the protected-page invariant |
+
+`apps/admin` is **no longer a no-op**. `apps/web` is now the only fake-green
+script.
+
+## Admin authentication tests
+
+`apps/admin/scripts/auth-tests.mjs`.
+
+Generates a throwaway RSA key pair with `jose`, signs tokens with it, and
+injects the public key through the verifier's `keyResolver` seam. **No
+network, no Cloudflare account, no real Access token, no secrets** — and
+every failure mode can be produced on demand, which a real token cannot do.
+
+Covers: valid token accepted; missing, empty, malformed, tampered-payload,
+foreign-key-signed, expired, wrong-audience, wrong-issuer, and
+subject-less tokens rejected; **`alg: none` rejected**; **HS256
+algorithm-confusion rejected**; configuration missing → fail closed;
+the development guard matrix (opt-in alone insufficient in production, no
+combination works in a production build, configured Access always wins,
+near-miss values rejected); and identity normalization — the identity
+exposes exactly `subject`, `email`, `source`, with extra claims and the raw
+token provably absent.
+
+## Admin foundation tests
+
+`apps/admin/scripts/shell-tests.mjs`.
+
+Covers the guard's fail-closed branches (testable because the token reader
+is injectable), precedence when Access is configured (a forged or missing
+header is denied and does **not** fall back to the development identity),
+error-surface hygiene (the thrown error carries no internal detail and its
+`detail` is non-enumerable so it cannot serialize), identity display, and
+navigation integrity (no dead links, no emoji, unique labels, unavailable
+items carry no `href`).
+
+### The protected-page invariant
+
+An **architectural regression guard, not runtime authentication proof** —
+it inspects source text to enforce a convention whose runtime behaviour is
+proven by the 42 auth checks and by browser verification.
+
+It recursively discovers every `page.tsx|ts|jsx|js` under
+`src/app/(protected)/` — at any depth, not just the root — and requires
+each to be exported through `withAdminPage`, importing it from
+`@/lib/auth/protected-page`. It also requires the protected layout to
+declare `dynamic = "force-dynamic"`.
+
+The assertion is deliberately specific rather than "does the file mention
+`requireAdmin` somewhere". Negative controls prove it **rejects**:
+
+- a plain default-exported async component;
+- a page that imports the guard but never awaits it;
+- a page that guards only *after* building its markup;
+- a `<ProtectedBoundary>{children}</ProtectedBoundary>` JSX boundary, which
+  has the same RSC flaw.
+
+and **accepts** the approved form, with or without explicit type arguments.
+
+Verified end to end by temporarily adding
+`(protected)/tmp-unguarded/page.tsx` with an unguarded default export: the
+suite discovered it and failed with exit 1. The fixture was removed — a
+stray unguarded page under `(protected)/` would itself be the
+vulnerability this test exists to prevent, so no fixture route is kept in
+the app.
+
+Both scripts run under `node --conditions=react-server`, which resolves
+`server-only` to its no-op build so the modules load outside a bundler.
+
+## Database and repository suites (Phase 4–5)
+
+Unchanged and still running first:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
@@ -12,21 +88,20 @@ actually proves matters, so be precise:
 | Repository integration | **111** | repository code over a **`node:sqlite` `D1Like` adapter** | Repository SQL, mapping, and semantics — breadth |
 | D1 binding compatibility | **38** | repository code through a **real workerd D1 binding** (`getPlatformProxy`) | That `D1Like` and repository usage match the actual Cloudflare binding |
 | D1Like type compatibility | **4** | `tsc` over **Cloudflare-generated types** | That `D1Database` satisfies `D1Like` at compile time, no cast |
-| `apps/web` | — | — | **Nothing — no-op placeholder** |
-| `apps/admin` | — | — | **Nothing — no-op placeholder** |
 
-**Read the third and fourth rows carefully.** The 111-check suite is
-broad but runs over an adapter *we wrote*, so on its own it cannot prove
-our D1 contract is right — the adapter would happily agree with a wrong
-contract. The 38-check suite is the actual binding proof; it is smaller on
-purpose, because breadth is already covered.
+**Read the last two rows carefully.** The 111-check suite is broad but runs
+over an adapter *we wrote*, so on its own it cannot prove our D1 contract
+is right — the adapter would happily agree with a wrong contract. The
+38-check suite is the actual binding proof; it is smaller on purpose,
+because breadth is already covered.
 
-A green `pnpm test` means *the schema, the data layer, and the D1 contract
-were verified* and *the two apps were not tested at all*. There is still
-**no UI, component, or end-to-end coverage**, and repository coverage is
-**representative, not exhaustive** — every repository is exercised, but
-not every method of every repository. The app no-ops remain deliberately
-honest placeholders. Real application coverage is Phase 20.
+A green `pnpm test` means *the schema, the data layer, the D1 contract, and
+the admin auth boundary were verified*. It does **not** mean the apps are
+tested: there is still **no UI component or end-to-end coverage**,
+repository coverage is **representative, not exhaustive**, and admin
+coverage is focused on authentication rather than the full shell. The
+`apps/web` no-op remains a deliberately honest placeholder. Broad
+application coverage is Phase 20.
 
 ## D1 binding compatibility tests
 

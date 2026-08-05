@@ -12,9 +12,26 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+/**
+ * Admin metadata.
+ *
+ * `noindex, nofollow` applies to the whole app: a CMS has no business in
+ * search results, and following links from it would expose the route
+ * structure. Set at the root so a new page inherits it rather than needing
+ * to remember.
+ *
+ * No identity, email, or claim ever appears here — metadata is rendered
+ * into the HTML head and would be trivially scrapable.
+ */
 export const metadata: Metadata = {
   title: "Portfolio Admin",
-  description: "Portfolio CMS admin foundation",
+  description: "Content management for the portfolio.",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: { index: false, follow: false },
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -23,7 +40,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full">{children}</body>
     </html>
   );
 }

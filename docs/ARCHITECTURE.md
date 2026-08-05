@@ -55,6 +55,74 @@ surface is known from two real consumers rather than guessed from one.
 Portfolio-content-specific section components stay in `apps/web`
 regardless.
 
+## Admin authentication (Phase 6)
+
+```
+request
+  → Cloudflare Access (edge identity gate, sets Cf-Access-Jwt-Assertion)
+    → apps/admin server layout   authoritative: verifies the assertion
+      → protected page           guards itself before producing JSX
+        → (future) repositories
+```
+
+Access authenticates; the application **independently verifies** the
+assertion's signature, issuer, audience, and expiry. Presence of the header
+is not trusted, because a deployment path that bypasses the Access edge
+would let anyone set it.
+
+The auth boundary lives in `apps/admin/src/lib/auth/` and is `server-only`:
+configuration, JWT verification, identity normalization, and the guard.
+Client Components never see a token, a claim, or configuration — the shell
+receives a three-field identity (`subject`, `email`, `source`) as a plain
+prop.
+
+### The protected-page invariant
+
+**A protected layout is not a content-confidentiality boundary.** React
+renders a layout and its `children` concurrently, so a layout that
+redirects an unauthenticated request does not stop the child page from
+executing — its output is serialized into the RSC flight payload shipped
+with the redirect. Measured against a production build: `GET /` returned
+307 with an 11.9 KB body containing the dashboard's component tree.
+
+The fix is ordering, expressed as a wrapper around the page *function*:
+
+```tsx
+// apps/admin/src/app/(protected)/projects/page.tsx
+export default withAdminPage(async ({ identity }) => {
+  const projects = await repos.projects.list();  // runs only if authorized
+  return <ProjectList projects={projects} />;
+});
+```
+
+`withAdminPage` (`src/lib/auth/protected-page.ts`) awaits
+`requireAdminIdentityOrRedirect()` and only then invokes the render
+callback. If the request is unauthenticated the redirect is thrown while
+the component is still executing: no JSX, no data fetching, nothing to
+serialize. The verified identity is handed to the callback, so a page
+never touches the auth layer or sees a raw claim.
+
+This **cannot** be a JSX boundary. `<Protected>{children}</Protected>` has
+the identical flaw, because `children` is an already-constructed element
+tree React may render independently of its parent's decision.
+
+Two properties are load-bearing and easy to lose. Both are enforced
+automatically by `apps/admin/scripts/shell-tests.mjs`, which recursively
+discovers every `(protected)/**/page.*` and fails if one is not exported
+through `withAdminPage`:
+
+- The protected layout sets `dynamic = "force-dynamic"`, or the
+  authorization check runs at build time instead of per request.
+- Every protected page goes through `withAdminPage`.
+
+Defence in depth is intentional: the layout keeps its own guard as the
+boundary that catches a page which somehow bypasses the convention, while
+the page wrapper is the confidentiality boundary.
+
+There is no `proxy.ts`: Next's own guidance is that Proxy is not an
+authorization solution, so the server boundary is the only place trusted to
+make the decision.
+
 ## Data access (Phase 5)
 
 The boundary, top to bottom:

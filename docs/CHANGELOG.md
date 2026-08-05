@@ -1,5 +1,57 @@
 # Changelog
 
+## 2026-08-06 — Phase 6: admin foundation (branch `feat/admin-foundation`)
+
+- Built the `apps/admin` shell: skip link, sticky header, desktop sidebar,
+  native-`<dialog>` mobile drawer, grouped navigation with `aria-current`,
+  identity display, and an operational dashboard. Unbuilt CMS sections are
+  listed with their delivering phase but **not linked** — no dead links.
+- Added the Cloudflare Access authentication boundary in
+  `apps/admin/src/lib/auth/`: configuration, `jose`-based JWT verification
+  (signature, issuer, audience, expiry, `RS256` pinned), identity
+  normalization to three fields, and the server-only guard. **No passwords,
+  no sessions, no application-issued cookies, no NextAuth.**
+- Development auth requires **three independent conditions** and is
+  compiled out of production builds; it is visibly badged in the UI.
+- **`apps/admin` adopted the shared design tokens**, closing the Phase 3
+  limitation that it had not.
+- Added admin security headers in `next.config.ts` (`X-Frame-Options:
+  DENY`, `nosniff`, `no-referrer`, `Permissions-Policy`, `X-Robots-Tag`)
+  and `robots: noindex, nofollow` metadata. **CSP deliberately deferred**
+  to the security/deployment phases.
+- **Two security defects found and fixed during verification:** the
+  protected route was prerendering as static (authorization would have run
+  at build time — fixed with `force-dynamic`), and a layout-only redirect
+  still serialized the dashboard's RSC payload into the unauthenticated
+  307 response (fixed by guarding each page before it produces JSX). Both
+  have regression tests.
+- **Turned the RSC leak fix into a structural invariant** (hardening pass).
+  Added `withAdminPage` — a server-only wrapper around the page *function*
+  that awaits authorization before invoking the render callback, so no page
+  output or data fetching can occur without a verified identity. The
+  dashboard was refactored onto it. A recursive source-policy test fails
+  the suite if any `(protected)/**/page.*` is not exported through it,
+  with negative controls proving it rejects a plain default export, an
+  un-awaited guard, a guard placed after markup, and a JSX boundary.
+  Verified by temporarily adding a nested unguarded page (suite exited 1)
+  and removing it.
+- **Proxy re-evaluated and deferred again** — Next's docs say it is not an
+  authorization solution, a presence check would not stop a forged header,
+  and remote-JWKS work there would add I/O to every request for no gain.
+- **`apps/admin` is no longer a no-op test script:** added 42 admin
+  authentication checks and 47 admin foundation checks. Total real checks
+  across the repository: **327**.
+- Dependencies added: `jose` (zero-dep, Web Crypto, Workers-compatible,
+  2.4 days old so no supply-chain exclusion needed), `server-only`, and the
+  `@portfolio/ui` workspace link. **No `minimumReleaseAgeExclude` added.**
+- Verified with Playwright MCP at 1440/1280/768/375: zero console errors,
+  no overflow, correct heading outline, working skip link focus transfer,
+  native dialog focus trap with inert background, reduced motion, and no
+  token or configuration leakage into rendered HTML.
+- `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`,
+  `pnpm test`, `pnpm build` all pass. `migrations/0001_initial_schema.sql`
+  unchanged; remote D1 untouched.
+
 ## 2026-08-06 — Phase 5 complete
 
 Documentation-only entry. No application source, repository source, shared

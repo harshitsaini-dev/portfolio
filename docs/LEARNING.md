@@ -3,6 +3,80 @@
 Notes on things learned while building this project that are worth
 remembering for future work.
 
+## Phase 6
+
+- **A layout redirect does not stop the page from rendering.** This is the
+  most surprising thing in the phase. React renders a layout and its
+  `children` concurrently, so when only the layout redirected, the
+  dashboard component still executed and its full RSC payload was
+  serialized into the 307 response — 11.9 KB of it, in a *production*
+  build. The page looked protected in a browser, because browsers discard
+  a redirect body. `curl` would have seen everything.
+  - **In an App Router app, a layout is a composition boundary, not a
+    confidentiality boundary.** Anything that must not be *computed* for an
+    unauthorized request has to be gated before the component that computes
+    it runs — not by a parent that renders alongside it.
+  - The general lesson: when testing an authorization boundary, assert on
+    the **raw response bytes**, not the rendered DOM. The DOM shows what a
+    browser chose to display; the body shows what the server actually sent.
+- **Fixing the instance is not fixing the class.** Guarding the one
+  existing page closed the leak but left a convention — "every future page
+  must remember to self-guard" — that one forgotten line in Phase 7 would
+  break, silently, while the route still *looked* protected under the
+  protected layout. Security properties that depend on remembering are
+  latent bugs with a delay fuse.
+  - The fix was to wrap the page **function** rather than its output:
+    `withAdminPage(render)` simply does not call `render` until the guard
+    resolves. Ordering becomes structural instead of conventional.
+  - It cannot be a JSX boundary. `<Protected>{children}</Protected>` has
+    precisely the flaw being fixed — `children` is an already-built element
+    tree React may render independently. When the bug *is* concurrent
+    rendering, the fix cannot live in the render tree.
+  - And a convention nobody can verify is worth little, so the invariant is
+    enforced by a recursive test over `(protected)/**/page.*` — with
+    negative controls, and verified by actually adding an unguarded page
+    and watching the suite fail.
+- **Route metadata is evaluated separately from the component.** Even after
+  the leak was closed, the page's `metadata.title` still appeared in the
+  unauthenticated redirect body, because Next evaluates a route's
+  `metadata` export independently. Harmless for a static title; a
+  `generateMetadata` that reads a record would leak that record. A page
+  wrapper cannot cover it — metadata needs its own guard.
+- **`force-dynamic` can be a security requirement.** The build output said
+  `○ (Static)` for the protected route, which meant the authorization check
+  would run once at build time and every visitor would get the same cached
+  answer. Reading the route table in build output is a cheap habit that
+  catches this class of bug instantly.
+- **Prefer the platform for modal dialogs.** `<dialog>` + `showModal()`
+  gives Escape-to-close, focus trapping, focus restoration, and an inert
+  background — the four things hand-rolled drawers get wrong — for free and
+  with no library. Verified: 20 tabs never escaped, and programmatic
+  `.focus()` on background elements was refused by the browser.
+- **A focus-trap assertion needs care.** Tabbing through a modal shows
+  `document.body` as the wrap point, so `dialog.contains(activeElement)`
+  reports false on that step and looks like a leak. The property worth
+  asserting is "focus never lands on a *background focusable element*",
+  not "activeElement is always inside the dialog".
+- **Sidebars come before `<main>` in the DOM.** Using heading elements for
+  navigation group labels therefore put six `h2`s ahead of the page's
+  `h1`. Group labels are not document sections — `aria-labelledby` on the
+  list keeps the association without polluting the heading outline.
+- **A component rendered twice needs `useId()`.** The same navigation
+  renders in the sidebar and the drawer; fixed label ids collided
+  instantly. This is the second time this project has hit duplicate ids
+  from a repeated component (see Phase 2) — worth checking for by default.
+- **Make an unsafe fallback impossible to reach rather than merely
+  discouraged.** Development auth requires a non-production build *and* an
+  explicit opt-in *and* the absence of real Access configuration. Because
+  Next hard-codes `NODE_ENV` at build time, the branch is compiled out of
+  production entirely — no runtime environment variable can resurrect it.
+  Guards that depend on a single flag are one misconfigured deploy away
+  from being disabled.
+- **`node --conditions=react-server`** resolves `server-only` to its no-op
+  build, which is what lets server modules be imported by plain Node test
+  scripts. Without it, `server-only` throws on import and the auth boundary
+  cannot be tested outside a bundler at all.
+
 ## Phase 5
 
 - **The allowlist is the injection defence, and it comes free with good

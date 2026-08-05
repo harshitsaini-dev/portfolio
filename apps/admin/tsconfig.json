@@ -13,6 +13,11 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
+    // The auth modules use explicit `.ts` specifiers so Node can execute
+    // them directly (via type stripping) in the test scripts, without a
+    // build step. Turbopack resolves them identically. Same setup as
+    // packages/database — see docs/DECISIONS.md.
+    "allowImportingTsExtensions": true,
     "plugins": [
       {
         "name": "next"
