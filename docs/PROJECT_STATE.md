@@ -6,26 +6,30 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 5 — Repository/data layer: COMPLETE.** Committed as
-`4bdc487 feat: add typed repository data layer`, verified by **Pull
-Request #8 on GitHub Actions/Linux**, rebase-merged into `main`, and
-verified again by the **post-merge `main` CI run**.
+**Phase 6 — Admin foundation.**
 
-The Linux/CI gap that previously blocked completion is closed. CI proved
-on Linux that `getPlatformProxy`, workerd, and Wrangler's type generation
-all work on a clean runner — the three things that had only ever run on
-Windows.
+- **Implementation:** complete / ready for review on branch
+  `feat/admin-foundation`.
+- **Status:** **awaiting review and Git/CI verification.** Not committed,
+  not pushed, and **not formally complete.**
+- **Phase 5:** Complete (merged to `main`, CI green).
+- **Phase 7:** not started.
+
+Phase 6 is not marked COMPLETE until review, PR CI, merge, and the
+post-merge `main` run all succeed.
 
 ## Active task
 
-Phase 5 completion documentation (documentation-only; no application
-source, repository source, shared types, migration SQL, Wrangler config,
-package manifest, lockfile, workspace config, test, CI, or Cloudflare
-resource changes).
+Phase 6 — admin application shell, protected route architecture, and the
+Cloudflare Access authentication boundary.
 
 ## Blockers
 
-**None for Phase 5.**
+**No implementation blocker.** Two items remain outside the repository:
+Linux/CI execution of the new admin test suites, and the **manual
+Cloudflare Zero Trust dashboard configuration** described under *Manual
+actions* below. The admin app fails closed until that configuration
+exists, which is the intended behaviour rather than a defect.
 
 ## Phase status summary
 
@@ -37,10 +41,219 @@ resource changes).
 | Phase 3 — Design system | **Complete** (merged to `main`, CI green) |
 | Phase 4 — D1 schema/migrations | **Complete** (merged to `main`, CI green) |
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
-| Phase 6 — Admin foundation | Not started (next) |
+| Phase 6 — Admin foundation | Implemented; **awaiting review and CI** |
+| Phase 7 — Projects CMS vertical slice | Not started |
 
-Phases 6–22 are not started. See `docs/ROADMAP.md` for the authoritative
+Phases 7–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
+
+## Phase 6 — completed work
+
+### Authentication architecture
+
+**Cloudflare Access is the identity provider.** There is deliberately **no
+password storage, no session table, no application-issued auth cookie, and
+no NextAuth/Auth.js**. Access authenticates the user at the edge and
+forwards a signed assertion in `Cf-Access-Jwt-Assertion`.
+
+**The application independently verifies that assertion.** Presence of the
+header is not authentication: if the Worker is ever reachable by a path
+that bypasses the Access edge — a misconfigured route, a `workers.dev`
+URL, a preview deployment — anyone can set that header to anything.
+Verifying signature, issuer, audience, and expiry makes a forged header
+worthless. Access is the gate; this is the lock.
+
+| Module | Role |
+| --- | --- |
+| `src/lib/auth/config.ts` | Reads `CF_ACCESS_*`, classifies the environment, owns the development-auth guard |
+| `src/lib/auth/verify.ts` | JWT verification via `jose`; normalizes claims to an identity |
+| `src/lib/auth/guard.ts` | `resolveAdminIdentity` / `getAdminIdentity` / `requireAdminIdentity` / `requireAdminIdentityOrRedirect` |
+| `src/lib/auth/identity.ts` | The three-field identity model and display helpers |
+
+All four are `server-only`, so a Client Component importing them is a build
+error rather than a runtime surprise.
+
+**Fail-closed.** Missing configuration, missing header, malformed token,
+bad signature, wrong audience, wrong issuer, expired token, `alg: none`,
+and HS256 algorithm-confusion all deny access. There is no branch that
+returns an identity without a cryptographically verified token, and a
+configured deployment that fails verification does **not** fall back to the
+development identity.
+
+**Development auth requires three independent conditions**, so no single
+environment variable can enable it and a production build cannot be talked
+into it at all:
+
+1. `NODE_ENV !== "production"` — Next hard-codes this at build time, so the
+   branch is compiled out of a production bundle.
+2. `ADMIN_DEV_AUTH === "enabled"` — explicit opt-in, off by default.
+3. Access must **not** be configured — real Access settings always win.
+
+It is visibly labelled in the UI with a "Development auth" badge, generates
+no credential, and never accepts a forged Access header.
+
+### Route architecture
+
+```
+src/app/
+  layout.tsx              root: html/body, noindex metadata
+  error.tsx               generic error boundary (no message/stack shown)
+  not-found.tsx           404, reveals no route structure
+  denied/page.tsx         generic denial, OUTSIDE the protected group
+  (protected)/
+    layout.tsx            auth boundary + AdminShell; force-dynamic
+    page.tsx              dashboard; guards itself before rendering
+```
+
+### Two security defects found and fixed during verification
+
+1. **The protected route prerendered as static.** The build output showed
+   `○ (Static)`, meaning the authorization check would run once at build
+   time and never per request. Fixed with `export const dynamic =
+   "force-dynamic"`, confirmed by the route becoming `ƒ (Dynamic)`.
+2. **A layout-only redirect still shipped the page's content.** React
+   renders a layout and its `children` concurrently, so the dashboard's
+   full RSC payload was serialized into the 307 response body for
+   unauthenticated requests — verified against a production build
+   (11.9 KB body containing the component tree).
+
+Both now have regression tests.
+
+### Hardening pass — the protected-page invariant
+
+Fixing defect 2 on the one existing route left a fragile convention:
+*every future page must remember to self-guard*. Phase 7 adds several
+routes; forgetting on one would silently reintroduce the disclosure while
+the route still looked protected. That convention has been turned into a
+structural invariant.
+
+**`withAdminPage`** (`src/lib/auth/protected-page.ts`) wraps the page
+*function*, not its output:
+
+```tsx
+export default withAdminPage(async ({ identity }) => { … });
+```
+
+It awaits `requireAdminIdentityOrRedirect()` and only then invokes the
+render callback, so there is no path to page output — JSX or data
+fetching — without a verified identity. The identity is passed in, so
+pages never call the auth layer or see a raw claim. It deliberately is
+**not** a JSX boundary: `<Protected>{children}</Protected>` has the exact
+flaw being fixed.
+
+**Enforced automatically.** `shell-tests.mjs` recursively discovers every
+`(protected)/**/page.*` and fails if one is not exported through
+`withAdminPage`. It is an *architectural regression guard*, not runtime
+auth proof. Negative controls prove it rejects a plain default export, a
+page importing the guard without awaiting it, a page guarding after
+building markup, and a JSX boundary. Verified end to end by temporarily
+adding a nested unguarded page — the suite found it and exited 1 — then
+removing the fixture.
+
+**Proxy remains deferred.** Re-evaluated and rejected again: Next's own
+docs say Proxy is not an authorization solution, so it could never be
+trusted as the boundary; a presence-only check would not stop a forged
+header (the server guard already handles that in ~1 ms with no I/O); and
+duplicating remote-JWKS verification there would add a network dependency
+to every request for no security gain. With the page invariant enforced,
+Proxy adds nothing the server guard does not already do.
+
+## Phase 6 — verification actually performed
+
+| Command | Result |
+| --- | --- |
+| `pnpm install --frozen-lockfile` | **PASS** — lockfile unmodified |
+| `pnpm lint` | **PASS** (exit 0) |
+| `pnpm typecheck` | **PASS** (exit 0) |
+| `pnpm test` | **PASS** — **327 real checks** |
+| `pnpm build` | **PASS** — admin `/` is `ƒ (Dynamic)` |
+
+### Test suites after Phase 6
+
+| Suite | Checks | Real? |
+| --- | --- | --- |
+| UUIDv7 | 26 | Yes |
+| D1 migration smoke | 59 | Yes — real Wrangler/workerd D1 |
+| Repository integration | 111 | Yes — `node:sqlite` D1 adapter |
+| D1 binding compatibility | 38 | Yes — real workerd D1 binding |
+| D1Like type compatibility | 4 | Yes |
+| **Admin authentication** | **42** | **Yes — new** |
+| **Admin foundation** | **47** | **Yes — new, includes the protected-page invariant** |
+| `apps/web` | — | **No — still a no-op** |
+| `apps/admin` | — | **Replaced: no longer a no-op** |
+
+`apps/web` remains the only no-op script. There is still **no UI component
+or end-to-end test coverage**, and admin coverage is focused on the
+authentication boundary rather than exhaustive.
+
+Auth tests generate a throwaway RSA key pair locally and inject the public
+key through the verifier's `keyResolver` seam — **no network, no Cloudflare
+account, no real Access token, no secrets**. Cases: valid token; missing;
+empty; malformed; tampered payload; signed by a different key; expired;
+wrong audience; wrong issuer; no subject; `alg: none`; HS256
+algorithm-confusion; plus configuration and development-guard matrices, and
+identity normalization (exactly `subject`, `email`, `source` — extra claims
+and the raw token are provably absent).
+
+### Browser verification (`playwright-local` MCP)
+
+Viewports: **1440×900**, **1280×800**, **768×1024**, **375×812**.
+
+- No horizontal overflow at any width (1425/1265/753/360 against
+  1440/1280/768/375); zero overflowing elements; 44px minimum touch target.
+- Sidebar visible from `lg`; menu button below it — no width shows both.
+- Console: **0 errors, 0 warnings** (two benign dev-only info lines).
+- Structure: one `<h1>`, heading sequence `H1,H2,H2`, landmarks
+  header/nav/aside/main, **0 duplicate ids**, **0 dangling ARIA refs**,
+  `aria-current="page"` on the active item, `robots: noindex, nofollow,
+  nocache`, no broken links.
+- Keyboard: skip link is the first stop and **moves focus to
+  `MAIN#main-content`**; every stop shows a visible focus ring.
+- Mobile drawer (native `<dialog>` + `showModal()`): opens by keyboard,
+  `:modal` true, focus moves inside, **20 tabs never reached a background
+  element**, background genuinely inert (programmatic `.focus()` on the
+  skip link and menu button both refused), Escape closes, focus returns to
+  the trigger, `aria-expanded` tracks state.
+- Security: no JWT-shaped string, no `CF_ACCESS*`, no team domain, and no
+  header name in the rendered HTML. Unauthenticated and forged-header
+  requests both 307 to `/denied` with no admin content and no denial reason.
+  Re-verified after the hardening pass against a **production build**, on
+  four request shapes — plain HTML, `RSC: 1`, forged `alg: none` header, and
+  forged header + `RSC: 1`: no `<aside>`, no `<nav>`, no `<dialog>`, and
+  none of the dashboard or navigation text. The RSC responses have a
+  **zero-length body**.
+  - **Residual, documented for Phase 7:** the page's static
+    `metadata.title` ("Dashboard · Portfolio Admin") still appears in the
+    redirect body, because Next evaluates a route's `metadata` export
+    independently of its component. Harmless here — it is a fixed route
+    title, not data. It matters in Phase 7: a `generateMetadata` that reads
+    a record (e.g. a project title) **must guard too**, since
+    `withAdminPage` only wraps the component.
+- Reduced motion: transitions collapse to `1e-05s`, zero running
+  animations.
+- Colour schemes: light `rgb(251,251,252)` / dark `rgb(11,12,16)` from the
+  shared tokens. **No theme controls were added** — that is Phase 10.
+
+## Phase 6 — known limitations
+
+- **Not yet reviewed, committed, or run on Linux/CI.**
+- **Cloudflare Zero Trust configuration is not done** — no Access
+  application exists, so no real Access token has ever been verified
+  end to end. The verifier is proven against locally minted tokens only.
+- **No CSP.** Deferred to the security/deployment phases; a guessed CSP
+  that breaks Next silently is worse than none. Other headers are set.
+- **No CRUD, no repository wiring.** The admin app does not touch D1 yet.
+- **Admin test coverage is focused, not exhaustive** — the auth boundary is
+  covered thoroughly; the shell is covered structurally.
+- **`generateMetadata` is not covered by `withAdminPage`.** Route metadata
+  is evaluated independently of the component, so a Phase 7 page whose
+  metadata reads a record must guard inside `generateMetadata` as well. No
+  current page does this (all metadata is static), and the invariant test
+  does not yet check for it.
+- `next dev` prints a `MODULE_TYPELESS_PACKAGE_JSON` warning when Node
+  runs the `.mjs` test scripts against `.ts` sources. Cosmetic; adding
+  `"type": "module"` to a Next app's manifest is a riskier change than the
+  warning justifies.
 
 ### Phase 5 — what was delivered
 
@@ -1126,21 +1339,42 @@ pre-existing local artifacts.
 
 ## Manual actions still required from the user
 
-- Merge this documentation branch (`docs/phase-5-completion`) once
-  reviewed.
+- Review the Phase 6 changes on `feat/admin-foundation` and commit them
+  (nothing has been committed).
+
+### Cloudflare Zero Trust — required before the admin app is usable in any deployed environment
+
+**Not done in this task, and not doable from here** — it is dashboard
+configuration, and creating it would have meant mutating Cloudflare
+resources. Until it exists, the deployed admin app denies every request,
+which is the intended fail-closed behaviour.
+
+1. In Cloudflare Zero Trust, create a **self-hosted Access application**
+   covering the admin hostname.
+2. Add an access policy (e.g. allow one specific email address).
+3. Copy the application's **AUD tag** and the **team domain**.
+4. Set `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD` in the deployed
+   environment. Neither is a secret; no API token is needed and none
+   should be created for this.
+5. Confirm a real Access session reaches the dashboard — the verifier has
+   so far only been proven against locally minted tokens.
+
+Local development needs none of this: set `ADMIN_DEV_AUTH=enabled` in
+`apps/admin/.env.local`.
+
 - Decide when to apply `0001_initial_schema.sql` to the remote
-  `portfolio-cms` database. It is intentionally still pending there;
-  applying it is a deliberate, controlled human step, now sensible at any
-  point since the repository layer can read the schema.
+  `portfolio-cms` database. Still intentionally pending; **unchanged by
+  Phase 6**, which touches no database.
 - Optionally confirm via `/status` that the project `.claude/settings.json`
   is loaded (cannot be checked from a tool call).
 
 ## Next suggested task
 
-**Phase 6 — Admin foundation.** The authenticated `apps/admin` shell:
-authentication, protected routing, and layout, ahead of any CRUD. That is
-where `createRepositories(env.DB)` gets wired to a real binding for the
-first time, and where the bootstrap operation that creates required
-singleton rows belongs.
+**Phase 7 — Projects CMS vertical slice.** One entity end to end: list,
+create, edit, and delete projects through the admin UI, backed by the
+Phase 5 `projects` repository. This is where `createRepositories(env.DB)`
+first meets a real binding in application code, where Zod form/input
+validation earns its place at the request boundary, and where the
+singleton-bootstrap question gets answered for real.
 
 Not implemented as part of this task.

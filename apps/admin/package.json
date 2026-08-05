@@ -8,12 +8,15 @@
     "start": "next start -p 3001",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "echo \"[admin] no automated tests yet (Phase 1A)\" && exit 0"
+    "test": "node --conditions=react-server scripts/auth-tests.mjs && node --conditions=react-server scripts/shell-tests.mjs"
   },
   "dependencies": {
+    "@portfolio/ui": "workspace:*",
+    "jose": "6.2.8",
     "next": "16.3.0",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

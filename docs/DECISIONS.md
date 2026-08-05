@@ -3,6 +3,101 @@
 Notable architectural/tooling decisions and their rationale. Append new
 entries; do not delete history.
 
+## 2026-08-06 — Phase 6 admin foundation
+
+- **Cloudflare Access is the identity provider; the app stores no
+  passwords and issues no sessions.** Access already authenticates at the
+  edge, supports SSO and one-time PINs, and is free at this scale. Adding
+  NextAuth or a credentials table would mean owning password hashing,
+  reset flows, session invalidation, and a breach surface — to reimplement
+  something already in front of the app.
+- **But the app still verifies the Access JWT.** "The header is present"
+  is not authentication: if the Worker is ever reachable without
+  traversing the Access edge, anyone can set that header. Verifying
+  signature, issuer, audience, and expiry makes a forged header worthless.
+  Access is the gate, verification is the lock.
+- **`jose` for JWT verification, not hand-written crypto.** Zero
+  dependencies, audited, Web Crypto based (so it runs unchanged on
+  Workers), and 2.4 days old at install so no `minimumReleaseAgeExclude`
+  was needed. Hand-rolled JWT code is a well-known source of critical
+  bugs — `alg: none`, HMAC/RSA confusion, unchecked `kid`, missing expiry.
+  Both classic bypasses are covered by tests.
+- **Algorithms pinned to `RS256`.** Without pinning, an attacker can
+  present a token signed with an algorithm we never intended to accept.
+- **Development auth needs three independent conditions**, not one flag:
+  a non-production build (Next hard-codes `NODE_ENV` at build time, so the
+  branch is compiled out), an explicit `ADMIN_DEV_AUTH=enabled`, and the
+  absence of Access configuration. A single environment variable cannot
+  enable it, and no combination enables it in a production build. It is
+  also visibly badged in the UI, so if it ever appeared in a real
+  deployment it would be obvious rather than silent.
+- **No `proxy.ts`.** Next 16 renamed Middleware to Proxy, and its own docs
+  say Proxy "should not be used as a full session management or
+  authorization solution". The authoritative check belongs in the server
+  layout and pages; security headers belong in `next.config.ts`, where
+  they also cover non-HTML responses. Adding a Proxy layer would have
+  duplicated the check without being allowed to be trusted.
+- **`export const dynamic = "force-dynamic"` on the protected layout is
+  security, not performance.** Without it Next prerendered the route and
+  the authorization check would have run once at build time. Next cannot
+  infer the request dependency because the header is read through a
+  dynamically imported, injectable reader.
+- **Every protected page guards itself, in addition to the layout.** This
+  is not redundant. React renders a layout and its `children`
+  concurrently, so a layout-only redirect still serializes the page's
+  output into the redirect response — verified against a production build,
+  where an unauthenticated `GET /` returned an 11.9 KB body containing the
+  dashboard's RSC payload. Awaiting the guard before producing JSX is what
+  actually prevents the disclosure; the layout remains the boundary that
+  catches a page which forgets.
+- **`withAdminPage` wraps the page function, not its output.** Relying on
+  each page to remember an `await` line is a convention one Phase 7 route
+  can silently break, while still *looking* protected because it sits under
+  the protected layout. Wrapping the function makes the ordering structural:
+  the render callback is only ever invoked on the line after the guard
+  resolves, so there is no path to page output without a verified identity.
+  - It deliberately is **not** a JSX boundary. `<Protected>{children}</Protected>`
+    has exactly the flaw being fixed — `children` is an already-constructed
+    element tree React may render independently of the parent's decision.
+  - It is **not** another layout either, for the same reason.
+  - The identity is passed into the callback so pages never call the auth
+    layer themselves and never see a token or raw claim.
+- **The invariant is enforced by a test, not by documentation.** A
+  recursive source-policy check fails the suite if any
+  `(protected)/**/page.*` is not exported through `withAdminPage`. It is an
+  *architectural regression guard*, not runtime authentication proof —
+  runtime behaviour is covered by the 42 auth tests and browser
+  verification. It carries negative controls proving it rejects a plain
+  default export, a page that imports the guard but never awaits it, a page
+  that guards after building markup, and a JSX boundary.
+- **`redirect()` rather than `unauthorized()`.** `unauthorized()` would
+  express the 401 more precisely, but it is still experimental behind
+  `authInterrupts`, and a security boundary is the wrong place to depend
+  on an experimental flag.
+- **Native `<dialog>` + `showModal()` for the mobile drawer.** Escape,
+  focus trapping, focus restoration, and background inertness are all
+  provided by the platform, correctly, with no library and no bundle cost.
+  Each of those is a classic hand-rolled-drawer bug.
+- **Navigation group labels are `<p>`, not `<h2>`.** The sidebar precedes
+  `<main>` in DOM order, so heading elements there put six `h2`s ahead of
+  the page's `h1`. They are group labels, not document sections;
+  `aria-labelledby` preserves the association without polluting the
+  outline.
+- **Unbuilt sections are listed but not linked.** A nav item pointing at a
+  404, or at a convincing empty screen, is worse than an honest "Phase 8"
+  label. Unavailable items are inert text with no `href`, so they are not
+  focusable and cannot be dead links.
+- **No CSP yet.** A CSP strict enough to be useful needs a nonce threaded
+  through Next's script loading, and getting it wrong breaks the app
+  silently. Deferred to the dedicated security and deployment phases where
+  it can be verified in a browser. `X-Frame-Options: DENY`,
+  `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, and
+  `X-Robots-Tag` are set now because they are unambiguous and
+  non-breaking.
+- **`server-only` added.** It converts "please do not import this into a
+  client bundle" from a comment into a build error, for the four modules
+  where that mistake would matter most. Zero dependencies.
+
 ## 2026-08-06 — Phase 5 repository/data layer
 
 - **No Zod, and no validation library at all, in this layer.** Phase 5's

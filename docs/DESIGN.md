@@ -1,7 +1,27 @@
 # Design
 
-**Status: design system established (Phase 3).** The public portfolio runs
-on it. `apps/admin` has not adopted it yet — that happens in Phase 6.
+**Status: design system established (Phase 3), adopted by both apps
+(Phase 6).** `apps/web` and `apps/admin` now import the same
+`@portfolio/ui/tokens.css`, which closes the Phase 3 limitation that the
+admin app had not adopted the shared tokens.
+
+## Admin surface (Phase 6)
+
+The admin app uses the same tokens, type scale, focus ring, and
+reduced-motion handling as the public site, tuned for work rather than
+spectacle:
+
+- **No decorative glow.** The hero's accent wash is a public-site device;
+  the admin surface has none.
+- **Accent reserved for two things**: the active navigation item and the
+  focus ring. Nothing else competes.
+- **Denser layout** — a 16px header bar, a 64px sidebar rail of grouped
+  links, and cards at `p-5` rather than the public site's roomier rhythm.
+- **Unavailable sections are visibly inert**, with the delivering phase
+  shown as text rather than a tooltip, so the information is not
+  hover-only.
+- **No emoji in navigation.** The only two glyphs are the menu and close
+  affordances, both `aria-hidden` with real text labels alongside.
 
 ## Direction
 
