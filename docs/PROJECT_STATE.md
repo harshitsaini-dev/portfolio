@@ -6,20 +6,29 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 3 — Design system: COMPLETE.** Committed as
-`feat: establish portfolio design system`, verified by Pull Request #4
-GitHub Actions, merged into `main`, and verified again by the post-merge
-`main` CI run.
+**Phase 4 — D1 schema/migrations.**
+
+- **Implementation:** complete / ready for review.
+- **Status:** **awaiting Git/CI verification.** Not committed, not pushed,
+  and **not formally complete.**
+- **Phase 5:** not started.
+
+The migration smoke test has passed only on Windows, locally. It has never
+executed on GitHub Actions or on Linux. Phase 4 is not marked COMPLETE
+until PR CI, merge, and the post-merge `main` run all succeed.
 
 ## Active task
 
-Phase 3 completion documentation (documentation-only; no application
-code, package manifest, lockfile, CI, configuration, dependency, or
-design-system changes).
+Phase 4 — D1 schema design, versioned migrations, D1 management config,
+and the migration smoke test.
 
 ## Blockers
 
-**None for Phase 3.**
+**No implementation blocker.** One verification gap remains: **Linux/CI
+execution of the D1 smoke test is pending.** It spawns `workerd` via
+Wrangler, which needs its platform binary installed by a postinstall
+script on the runner — proven locally, unproven on CI until the first
+push.
 
 ## Phase status summary
 
@@ -29,10 +38,180 @@ design-system changes).
 | Phase 1 — Docs/spec + repo + CI + CLAUDE.md + `.claude` skills | **Complete** |
 | Phase 2 — Static responsive portfolio | **Complete** (merged to `main`, CI green) |
 | Phase 3 — Design system | **Complete** (merged to `main`, CI green) |
-| Phase 4 — D1 schema/migrations | Not started (next) |
+| Phase 4 — D1 schema/migrations | Implemented; **awaiting Git/CI verification** |
 
 Phases 5–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
+
+## Phase 4 — completed work
+
+### Delivered
+
+- **`migrations/0001_initial_schema.sql`** — the complete CMS schema as
+  one versioned, immutable migration: **20 tables, 20 indexes**, 41 SQL
+  statements. Full column/relationship/constraint reference in
+  `docs/DATABASE.md`.
+- **`wrangler.d1.jsonc`** — D1 management config (binding `DB`, database
+  `portfolio-cms`, real database id, `migrations_dir: migrations`),
+  deliberately separate from any future app deployment config.
+- **Wrangler 4.118.0** added as a root workspace devDependency (not
+  global). See the supply-chain note below for why not 4.119.0.
+- **`packages/database/scripts/migrations-smoke-test.mjs`** — the
+  project's first real automated test.
+- `.gitignore` now excludes `.wrangler/` and `.dev.vars*`.
+- `pnpm-workspace.yaml` gained `allowBuilds` entries for `workerd` and
+  `esbuild` (both need their postinstall to fetch platform binaries;
+  `workerd` is the runtime that backs local D1). Each entry is justified
+  in-file; this is not a blanket script opt-in.
+
+### Supply-chain correction (pre-commit review)
+
+`pnpm add -w -D wrangler@4.119.0` silently appended a
+`minimumReleaseAgeExclude` block to `pnpm-workspace.yaml`, exempting
+`wrangler@4.119.0` and `miniflare@5.20260801.0-alpha` from pnpm's
+supply-chain age policy. **That was rejected, not accepted.**
+
+- The active policy is pnpm 11's **default 24-hour `minimumReleaseAge`**.
+  It is not configured in this repository or in user config — the repo
+  inherits the default. (`pnpm config get minimumReleaseAge` → `undefined`,
+  yet installs report "Verifying lockfile against supply-chain policies".)
+- Wrangler **4.119.0 was 7.5 hours old** — squarely inside the window the
+  policy exists to protect against, since compromised publishes are
+  typically caught and yanked within days. Auto-excluding it defeated the
+  entire control.
+- Note that `miniflare@5.20260801.0-alpha` was *also* published the same
+  day despite its `20260801` version string — the version string is not
+  the publish date.
+- **Resolution: pinned `wrangler@4.118.0`** (published 5.3 days earlier,
+  comfortably outside the window), restored `pnpm-lock.yaml` to its
+  pre-wrangler state, and re-resolved. **Both
+  `minimumReleaseAgeExclude` entries were removed**, and the policy now
+  passes with no exemptions at all.
+- `pnpm install --frozen-lockfile` succeeds and
+  `pnpm exec wrangler --version` reports `4.118.0`.
+- 4.118.0 pins the same class of alpha miniflare as 4.119.0, so nothing
+  was gained or lost there; it is wrangler's own dependency choice.
+
+`allowBuilds` and `minimumReleaseAgeExclude` are **not equivalent** and
+were reviewed separately. `allowBuilds` permits a named package's install
+script to run; the age policy governs whether a freshly published version
+may enter the lockfile at all. The three `allowBuilds` entries
+(`unrs-resolver`, `workerd`, `esbuild`) are each exact package names, each
+verified to have a real `postinstall` that fetches a platform binary, and
+each justified in-file. There is no wildcard or blanket approval.
+
+### Explicitly NOT done (Phase 5+)
+
+`packages/database/src/index.ts` remains **export-only**. No repository,
+service, query, `prepare()` call, loader, route handler, or CRUD API was
+written. No D1 access exists in any React component. No Zod domain
+schemas, no auth, no R2, no contact backend, no deployment config, and no
+production data.
+
+**No application code changed**, so no Playwright regression run was
+needed.
+
+## Phase 4 — verification actually performed
+
+| Command | Result |
+| --- | --- |
+| `pnpm install` | **PASS** — `workerd`/`esbuild` postinstalls ran |
+| `pnpm lint` | **PASS** (exit 0) |
+| `pnpm typecheck` | **PASS** (exit 0) |
+| `pnpm test` | **PASS** — now partly real, see below |
+| `pnpm build` | **PASS** (exit 0) |
+
+### Local migration verification
+
+From a deleted `.wrangler/` (clean state), using `wrangler.d1.jsonc`:
+
+- `migrations list --local` before applying → `0001_initial_schema.sql`
+  listed as pending.
+- `migrations apply --local` → **41 commands executed successfully**,
+  exit 0.
+- `migrations apply --local` again → **"No migrations to apply!"** —
+  idempotent at the runner level.
+- `migrations list --local` after → no unapplied migrations remaining.
+
+### Automated migration smoke test — 59/59 assertions passed
+
+*(Was 57. The pre-commit review added two assertions covering the
+singleton-key correction: that the PRIMARY KEY allows at most one profile
+row, and that the table legitimately permits zero rows.)*
+
+Run by `pnpm test`. It applies all migrations to a throwaway local D1
+instance in an OS temp directory and asserts:
+
+- all **20 expected tables** exist, and **no unexpected tables** were
+  created;
+- all **20 expected indexes** exist;
+- `PRAGMA foreign_key_check` returns **zero violations** — both after
+  migration and again after all constraint exercises;
+- `projects.cover_media_id` genuinely references `media_assets`;
+- constraints actually **reject** bad data: non-0/1 boolean, negative
+  position, invalid enum value, non-singleton id, a second singleton row,
+  orphan foreign key, duplicate project slug, duplicate join pair,
+  `ON DELETE RESTRICT` on a technology still in use, and a second current
+  résumé;
+- singleton-key tables **permit zero rows** — the schema bounds the
+  maximum, it does not force existence;
+- `ON DELETE CASCADE` really removes a project's links with the project.
+
+**Portability.** All paths derive from `import.meta.url` through Node's
+`path`/`url` APIs — no `process.cwd()`, no hardcoded separators, no
+user-specific absolute paths. The Wrangler entry point is located via
+`createRequire(...).resolve("wrangler/package.json")` and the package's
+declared `bin` field, rather than a hardcoded `node_modules/...` path, so
+it does not depend on pnpm's hoisting layout or wrangler's internal file
+structure. Verified to pass identically when invoked from the workspace
+root, from `packages/database`, and from an unrelated directory
+(`apps/web`). `shell: false` is retained for SQL argument safety, and the
+string `--remote` appears nowhere except a comment forbidding it.
+
+The test needs **no Cloudflare authentication** — verified by running the
+full suite with a deliberately invalid `CLOUDFLARE_API_TOKEN`, which still
+passed 57/57. It contains no `--remote` flag.
+
+One real issue surfaced during development: the first run failed on
+"no unexpected tables" because D1 creates an internal `_cf_METADATA`
+table. Inspected, confirmed to be platform-owned rather than
+migration-created, and excluded from that assertion alongside `sqlite_*`
+and `d1_*`.
+
+### Remote database status — NOT MIGRATED
+
+The remote `portfolio-cms` database exists (created by the user) and was
+**left untouched**. Verified two ways after all local work:
+
+- `wrangler d1 list` → `num_tables: 0`
+- `wrangler d1 migrations list --remote` → still reports
+  `0001_initial_schema.sql` as **to be applied**
+
+No `--remote` apply, no remote SQL execution, no destructive command, and
+no additional Cloudflare resource was created.
+
+## Phase 4 — known limitations
+
+- **Remote schema is not deployed.** Deliberate — applying remotely is a
+  human-initiated step, appropriate once Phase 5 can actually read the
+  schema.
+- **`pnpm test` is only partly real.** The database smoke test is genuine;
+  `apps/web` and `apps/admin` `test` scripts remain no-op placeholders
+  asserting nothing. There is still **zero UI, component, integration, or
+  end-to-end coverage**.
+- **The schema is unexercised by application code.** Its shape is proven
+  correct and self-consistent, but no repository layer has yet tried to
+  satisfy a real query against it; Phase 5 may surface ergonomic gaps.
+- **No seed data.** No fixtures exist beyond the throwaway rows the smoke
+  test creates and discards. No real personal data was inserted anywhere.
+- **CI has not yet run this test.** The smoke test passes locally on
+  Windows; its first Linux/CI execution happens on push.
+- `wrangler` pulls in `miniflare@5...-alpha` as a transitive dependency —
+  wrangler's own choice, recorded in `pnpm-workspace.yaml`'s
+  `minimumReleaseAgeExclude`, and only used by local tooling, never
+  shipped to users.
+
+## Phase 3 — summary (complete)
 
 ### Phase 3 — what was delivered
 
@@ -603,14 +782,14 @@ CI is therefore verified end to end on a fresh runner: install with a
 frozen lockfile, lint, typecheck, test, and build all succeed without any
 pre-existing local artifacts.
 
-## Known limitations (not blockers)
+## Phase 1 — known limitations (historical)
 
-- **Automated test coverage is zero.** The `test` scripts in both apps
-  remain explicit Phase 1 foundation no-ops that print
-  `"[app] no automated tests yet (Phase 1A)"` and exit 0. They assert
-  nothing. No unit or integration tests exist. The CI `test` step is wired
-  and green, but that green means the script ran — not that any behavior
-  is tested.
+- **Automated test coverage was zero at Phase 1.** The `test` scripts in
+  both apps were explicit no-ops printing
+  `"[app] no automated tests yet (Phase 1A)"` and exiting 0, asserting
+  nothing. *Partly superseded in Phase 4*, which added a real D1 migration
+  smoke test under `@portfolio/database`; the two app scripts are still
+  no-ops, so there remains zero UI/integration/E2E coverage.
 - **Keyboard/focus verification was N/A at the time of Phase 1**, not
   passed: both shells then contained zero focusable application controls.
   Superseded for `apps/web` by the Phase 2 keyboard verification recorded
@@ -622,17 +801,22 @@ pre-existing local artifacts.
 
 ## Manual actions still required from the user
 
-- Merge this documentation branch (`docs/phase-3-completion`) once
-  reviewed.
+- Review the Phase 4 changes on `feat/d1-schema-migrations` and commit
+  them (nothing has been committed).
+- Decide when to apply `0001_initial_schema.sql` to the remote
+  `portfolio-cms` database. It is intentionally still pending there;
+  applying it is a deliberate human step, sensibly done once Phase 5 can
+  read the schema.
 - Optionally confirm via `/status` that the project `.claude/settings.json`
   is loaded (cannot be checked from a tool call).
 
 ## Next suggested task
 
-**Phase 4 — D1 schema/migrations.** Define the Cloudflare D1 schema and
-migrations for the entities listed in `docs/DATABASE.md`. Note that the
-temporary `apps/web/src/data/` placeholder module is still the only
-content source and is not replaced until the repository/data layer in
-Phase 5.
+**Phase 5 — Repository/data layer.** Implement repository/service
+abstractions in `packages/database` over the Phase 4 schema — typed
+queries and prepared statements consumed by `apps/web` and `apps/admin`,
+with no raw SQL in application code. The temporary
+`apps/web/src/data/` placeholder module remains the only content source
+until that layer replaces it.
 
 Not implemented as part of this task.

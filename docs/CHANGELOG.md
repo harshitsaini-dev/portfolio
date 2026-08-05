@@ -1,5 +1,55 @@
 # Changelog
 
+## 2026-08-06 — Phase 4: D1 schema/migrations (branch `feat/d1-schema-migrations`)
+
+- Added `migrations/0001_initial_schema.sql` — the complete CMS schema in
+  one versioned, immutable migration: **20 tables, 20 indexes**, 41 SQL
+  statements. Seventeen tables come from the approved entity list; three
+  (`media_assets`, `project_links`, `timeline_highlights`) are deliberate
+  relational additions, each justified in `docs/DATABASE.md`.
+- Established schema conventions: TEXT UUIDv7 primary keys, TEXT ISO-8601
+  UTC timestamps, `INTEGER 0/1` booleans with CHECK, CHECK-constrained
+  enums, `position >= 0` ordering, unique slugs, and singleton tables
+  guarded by `CHECK (id = 'singleton')`.
+- Delete behavior chosen per relationship — CASCADE only for genuinely
+  owned children, RESTRICT where a silent delete would destroy content,
+  SET NULL for optional decoration.
+- Added `wrangler.d1.jsonc`, a D1-management-only config (binding `DB`,
+  `portfolio-cms`, `migrations_dir: migrations`), deliberately separate
+  from any future app deployment config. Contains no secrets.
+- Added **Wrangler 4.118.0** as a root workspace devDependency (not
+  global). `allowBuilds` entries added for `workerd` and `esbuild`, both
+  needed to fetch platform binaries for local D1.
+- **Supply-chain policy preserved.** `pnpm add` had silently written
+  `minimumReleaseAgeExclude` entries exempting `wrangler@4.119.0` (7.5
+  hours old) and its miniflare from pnpm's default 24-hour release-age
+  policy. Rather than accept the exemption, pinned the previous wrangler
+  release, re-resolved the lockfile, and **removed both exclusions** — the
+  policy now passes with no exemptions.
+- Gitignored `.wrangler/` and `.dev.vars*`.
+- **Added the project's first real automated test:**
+  `packages/database/scripts/migrations-smoke-test.mjs`, wired into
+  `pnpm test`. It applies all migrations to a throwaway local D1 instance
+  and runs **59 assertions** — table/index presence, no unexpected tables,
+  `PRAGMA foreign_key_check`, constraints actually rejecting bad data, and
+  `ON DELETE CASCADE` actually cascading. No test framework added; local
+  only; needs no Cloudflare authentication.
+- **Corrected singleton semantics.** Documentation and SQL comments had
+  claimed `PRIMARY KEY CHECK (id = 'singleton')` guarantees "exactly one
+  row". It guarantees **at most one**; the schema permits zero, and
+  ensuring a required singleton exists is Phase 5 bootstrap
+  responsibility. Terminology changed to "singleton-key", and two
+  assertions added proving both halves of the real guarantee.
+- Verified locally: migrations apply from clean state (41 commands), are
+  idempotent at the runner level, and leave nothing pending.
+- **The remote `portfolio-cms` database was NOT migrated** — still
+  `num_tables: 0`, with `0001` reported as pending by
+  `migrations list --remote`. No remote apply, no destructive SQL, no new
+  Cloudflare resources.
+- No repository/query code was written; `packages/database/src` stays
+  export-only. No application code changed.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` all pass.
+
 ## 2026-08-06 — Phase 3 complete
 
 Documentation-only entry. No application code, package manifest, lockfile,

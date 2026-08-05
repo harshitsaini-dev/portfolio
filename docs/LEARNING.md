@@ -3,6 +3,76 @@
 Notes on things learned while building this project that are worth
 remembering for future work.
 
+## Phase 4
+
+- **`shell: true` re-splits your arguments.** The smoke test first drove
+  `pnpm exec wrangler`, which on Windows needs `shell: true` to resolve
+  the `.cmd` shim — and the shell then split every SQL string on
+  whitespace, so `--command "SELECT name FROM ..."` arrived as fifteen
+  separate arguments. Spawning the tool's JS entry directly
+  (`node node_modules/wrangler/bin/wrangler.js`) keeps `shell: false` and
+  argv exact everywhere. Rule of thumb: if an argument can contain spaces,
+  never route it through a shell.
+- **A schema you have only read is a schema you have not tested.**
+  Writing DDL that *looks* correct is easy; proving a CHECK actually
+  rejects `is_visible = 7`, or that RESTRICT actually blocks a delete,
+  takes a real engine. The smoke test tries to insert bad rows and asserts
+  the database says no — which is a different and much stronger claim than
+  "the constraint appears in the file".
+  - It paid off immediately: the run surfaced an unexpected `_cf_METADATA`
+    table. That turned out to be a D1 internal rather than a schema bug,
+    but the check did its job — it noticed something the author did not
+    know was there.
+- **Constraint tests need negative controls or they pass vacuously.** If
+  every statement errored for an unrelated reason — bad config, wrong
+  path — "the database rejected it" would still be true and every
+  assertion would pass. Here the valid seed inserts must succeed (the
+  helper throws on unexpected non-zero exit), so the suite proves the
+  database distinguishes good rows from bad ones, not merely that it
+  complains.
+- **Prove the offline claim rather than asserting it.** "This test doesn't
+  need Cloudflare auth" is easy to write and easy to get wrong. Running
+  the whole suite with a deliberately invalid `CLOUDFLARE_API_TOKEN` — and
+  seeing 57/57 still pass — turns it into evidence.
+- **Decide `ON DELETE` per relationship.** Defaulting everything to
+  CASCADE is how deleting one tag silently strips it from thirty published
+  projects. The useful question is "does the parent *own* this child?" —
+  CASCADE if yes, RESTRICT if the delete would destroy independent
+  content, SET NULL if the reference is decoration.
+- **Partial unique indexes enforce "at most one X" in the database.**
+  `CREATE UNIQUE INDEX ... WHERE is_current = 1` makes "only one current
+  résumé" impossible to violate, instead of a rule every future code path
+  has to remember.
+- **Migrations are append-only history, not editable files.** The runner
+  records what it applied by name; editing an applied file means the new
+  content never runs anywhere it is already recorded, and environments
+  quietly diverge. (The rule binds once a migration is committed or
+  applied anywhere shared. Correcting a comment in an uncommitted
+  migration that has only ever touched disposable local state is fine —
+  and better than shipping a wrong comment forever.)
+- **"At most one" is not "exactly one".** `id TEXT PRIMARY KEY CHECK
+  (id = 'singleton')` prevents a *second* settings row. It does nothing to
+  guarantee a *first* one — the table is legitimately empty until
+  something writes to it. Documenting it as "exactly one row" would have
+  had every future reader assume a singleton read can't return null. A
+  schema constrains what is *possible*; making something *exist* is
+  bootstrap work.
+- **When a package manager offers to disable a security check, that is the
+  moment to look closely.** `pnpm add wrangler@latest` hit the default
+  24-hour `minimumReleaseAge` and resolved it by writing exclusion entries
+  for the offending packages — leaving a green install and a quietly
+  weakened policy. The version was 7.5 hours old, which is exactly the
+  window the control exists for. Pinning the previous release satisfied
+  the policy with zero exemptions and cost nothing.
+  - Related trap: `miniflare@5.20260801.0-alpha` *looks* like it was
+    published on 1 August. It was published the same day as the wrangler
+    release. A date embedded in a version string is a label, not evidence
+    — check `npm view <pkg> time`.
+- **Don't hardcode `node_modules/...` paths.** Resolving a CLI's entry
+  point through `createRequire().resolve('<pkg>/package.json')` plus the
+  package's declared `bin` field survives hoisting-layout changes and
+  upstream file moves, and needs no extra dependency.
+
 ## Phase 3
 
 - **A contrast script that regex-scrapes `getComputedStyle` will lie to

@@ -1,0 +1,38 @@
+{
+  // ---------------------------------------------------------------------
+  // D1 DATABASE MANAGEMENT ONLY — this is not a deployment config.
+  //
+  // Its single job is to give `wrangler d1 ...` commands a binding, a
+  // database, and a migrations directory, so schema work can happen before
+  // any Worker exists. It is deliberately separate from the eventual
+  // OpenNext deployment configs for `apps/web` and `apps/admin` because:
+  //
+  //   * Schema migrations are a repository-level concern owned by
+  //     `migrations/`, not by either app. Both apps will eventually bind the
+  //     same database; neither should own its migration history.
+  //   * A deployment config needs compatibility dates, build output
+  //     directories, routes, and per-environment bindings — none of which
+  //     are decided yet (deployment is Phase 22). Guessing them now would
+  //     bake in choices this phase has no basis to make.
+  //   * Keeping them apart means running a migration can never accidentally
+  //     publish a Worker.
+  //
+  // Contains no secrets. `database_id` is a resource identifier, not a
+  // credential; authentication comes from the developer's own Wrangler
+  // OAuth session and is never stored in the repository.
+  //
+  // Usage (always local in this phase — see docs/DATABASE.md):
+  //   pnpm exec wrangler d1 migrations list  portfolio-cms --local -c wrangler.d1.jsonc
+  //   pnpm exec wrangler d1 migrations apply portfolio-cms --local -c wrangler.d1.jsonc
+  // ---------------------------------------------------------------------
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "portfolio-d1-admin",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "portfolio-cms",
+      "database_id": "1e85ce4f-d5e4-44e4-b589-e00992bc0b60",
+      "migrations_dir": "migrations"
+    }
+  ]
+}
