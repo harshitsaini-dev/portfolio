@@ -1,5 +1,7 @@
 import { PlaceholderAction } from "@/components/placeholder-action";
 import { Section } from "@/components/section";
+import { Surface } from "@/components/ui/surface";
+import { type } from "@/components/ui/typography";
 import type { Certification, EducationEntry } from "@/data/types";
 
 interface EducationSectionProps {
@@ -8,34 +10,42 @@ interface EducationSectionProps {
 }
 
 /**
- * Education and certifications share one section. They are closely related
- * for the reader, and grouping them avoids two very short sections competing
- * for the same place in the page rhythm. Each still gets its own <h3>.
+ * Education and certifications share one section. They answer the same
+ * question for the reader, and splitting them produced two very short
+ * sections competing for the same place in the page rhythm. Each keeps its
+ * own `<h3>`.
  */
 export function EducationSection({
   education,
   certifications,
 }: EducationSectionProps) {
   return (
-    <Section id="education" title="Education & certifications">
-      <div className="grid gap-10 lg:grid-cols-2">
+    <Section
+      id="education"
+      eyebrow="Background"
+      title="Education & certifications"
+    >
+      <div className="grid gap-12 lg:grid-cols-2 lg:gap-10">
         <div>
-          <h3 className="text-base font-semibold">Education</h3>
-          <ol className="mt-4 space-y-6">
+          <h3 className={type.minorHeading}>Education</h3>
+          <ol className="mt-6 space-y-8">
             {education.map((entry) => {
               const headingId = `${entry.id}-heading`;
 
               return (
                 <li key={entry.id}>
                   <article aria-labelledby={headingId}>
-                    <p className="text-sm text-muted">{entry.period}</p>
-                    <h4 id={headingId} className="mt-1 font-medium">
+                    <p className={type.meta}>{entry.period}</p>
+                    <h4
+                      id={headingId}
+                      className="mt-1.5 font-semibold tracking-tight text-fg"
+                    >
                       {entry.qualification}
                     </h4>
-                    <p className="text-sm text-muted">{entry.institution}</p>
-                    <p className="mt-2 text-sm leading-relaxed text-muted">
-                      {entry.summary}
+                    <p className="mt-0.5 text-sm font-medium text-accent">
+                      {entry.institution}
                     </p>
+                    <p className={`mt-2.5 ${type.bodySm}`}>{entry.summary}</p>
                   </article>
                 </li>
               );
@@ -44,28 +54,31 @@ export function EducationSection({
         </div>
 
         <div>
-          <h3 className="text-base font-semibold">Certifications</h3>
-          <ul className="mt-4 space-y-6">
+          <h3 className={type.minorHeading}>Certifications</h3>
+          <ul className="mt-6 space-y-4">
             {certifications.map((certification) => {
               const headingId = `${certification.id}-heading`;
 
               return (
                 <li key={certification.id}>
-                  <article aria-labelledby={headingId}>
-                    <p className="text-sm text-muted">
-                      Issued {certification.issued}
-                    </p>
-                    <h4 id={headingId} className="mt-1 font-medium">
+                  <Surface as="article" aria-labelledby={headingId}>
+                    <p className={type.meta}>Issued {certification.issued}</p>
+                    <h4
+                      id={headingId}
+                      className="mt-1.5 font-semibold tracking-tight text-fg"
+                    >
                       {certification.title}
                     </h4>
-                    <p className="text-sm text-muted">{certification.issuer}</p>
-                    <div className="mt-3">
+                    <p className="mt-0.5 text-sm font-medium text-accent">
+                      {certification.issuer}
+                    </p>
+                    <div className="mt-4">
                       <PlaceholderAction
                         action={certification.credential}
                         context={certification.id}
                       />
                     </div>
-                  </article>
+                  </Surface>
                 </li>
               );
             })}

@@ -25,14 +25,21 @@ export default function Home() {
       {/* First focusable element on the page, visible only when focused. */}
       <a
         href="#main-content"
-        className="sr-only rounded-md bg-accent px-4 py-2 text-accent-contrast focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-20"
+        className="sr-only rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-fg focus:not-sr-only focus:absolute focus:left-5 focus:top-4 focus:z-30"
       >
         Skip to main content
       </a>
 
       <SiteHeader siteName={content.siteName} navigation={content.navigation} />
 
-      <main id="main-content" className="flex-1">
+      {/* `tabIndex={-1}` makes the skip-link target programmatically
+          focusable. Without it, following `#main-content` moves the scroll
+          position and (in some browsers) the sequential-focus starting
+          point, but `document.activeElement` stays on `<body>` — so screen
+          reader users are not moved to the main content and the behaviour
+          is inconsistent across browsers. -1 keeps it out of the normal tab
+          order; it is only reachable by activating the skip link. */}
+      <main id="main-content" tabIndex={-1} className="flex-1">
         <Hero profile={content.profile} contact={content.contact} />
         <AboutSection profile={content.profile} />
         <ProjectsSection projects={content.projects} />

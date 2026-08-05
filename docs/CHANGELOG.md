@@ -1,5 +1,55 @@
 # Changelog
 
+## 2026-08-06 — Phase 3: design system (branch `feat/design-system`)
+
+- Added semantic design tokens at `packages/ui/src/tokens.css` — plain
+  framework-agnostic CSS custom properties covering surfaces, text, lines,
+  accent, interaction, depth, radius, and layout. Exported as
+  `@portfolio/ui/tokens.css`; `apps/web` now depends on `@portfolio/ui`.
+  `apps/web/src/app/globals.css` maps them onto Tailwind's theme, so
+  components reference roles (`bg-surface`, `text-fg-muted`) and never raw
+  colour values.
+- Added `:root[data-theme]` override blocks so Phase 10 can layer an
+  explicit user theme on the system preference. **Nothing writes
+  `data-theme`** — no toggle, no persistence, no store.
+- Added presentation primitives in `apps/web/src/components/ui/`:
+  `typography.ts` (the type scale as class constants), `container.tsx`,
+  `surface.tsx`, `action.ts`, `badge.tsx`. Removed `tag-list.tsx`
+  (superseded by `badge.tsx`).
+- **Architectural decision:** only tokens were promoted to `packages/ui`;
+  React primitives stay in `apps/web` until `apps/admin` gives a second
+  real consumer (Phase 6). Recorded in `docs/ARCHITECTURE.md`.
+- Migrated all nine sections onto the system. Added a section eyebrow, a
+  timeline node treatment, card-footer alignment for uneven project
+  summaries, and a single restrained accent wash behind the hero heading
+  (decorative, `aria-hidden`, hidden below `sm`).
+- **No new dependencies. No `"use client"` — every component is still a
+  Server Component.**
+- Fixed tablet density: project cards moved from `lg:grid-cols-2` to
+  `md:grid-cols-2` after verification showed a sparse single column at
+  768px.
+- Verified with `playwright-local` MCP at 1280/768/375px: zero console
+  errors, no horizontal overflow at any width, one `<h1>`, no skipped
+  heading levels, no duplicate ids, no dangling ARIA refs, no broken
+  anchors, correct tab order with visible focus at every stop, 44px touch
+  targets.
+- **Skip-link focus fix.** A targeted pre-commit re-test proved focus was
+  *not* transferring to the skip-link target — `document.activeElement`
+  stayed on `<body>` after activation, so the hash changed and the page
+  scrolled but keyboard/screen-reader focus did not move. Added
+  `tabIndex={-1}` to `<main id="main-content">`; `activeElement` is now
+  `MAIN#main-content`. No JavaScript and no client component; `main` stays
+  out of the tab order. An earlier report overstated this as verified —
+  corrected in `docs/PROJECT_STATE.md`.
+- **Both colour schemes measured in-browser** via
+  `emulateMedia({ colorScheme })` — all 12 sampled text pairings and 4
+  accent/ring pairings clear WCAG AA in light and dark. This closes the
+  Phase 2 limitation where dark mode was only calculated.
+- **Reduced motion verified in-browser**: smooth scroll → `auto`,
+  transitions → `1e-05s`, zero running animations.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` all pass.
+  **No automated tests added — coverage remains zero.**
+
 ## 2026-08-05 — Phase 2: static responsive portfolio (branch `feat/static-portfolio-foundation`)
 
 - Built the public portfolio's semantic, accessible, responsive HTML

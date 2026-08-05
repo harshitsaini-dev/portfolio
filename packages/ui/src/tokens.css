@@ -1,0 +1,114 @@
+/**
+ * Shared semantic design tokens.
+ *
+ * Framework-agnostic CSS custom properties consumed by both `apps/web` and
+ * (later) `apps/admin`. Deliberately plain CSS with no Tailwind or React
+ * coupling, so the admin app can adopt it without inheriting the public
+ * site's component choices.
+ *
+ * Tokens are SEMANTIC (`--surface`, `--fg-muted`) rather than literal
+ * (`--gray-200`). Components reference roles, never raw colour values, so
+ * Phase 10 can repoint a theme by overriding this one layer.
+ *
+ * Light is the default; dark is applied via `prefers-color-scheme`. The
+ * `[data-theme]` selectors below exist so Phase 10 can add an explicit user
+ * override on top of the system preference without restructuring anything —
+ * nothing writes that attribute today.
+ */
+
+:root {
+  /* ---- Surfaces ---------------------------------------------------- */
+  --bg: #fbfbfc;
+  --surface: #ffffff;
+  --surface-muted: #f2f3f5;
+
+  /* ---- Text -------------------------------------------------------- */
+  --fg: #12131a;
+  --fg-muted: #55565f;
+
+  /* ---- Lines ------------------------------------------------------- */
+  --border-subtle: #e5e6ea;
+  --border-strong: #c9cad1;
+
+  /* ---- Accent ------------------------------------------------------ */
+  --accent: #2547d0;
+  --accent-fg: #ffffff;
+  /* Accent tinted for use as a large-area wash rather than as text. */
+  --accent-soft: #eef1fd;
+
+  /* ---- Interaction ------------------------------------------------- */
+  --ring: #2547d0;
+  --selection-bg: #d7deff;
+  --selection-fg: #12131a;
+
+  /* ---- Depth ------------------------------------------------------- */
+  /* Restrained. Two levels only — anything more reads as visual noise. */
+  --shadow-sm: 0 1px 2px rgb(18 19 26 / 6%);
+  --shadow-md: 0 6px 24px -12px rgb(18 19 26 / 18%);
+  /* The single sanctioned glow, used only behind the hero accent. */
+  --glow-accent: 0 0 60px -12px rgb(37 71 208 / 22%);
+
+  /* ---- Radius ------------------------------------------------------ */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 1rem;
+  --radius-full: 9999px;
+
+  /* ---- Layout ------------------------------------------------------ */
+  --page-max: 72rem;
+  /* Comfortable reading measure for prose. */
+  --measure: 40rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0c10;
+    --surface: #131419;
+    --surface-muted: #1a1b22;
+
+    --fg: #f1f2f5;
+    --fg-muted: #a5a7b3;
+
+    --border-subtle: #24252d;
+    --border-strong: #383a45;
+
+    --accent: #8ea6ff;
+    --accent-fg: #0b0c10;
+    --accent-soft: #171a27;
+
+    --ring: #8ea6ff;
+    --selection-bg: #2a3563;
+    --selection-fg: #f1f2f5;
+
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+    --shadow-md: 0 6px 24px -12px rgb(0 0 0 / 70%);
+    --glow-accent: 0 0 60px -12px rgb(142 166 255 / 18%);
+  }
+}
+
+/* Explicit overrides reserved for Phase 10. Kept in sync with the two
+   blocks above; nothing sets `data-theme` yet. */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0b0c10;
+  --surface: #131419;
+  --surface-muted: #1a1b22;
+  --fg: #f1f2f5;
+  --fg-muted: #a5a7b3;
+  --border-subtle: #24252d;
+  --border-strong: #383a45;
+  --accent: #8ea6ff;
+  --accent-fg: #0b0c10;
+  --accent-soft: #171a27;
+  --ring: #8ea6ff;
+  --selection-bg: #2a3563;
+  --selection-fg: #f1f2f5;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow-md: 0 6px 24px -12px rgb(0 0 0 / 70%);
+  --glow-accent: 0 0 60px -12px rgb(142 166 255 / 18%);
+}

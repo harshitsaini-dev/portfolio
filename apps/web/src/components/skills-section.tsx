@@ -1,5 +1,7 @@
 import { Section } from "@/components/section";
-import { TagList } from "@/components/tag-list";
+import { BadgeList } from "@/components/ui/badge";
+import { Surface } from "@/components/ui/surface";
+import { type } from "@/components/ui/typography";
 import type { SkillCategory, Tool } from "@/data/types";
 
 interface SkillsSectionProps {
@@ -8,40 +10,46 @@ interface SkillsSectionProps {
 }
 
 /**
- * Skills and tools share one section: both answer "what does this person
- * work with", and separating them produced two thin sections with no
- * meaningful distinction for the reader. Each keeps its own <h3>.
+ * Skills and tools share one section: both answer "what does this person work
+ * with", and separating them produced two thin sections with no meaningful
+ * distinction for the reader. Each keeps its own `<h3>`.
  */
 export function SkillsSection({ skillCategories, tools }: SkillsSectionProps) {
   return (
-    <Section id="skills" title="Skills & tools">
-      <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+    <Section id="skills" eyebrow="Capabilities" title="Skills & tools">
+      <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {skillCategories.map((category) => {
           const headingId = `${category.id}-heading`;
 
           return (
-            <article key={category.id} aria-labelledby={headingId}>
-              <h3 id={headingId} className="text-base font-semibold">
-                {category.name}
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted">
-                {category.description}
-              </p>
-              <div className="mt-4">
-                <TagList items={category.skills} label={`${category.name} skills`} />
-              </div>
-            </article>
+            <li key={category.id}>
+              <Surface as="article" aria-labelledby={headingId} className="h-full">
+                <h3 id={headingId} className={type.subheading}>
+                  {category.name}
+                </h3>
+                <p className={`mt-2 ${type.bodySm}`}>{category.description}</p>
+                <div className="mt-5">
+                  <BadgeList
+                    items={category.skills}
+                    label={`${category.name} skills`}
+                  />
+                </div>
+              </Surface>
+            </li>
           );
         })}
-      </div>
+      </ul>
 
-      <div className="mt-12">
-        <h3 className="text-base font-semibold">Tools</h3>
-        <dl className="mt-4 grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-14">
+        <h3 className={type.minorHeading}>Tools</h3>
+        <dl className="mt-6 grid gap-x-10 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
           {tools.map((tool) => (
-            <div key={tool.id} className="flex flex-wrap gap-x-2 text-sm">
-              <dt className="font-medium">{tool.name}</dt>
-              <dd className="text-muted">{tool.purpose}</dd>
+            <div
+              key={tool.id}
+              className="flex items-baseline justify-between gap-4 border-b border-subtle pb-3"
+            >
+              <dt className="text-sm font-medium text-fg">{tool.name}</dt>
+              <dd className={`text-right ${type.fine}`}>{tool.purpose}</dd>
             </div>
           ))}
         </dl>
