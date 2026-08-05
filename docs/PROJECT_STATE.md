@@ -6,11 +6,39 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 1A: Repository Foundation.**
+**Phase 1 — Repository Foundation: COMPLETE.** Verified end to end,
+including a passing GitHub Actions run on merged `main`.
+
+## Active task
+
+Phase 1 completion documentation (documentation-only; no application
+code, package, CI, dependency, or configuration changes).
+
+## Blockers
+
+**None for Phase 1.** Every Definition-of-Done item is met.
+
+## Phase status summary
+
+| Phase | Status |
+| --- | --- |
+| Phase 0 — Tools/environment | **Complete** |
+| Phase 1 — Docs/spec + repo + CI + CLAUDE.md + `.claude` skills | **Complete** |
+| Phase 2 — Static responsive portfolio | Not started (next) |
+
+Phases 3–22 are not started. See `docs/ROADMAP.md` for the authoritative
+full sequence.
+
+### Not implemented (deliberately, per phase scope)
+
+No Cloudflare D1, no R2, no authentication, no CMS CRUD, no Motion, no
+Three.js/R3F, no shadcn design system, no contact handling, no media
+uploads, and no real portfolio content exist in the repository. Both apps
+are still minimal accessible placeholder shells.
 
 ## Phase 0 (environment checks)
 
-Done, as part of this task:
+Complete. Done as part of the foundation work:
 - Confirmed working directory was empty except for `.git` before scaffolding.
 - Confirmed no pre-existing `CLAUDE.md`, `docs/PROJECT_STATE.md`, or
   `.claude/skills`.
@@ -25,10 +53,6 @@ Done, as part of this task:
 - Next.js: 16.3.0 (as installed by `create-next-app`)
 - React: 19.2.8
 - TypeScript: ^5 (5.9.3 as resolved)
-
-## Active task
-
-None — Phase 1A repository foundation build just completed this session.
 
 ## Completed work
 
@@ -197,37 +221,51 @@ the failure. Each action's own `action.yml` was checked at its current
 stable major and all three declare `using: node24`, and every input this
 workflow passes still exists in the new major, so they were upgraded to
 `actions/checkout@v7`, `actions/setup-node@v6`, `pnpm/action-setup@v6`.
-These cannot be validated locally and remain unproven until the next CI
-run. (Note for later: `pnpm/action-setup` now advertises a successor
+These were subsequently exercised by the passing PR #1 and post-merge
+`main` runs. (Note for later: `pnpm/action-setup` now advertises a successor
 action, `pnpm/setup`. Migrating is a separate maintenance task, not done
 here.)
 
-## Known blockers / bugs
+### CI outcome — RESOLVED AND GREEN
 
-- **Not verified:** the GitHub Actions CI workflow has still not passed.
-  The typegen fix and the action-version upgrades are verified locally
-  only; CI must be pushed and observed green before Phase 1 can be
-  declared complete. **Do not claim CI passes until GitHub Actions
-  actually reports success.**
-- **Deferred, not a defect:** keyboard focus visibility is untestable
-  until the first interactive control exists (see the browser
-  verification section above).
+- **Pull Request #1** (the `next typegen` fix) **passed GitHub Actions.**
+- The fix was **merged into `main`.**
+- The **post-merge GitHub Actions run on `main` passed.**
+
+CI is therefore verified end to end on a fresh runner: install with a
+frozen lockfile, lint, typecheck, test, and build all succeed without any
+pre-existing local artifacts.
+
+## Known limitations (not blockers)
+
+- **Automated test coverage is zero.** The `test` scripts in both apps
+  remain explicit Phase 1 foundation no-ops that print
+  `"[app] no automated tests yet (Phase 1A)"` and exit 0. They assert
+  nothing. No unit or integration tests exist. The CI `test` step is wired
+  and green, but that green means the script ran — not that any behavior
+  is tested.
+- **Keyboard/focus verification remains N/A**, not passed. Both shells
+  contain zero focusable application controls, so there is nothing to
+  assert focus visibility against. This must be genuinely tested once the
+  first interactive control (link, button, form field) exists.
+- No end-to-end/Playwright *test suite* exists — the browser verification
+  recorded above was a manual MCP-driven pass, not an automated,
+  repeatable test.
 - No functional bugs identified in the foundation itself.
 
 ## Manual actions still required from the user
 
-- Review the staged Phase 1A tree and make the first commit — nothing has
-  been committed yet.
-- After committing, add the GitHub remote and push so
-  `.github/workflows/ci.yml` actually runs; Phase 1 is not complete until
-  CI has been observed passing.
+- Merge this documentation branch once reviewed.
 - Optionally confirm via `/status` that the project `.claude/settings.json`
   is loaded (cannot be checked from a tool call).
 
 ## Next suggested task
 
-Phase 1B: introduce the shared `@portfolio/types` and `@portfolio/schemas`
-contracts for the core content entities (starting with `profile` and
-`projects`), still with no database/D1 wiring — pure type/schema
-definitions consumed by placeholder UI. Not implemented as part of this
-task.
+**Phase 2 — Static responsive portfolio.** Establish the public
+portfolio's semantic, accessible, responsive HTML structure in `apps/web`,
+using neutral, data-shaped placeholder content only where necessary. Real
+portfolio content stays out until it is data-driven through the CMS, per
+`CLAUDE.md`. No design system, database, CMS, R2, Motion, or 3D — those
+are Phase 3 and later.
+
+Not implemented as part of this task.
