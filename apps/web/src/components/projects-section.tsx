@@ -1,6 +1,8 @@
 import { PlaceholderAction } from "@/components/placeholder-action";
 import { Section } from "@/components/section";
-import { TagList } from "@/components/tag-list";
+import { BadgeList } from "@/components/ui/badge";
+import { Surface } from "@/components/ui/surface";
+import { type } from "@/components/ui/typography";
 import type { Project } from "@/data/types";
 
 function ProjectCard({ project }: { project: Project }) {
@@ -8,39 +10,35 @@ function ProjectCard({ project }: { project: Project }) {
 
   return (
     <li>
-      <article
-        aria-labelledby={headingId}
-        className="flex h-full flex-col rounded-lg border border-border bg-surface p-5 sm:p-6"
-      >
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <h3 id={headingId} className="text-lg font-semibold">
+      <Surface as="article" aria-labelledby={headingId} className="flex h-full flex-col">
+        <div className="flex items-baseline justify-between gap-4">
+          <h3 id={headingId} className={type.subheading}>
             {project.title}
           </h3>
-          <p className="text-sm text-muted">{project.year}</p>
+          <p className={`shrink-0 ${type.meta}`}>{project.year}</p>
         </div>
 
-        <p className="mt-3 flex-1 text-sm leading-relaxed text-muted">
-          {project.summary}
-        </p>
+        <p className={`mt-3 ${type.bodySm}`}>{project.summary}</p>
 
-        <div className="mt-5">
-          <TagList
+        {/* Pushes the tags and actions to the card foot so cards of differing
+            summary length still align along their bottom edge. */}
+        <div className="mt-auto pt-6">
+          <BadgeList
             items={project.technologies}
             label={`Technologies used in ${project.title}`}
           />
+          <div className="mt-5 flex flex-wrap items-start gap-x-6 gap-y-4">
+            <PlaceholderAction
+              action={project.repository}
+              context={`${project.slug}-repository`}
+            />
+            <PlaceholderAction
+              action={project.liveSite}
+              context={`${project.slug}-live`}
+            />
+          </div>
         </div>
-
-        <div className="mt-5 flex flex-wrap items-start gap-3">
-          <PlaceholderAction
-            action={project.repository}
-            context={`${project.slug}-repository`}
-          />
-          <PlaceholderAction
-            action={project.liveSite}
-            context={`${project.slug}-live`}
-          />
-        </div>
-      </article>
+      </Surface>
     </li>
   );
 }
@@ -49,10 +47,13 @@ export function ProjectsSection({ projects }: { projects: readonly Project[] }) 
   return (
     <Section
       id="projects"
+      eyebrow="Selected work"
       title="Projects"
       lead="Placeholder projects used to establish the layout. Real projects are managed through the CMS in a later phase."
     >
-      <ul className="grid gap-6 sm:grid-cols-2">
+      {/* Two columns from the tablet breakpoint up. Below that a single
+          column keeps the summary and its two actions readable. */}
+      <ul className="grid gap-6 md:grid-cols-2">
         {projects.map((project) => (
           <ProjectCard key={project.slug} project={project} />
         ))}

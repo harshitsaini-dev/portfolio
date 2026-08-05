@@ -6,13 +6,16 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 2 — Static responsive portfolio.** Implemented and verified in a
-real browser; awaiting human review on branch
-`feat/static-portfolio-foundation` (not committed).
+**Phase 3 — Design system.** Implemented and verified in a real browser;
+awaiting human review on branch `feat/design-system` (not committed).
 
 ## Active task
 
-Phase 2 — static responsive portfolio foundation in `apps/web`.
+Phase 3 — design system, and migration of the Phase 2 portfolio onto it.
+
+## Blockers
+
+**None.**
 
 ## Phase status summary
 
@@ -20,10 +23,201 @@ Phase 2 — static responsive portfolio foundation in `apps/web`.
 | --- | --- |
 | Phase 0 — Tools/environment | **Complete** |
 | Phase 1 — Docs/spec + repo + CI + CLAUDE.md + `.claude` skills | **Complete** |
-| Phase 2 — Static responsive portfolio | Built and verified; pending review |
+| Phase 2 — Static responsive portfolio | **Complete** (merged to `main`, CI green) |
+| Phase 3 — Design system | Built and verified; pending review |
 
-Phases 3–22 are not started. See `docs/ROADMAP.md` for the authoritative
+Phases 4–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
+
+## Phase 3 — completed work
+
+Built a restrained premium design system and migrated every Phase 2 section
+onto it. **No new dependencies.** All nine sections preserved; no content
+area dropped and no change to the content architecture.
+
+### Token architecture
+
+Semantic tokens live in **`packages/ui/src/tokens.css`** — plain,
+framework-agnostic CSS custom properties with no React or Tailwind
+coupling, exported as `@portfolio/ui/tokens.css` and imported by
+`apps/web/src/app/globals.css`. `apps/web` gained `@portfolio/ui` as a
+workspace dependency.
+
+Tokens are semantic (`--surface`, `--fg-muted`), never literal
+(`--gray-200`): surfaces (`--bg`, `--surface`, `--surface-muted`), text
+(`--fg`, `--fg-muted`), lines (`--border-subtle`, `--border-strong`),
+accent (`--accent`, `--accent-fg`, `--accent-soft`), interaction
+(`--ring`, `--selection-bg`, `--selection-fg`), depth (`--shadow-sm`,
+`--shadow-md`, `--glow-accent`), radius, and layout (`--page-max`,
+`--measure`). `globals.css` maps them onto Tailwind's theme so components
+use `bg-surface` / `text-fg-muted` and never raw colour values.
+
+`tokens.css` also carries empty `:root[data-theme="light"|"dark"]` blocks
+so Phase 10 can add an explicit user override on top of the system
+preference without restructuring. **Nothing writes `data-theme` today** —
+no toggle, no persistence, no store, as specified.
+
+### Architectural decision — what did *not* move to `packages/ui`
+
+Only the tokens were promoted. The React primitives stayed in `apps/web`:
+the public portfolio is currently their only consumer, and a primitive
+with one consumer is not yet a shared primitive. Promoting them now would
+also force React and `@types/react` into a package that does not need
+them. Revisit when `apps/admin` is built (Phase 6) and the real shared
+surface is known. Recorded in `docs/ARCHITECTURE.md`.
+
+### Files added
+
+- `packages/ui/src/tokens.css`
+- `apps/web/src/components/ui/`: `typography.ts` (type scale as class
+  constants), `container.tsx`, `surface.tsx`, `action.ts`, `badge.tsx`
+
+### Files modified
+
+- `packages/ui/package.json` (subpath export), `packages/ui/src/index.ts`
+- `apps/web/package.json` (workspace dep), `apps/web/src/app/globals.css`
+- `apps/web/src/app/page.tsx` (skip-link tokens)
+- All nine section components migrated onto the system
+- `apps/web/src/components/tag-list.tsx` **removed** — superseded by
+  `ui/badge.tsx`; no remaining references (verified by grep)
+
+## Phase 3 — verification actually performed
+
+| Command | Result |
+| --- | --- |
+| `pnpm lint` | **PASS** (exit 0) |
+| `pnpm typecheck` | **PASS** (exit 0) — both apps and all packages |
+| `pnpm test` | **PASS as a no-op** — still zero real coverage |
+| `pnpm build` | **PASS** (exit 0) — `/` prerenders static |
+
+**No automated tests were added in Phase 3.** The `test` scripts remain
+Phase 1 placeholders that assert nothing. Automated coverage is still
+zero; that is Phase 20.
+
+### Browser verification (`playwright-local` MCP)
+
+| Check | 1280×900 | 768×1024 | 375×812 |
+| --- | --- | --- | --- |
+| Page loads | PASS | PASS | PASS |
+| Horizontal overflow | None (1265 ≤ 1280) | None (753 ≤ 768) | None (360 ≤ 375) |
+| Overflowing elements | 0 | 0 | 0 |
+| Projects grid | 2 columns | 2 columns | 1 column |
+| Skills grid | 3 columns | 2 columns | 1 column |
+| Hero | PASS | PASS | Fits, `h1` 320px unclipped |
+| Touch targets | — | — | 44px minimum |
+
+Structural checks (desktop): exactly **one `<h1>`**, `lang="en"`,
+header/nav/main/footer landmarks present, heading sequence
+`1,2,2,3,3,3,3,2,3,3,3,2,3,4,4,3,4,4,2,3,3,3,3,2` with **zero skipped
+levels**, **zero duplicate ids**, **zero dangling ARIA references**,
+**zero broken anchors** (all 6 nav targets resolve). Clicking a nav link
+scrolled the target heading clear of the sticky header.
+
+**Keyboard:** tab order verified by pressing Tab from a fresh load —
+skip link → 6 nav links → hero CTAs → project actions. Every stop showed
+a visible focus outline; all interactive stops measured 44px tall.
+
+**Skip link — corrected after a targeted re-test.** The original Phase 3
+report claimed activating the skip link "moved focus past the header".
+That was **not** verified and was **not true**. A follow-up test that
+inspected `document.activeElement` directly found it was still `<body>`
+after pressing Enter: the URL hash changed and the page scrolled, but
+focus never transferred to the target. Chromium happened to move the
+sequential-focus starting point (the next Tab did reach the hero CTA), but
+`activeElement` staying on `<body>` means screen reader users are not
+moved to the main content, and the behaviour is inconsistent across
+browsers.
+
+Fixed by adding `tabIndex={-1}` to `<main id="main-content">` in
+`apps/web/src/app/page.tsx` — no JavaScript, no client component, still a
+Server Component with native anchor behaviour. Re-tested:
+
+| Step | Result |
+| --- | --- |
+| Tab from top of document | `A "Skip to main content"`, outline `1.6px solid rgb(37,71,208)`, on screen |
+| Press Enter | **`activeElement` = `MAIN#main-content`** (`activeIsMain: true`, `activeIsBody: false`) |
+| `location.hash` | `#main-content` |
+| Target vs sticky header | `mainTop` 65 = `headerBottom` 65 — clears it |
+| Next Tab | `BUTTON "Send a message"` — the header nav is genuinely bypassed |
+
+No regressions: `main` stays **out** of the tab order (`tabindex="-1"`),
+the in-tab-order focusable count is unchanged at 21, nav anchors still
+resolve and clear the header, one `<h1>`, zero duplicate ids, zero console
+errors or warnings, and no horizontal overflow at 1280 / 768 / 375. The
+focus ring on `<main>` produces no visible artifact — the element is
+5010px tall, so its outline falls outside the viewport.
+
+**Console: 0 errors, 0 warnings** on a clean navigation. (Earlier in the
+session the log accumulated dev-server HMR WebSocket reconnect errors
+while the dev server was restarting mid-edit — dev tooling noise, not
+application errors, and absent from a clean load.)
+
+### Colour schemes — both verified in-browser
+
+`page.emulateMedia({ colorScheme })` is available through the MCP
+server's Playwright code tool, so **both schemes were measured, not
+assumed** (this closes the Phase 2 limitation, where dark mode was only
+calculated).
+
+Contrast measured by compositing each element's real background stack —
+including translucent layers — onto a canvas and computing WCAG relative
+luminance. Every sample passes AA:
+
+| Sample | Light | Dark |
+| --- | --- | --- |
+| `h1` display | 17.91:1 | 17.46:1 |
+| Section heading (h2) | 17.91:1 | 17.46:1 |
+| Card heading (h3) | 18.52:1 | 16.43:1 |
+| Body copy | 7.02:1 | 7.69:1 |
+| Fine print / reason text | 7.02:1 | 8.42:1 |
+| Nav link | 7.10:1 | 8.78:1 |
+| Technology badge | 6.56:1 | 7.17:1 |
+| Eyebrow (accent on bg) | 7.02:1 | 8.42:1 |
+| Action button label | 18.52:1 | 16.43:1 |
+| `--accent-fg` on `--accent` | 7.26:1 | 8.42:1 |
+| Focus ring vs page bg (needs ≥3:1) | 7.02:1 | 8.42:1 |
+| Focus ring vs card surface (needs ≥3:1) | 7.26:1 | 7.92:1 |
+
+### Reduced motion — verified in-browser
+
+Under `emulateMedia({ reducedMotion: 'reduce' })`:
+`prefers-reduced-motion` matched, `html` `scroll-behavior` resolved to
+`auto` (from `smooth`), all transition durations collapsed to `1e-05s`,
+and zero running animations. The only motion in this phase is anchor
+smooth-scroll plus 150ms hover/focus colour transitions.
+
+### Issues found during verification
+
+1. **Tablet density (fixed).** Project cards initially used
+   `lg:grid-cols-2`, leaving a single sparse column at 768px. Changed to
+   `md:grid-cols-2`; re-verified as two 332px columns with no overflow.
+2. **False contrast failure (measurement bug, no code change).** An early
+   audit reported the nav link at 2.88:1. The cause was the audit script,
+   not the CSS: the sticky header's computed background is
+   `oklab(… / 0.85)`, and scraping numbers out of that string produced a
+   nonsense colour. Re-measured via canvas compositing: **7.10:1**. Worth
+   remembering — a contrast script that regex-scrapes
+   `getComputedStyle` will silently lie on modern colour syntax.
+
+## Phase 3 — known limitations
+
+- **Automated test coverage remains zero.** No tests were added; the
+  design system is verified by manual MCP-driven browser checks, which are
+  not repeatable regression protection. Phase 20.
+- **`apps/admin` has not adopted the tokens.** `packages/ui/tokens.css` is
+  structured for it, but the admin app still carries its own
+  `create-next-app` stylesheet. It adopts the system in Phase 6.
+- **No React primitives are shared yet** — deliberate, see the
+  architectural decision above.
+- **Mobile navigation still scrolls horizontally** inside its own
+  container at 375px. Unchanged from Phase 2 and deliberate: replacing it
+  with a JavaScript disclosure menu is Phase 17 (Mobile) work if still
+  wanted. It causes no page-level overflow and stays keyboard operable.
+- **Contrast was sampled, not exhaustively enumerated** — 12 representative
+  text/background pairings plus 4 accent/ring pairings per scheme, not
+  every element on the page.
+- **Contrast measured only in the default (unfocused, unhovered) state.**
+  Hover and focus colour pairings were not individually measured.
 
 ## Phase 2 — completed work
 
@@ -384,17 +578,17 @@ pre-existing local artifacts.
 
 ## Manual actions still required from the user
 
-- Review the Phase 2 changes on `feat/static-portfolio-foundation` and
-  commit them (nothing has been committed).
+- Review the Phase 3 changes on `feat/design-system` and commit them
+  (nothing has been committed).
 - Optionally confirm via `/status` that the project `.claude/settings.json`
   is loaded (cannot be checked from a tool call).
 
 ## Next suggested task
 
-**Phase 3 — Design system.** Establish the shared visual language and
-reusable components in `packages/ui` per `docs/DESIGN.md`, and migrate the
-Phase 2 section components onto those primitives. The Phase 2 tokens in
-`apps/web/src/app/globals.css` are a deliberate minimum and should be
-superseded by the real token system.
+**Phase 4 — D1 schema/migrations.** Define the Cloudflare D1 schema and
+migrations for the entities listed in `docs/DATABASE.md`. Note that the
+temporary `apps/web/src/data/` placeholder module is still the only
+content source and is not replaced until the repository/data layer in
+Phase 5.
 
 Not implemented as part of this task.

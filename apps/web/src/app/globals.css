@@ -1,72 +1,85 @@
 @import "tailwindcss";
+/* Semantic design tokens, shared with apps/admin. See packages/ui/src/tokens.css. */
+@import "@portfolio/ui/tokens.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-  /* Surfaces and borders for cards/dividers. Phase 2 keeps this to the
-     minimum needed for a neutral structural foundation — the real token
-     system arrives with the Phase 3 design system. */
-  --surface: #f7f7f8;
-  --border: #d9d9de;
-  /* Muted text. Chosen for >= 4.5:1 contrast on --background (AA body text). */
-  --muted: #55555f;
-  --accent: #1d4ed8;
-  --accent-contrast: #ffffff;
-}
-
+/**
+ * Map the semantic tokens onto Tailwind's theme so utilities such as
+ * `bg-surface`, `text-fg-muted`, and `border-subtle` resolve to them.
+ * Components reference these utilities and never raw colour values.
+ */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
   --color-surface: var(--surface);
-  --color-border: var(--border);
-  --color-muted: var(--muted);
+  --color-surface-muted: var(--surface-muted);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-subtle: var(--border-subtle);
+  --color-strong: var(--border-strong);
   --color-accent: var(--accent);
-  --color-accent-contrast: var(--accent-contrast);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-ring: var(--ring);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --surface: #16161a;
-    --border: #2e2e35;
-    /* Lightened so muted text still clears AA against the dark background. */
-    --muted: #a6a6b0;
-    --accent: #93b4ff;
-    --accent-contrast: #0a0a0a;
-  }
-}
-
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  /* Slightly tighter default tracking reads as more considered at the large
+     display sizes used in the hero and section headings. */
+  letter-spacing: -0.011em;
 }
 
-/* Anchor navigation offset so a targeted section is not hidden beneath the
-   sticky header. */
+::selection {
+  background: var(--selection-bg);
+  color: var(--selection-fg);
+}
+
+/* Anchor targets clear the sticky header. */
 :target {
-  scroll-margin-top: 5rem;
+  scroll-margin-top: 6rem;
 }
 
 html {
   scroll-behavior: smooth;
 }
 
-/* The only motion in this phase is anchor smooth-scrolling; disable it when
-   the user asks for reduced motion. */
+/**
+ * The only motion in this phase is anchor smooth-scrolling plus short
+ * colour transitions on hover/focus. Both are disabled outright when the
+ * user asks for reduced motion.
+ */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
-/* A single visible focus style for every focusable element. Never remove
-   this without providing an equally visible replacement. */
+/**
+ * One global focus indicator. Defined here rather than per component so no
+ * component can ship without a visible focus state.
+ */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
 }

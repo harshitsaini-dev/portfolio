@@ -3,6 +3,56 @@
 Notes on things learned while building this project that are worth
 remembering for future work.
 
+## Phase 3
+
+- **A contrast script that regex-scrapes `getComputedStyle` will lie to
+  you.** An audit reported the nav link at 2.88:1 — an alarming AA
+  failure. The CSS was fine; the *script* was broken. Modern browsers
+  return colours in `oklab(0.988 0.0004 -0.0012 / 0.85)` form, and pulling
+  the first three numbers out of that yields a near-black "colour". The
+  reliable method is to let the browser do the conversion: paint the
+  backdrop and then the colour onto a 1×1 canvas and read the composited
+  pixel back. That also handles alpha and nested translucent layers for
+  free.
+  - Wider lesson: when a measurement contradicts the code you just wrote,
+    suspect the measurement before rewriting the code. Fixing the
+    "failure" here would have meant changing correct CSS.
+- **Tokens are the shareable part of a design system; components often
+  are not.** Only `tokens.css` went into `packages/ui`. Two apps looking
+  like one product is a *colour, type, and spacing* problem — component
+  structure can legitimately differ between a public site and a CMS.
+  Promoting components with a single consumer would have added React deps
+  and transpile config to buy an abstraction guessed from one example.
+- **A plain CSS file is an excellent workspace-package boundary.** No
+  React, no build step, no bundler config — a subpath export
+  (`"./tokens.css"`) plus an `@import` in the consuming app, and Turbopack
+  resolved it with no extra setup.
+- **Define the focus style once, globally.** A single `:focus-visible`
+  rule in `globals.css` means no component can ship without a focus
+  indicator — far more reliable than remembering per component. Also worth
+  checking the ring against *card* surfaces, not just the page
+  background: it needs 3:1 against whatever it actually sits on.
+- **Export a type scale as class constants, not wrapper components.**
+  `<h3 className={type.subheading}>` keeps the heading level a decision
+  about document structure; `<Subheading>` quietly couples semantics to
+  styling and is how heading hierarchies drift.
+- Playwright's `page.emulateMedia({ colorScheme, reducedMotion })` makes
+  both a genuinely verifiable claim rather than a reasoned one — worth
+  reaching for instead of documenting a limitation.
+- **A skip link needs `tabIndex={-1}` on its target, or it does not
+  actually skip anything.** `<a href="#main-content">` pointing at
+  `<main id="main-content">` changes the URL hash and scrolls the page —
+  which looks like success — but `<main>` is not focusable, so
+  `document.activeElement` stays on `<body>` and screen-reader focus never
+  moves. `tabIndex={-1}` makes the target programmatically focusable
+  without adding it to the tab order.
+  - The verification lesson matters more than the fix: hash change and
+    scroll position are **proxies**, and we asserted on the proxies. The
+    real assertion is `document.activeElement === target`. When testing
+    focus behaviour, always assert on `activeElement` itself — and a good
+    second check is what the *next* Tab reaches, since that is what the
+    user actually experiences.
+
 ## Phase 2
 
 - **Measure contrast, don't eyeball it.** The disabled primary button

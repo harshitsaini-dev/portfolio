@@ -8,7 +8,7 @@ portfolio/
     web/          Public portfolio site (Next.js App Router, port 3000)
     admin/         Admin CMS (Next.js App Router, port 3001)
   packages/
-    ui/            Shared UI components (empty skeleton, Phase 1A)
+    ui/            Shared design tokens (tokens.css). No React components yet.
     database/       Shared DB access layer (empty skeleton, Phase 1A)
     schemas/        Shared validation schemas (empty skeleton, Phase 1A)
     types/          Shared TypeScript types (empty skeleton, Phase 1A)
@@ -30,6 +30,30 @@ Package manager: pnpm workspaces (`pnpm-workspace.yaml`: `apps/*`,
   phase (not implemented in Phase 1A).
 - Both apps consume shared logic from `packages/*` rather than duplicating
   it.
+
+## Shared presentation layer (Phase 3 decision)
+
+`packages/ui` currently exports **only** `./tokens.css` — the semantic
+design tokens, as framework-agnostic CSS custom properties. Each app
+imports it from its own global stylesheet.
+
+**React primitives were deliberately not promoted.** `Container`,
+`Surface`, `BadgeList`, the action class helpers, and the type scale live
+in `apps/web/src/components/ui/`. The reasoning:
+
+- The public portfolio is currently their only consumer. A primitive with
+  one consumer is not yet a shared primitive, and generalising against a
+  single case tends to produce the wrong abstraction.
+- Promoting them would pull React and `@types/react` into a package that
+  otherwise needs neither, plus transpilation config in both apps.
+- Tokens carry the majority of the shared value anyway: they are what keep
+  two apps looking like one product. Component structure can legitimately
+  differ between a public portfolio and a CMS.
+
+Revisit when `apps/admin` is built (Phase 6) and the genuinely shared
+surface is known from two real consumers rather than guessed from one.
+Portfolio-content-specific section components stay in `apps/web`
+regardless.
 
 ## Data flow (target shape, not yet implemented)
 
