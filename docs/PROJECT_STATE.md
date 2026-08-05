@@ -6,17 +6,13 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 1 — Repository Foundation: COMPLETE.** Verified end to end,
-including a passing GitHub Actions run on merged `main`.
+**Phase 2 — Static responsive portfolio.** Implemented and verified in a
+real browser; awaiting human review on branch
+`feat/static-portfolio-foundation` (not committed).
 
 ## Active task
 
-Phase 1 completion documentation (documentation-only; no application
-code, package, CI, dependency, or configuration changes).
-
-## Blockers
-
-**None for Phase 1.** Every Definition-of-Done item is met.
+Phase 2 — static responsive portfolio foundation in `apps/web`.
 
 ## Phase status summary
 
@@ -24,17 +20,150 @@ code, package, CI, dependency, or configuration changes).
 | --- | --- |
 | Phase 0 — Tools/environment | **Complete** |
 | Phase 1 — Docs/spec + repo + CI + CLAUDE.md + `.claude` skills | **Complete** |
-| Phase 2 — Static responsive portfolio | Not started (next) |
+| Phase 2 — Static responsive portfolio | Built and verified; pending review |
 
 Phases 3–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
 
+## Phase 2 — completed work
+
+Built the public portfolio's semantic, accessible, responsive HTML
+foundation in `apps/web`. No new dependencies were added.
+
+**Sections implemented** (all rendered from one data source): sticky
+header with anchor navigation, hero (carries the page's single `<h1>`),
+about, projects, experience timeline, education & certifications, skills &
+tools, contact call-to-action, footer.
+
+Two planned areas were deliberately paired rather than dropped: education
+with certifications, and skills with tools. Each keeps its own `<h3>`; the
+pairing avoids four very thin sections competing for the same place in the
+page rhythm. No planned content area was removed.
+
+**Files added**
+- `apps/web/src/data/types.ts` — temporary Phase 2 content shapes
+- `apps/web/src/data/placeholder-content.ts` — the single placeholder dataset
+- `apps/web/src/components/` — `section.tsx`, `placeholder-action.tsx`,
+  `tag-list.tsx`, `site-header.tsx`, `hero.tsx`, `about-section.tsx`,
+  `projects-section.tsx`, `experience-section.tsx`,
+  `education-section.tsx`, `skills-section.tsx`, `contact-section.tsx`,
+  `site-footer.tsx`
+
+**Files modified**
+- `apps/web/src/app/page.tsx` — composes the sections
+- `apps/web/src/app/layout.tsx` — description metadata only
+- `apps/web/src/app/globals.css` — neutral surface/border/muted/accent
+  tokens, a global `:focus-visible` style, `scroll-margin-top` for anchor
+  targets, and reduced-motion handling for smooth scrolling
+
+### Temporary content architecture
+
+All copy lives in `apps/web/src/data/placeholder-content.ts`, typed by
+`apps/web/src/data/types.ts`. Both files are headed by comments stating
+they are Phase 2 placeholders to be **replaced** — not extended — by
+`@portfolio/types` / `@portfolio/schemas` and the repository layer in
+Phases 4–5. Field names echo the planned entities in `docs/DATABASE.md`
+so the swap is mechanical. No database, repository, or Zod schema was
+implemented, and nothing here was promoted to `packages/*`.
+
+All content is neutral and fictional. There is no real biography, email
+address, phone number, résumé link, project, employer, institution, or
+credential anywhere in the dataset.
+
+### Honest handling of unavailable actions
+
+Phase 2 has no real destinations, so no dead links were invented. An
+unavailable action renders as a focusable but inert `<button>` with
+`aria-disabled="true"`, plus visible text — "Not available yet — …" —
+associated via `aria-describedby`. The state is conveyed by wording, not
+colour alone, and keyboard and screen-reader users get the same
+explanation sighted users do.
+
+## Phase 2 — verification actually performed
+
+All commands run from the repository root:
+
+| Command | Result |
+| --- | --- |
+| `pnpm lint` | **PASS** (exit 0) — both apps clean |
+| `pnpm typecheck` | **PASS** (exit 0) — both apps and all 4 packages clean |
+| `pnpm test` | **PASS as a no-op** — still zero real coverage |
+| `pnpm build` | **PASS** (exit 0) — `apps/web` prerenders `/` as static |
+
+`pnpm test` remains the Phase 1 placeholder. **No automated tests were
+added in Phase 2**, so there is still zero unit, integration, or E2E
+coverage. Real coverage is Phase 20.
+
+### Browser verification (`playwright-local` MCP, `apps/web` on :3000)
+
+| Check | Desktop 1280×900 | Tablet 768×1024 | Mobile 375×812 |
+| --- | --- | --- | --- |
+| Page loads | PASS | PASS | PASS |
+| Horizontal overflow | None (1265 ≤ 1280) | None (753 ≤ 768) | None (360 ≤ 375) |
+| Projects grid | 2 columns | 2 columns | 1 column (stacks) |
+| Layout integrity | PASS | PASS | Hero and footer both within viewport |
+
+Also verified (desktop unless noted):
+- **Console: 0 errors, 0 warnings.** Only two benign dev-only info lines
+  (React DevTools suggestion, `[HMR] connected`).
+- **Structure:** `<html lang="en">`, exactly one `<h1>`, header/nav/main/
+  footer landmarks all present, heading order h1 → h2 → h3 → h4 with no
+  skipped levels.
+- **Navigation:** all 6 anchors resolve to real section ids — **0 broken
+  anchors**. Clicking "Projects" set `#projects` and scrolled the heading
+  clear of the sticky header (`scroll-margin-top` working).
+- **No duplicate element ids and no dangling `aria-describedby` /
+  `aria-labelledby` references.**
+- **Keyboard:** 21 focusable elements, every one showing a visible focus
+  outline. Tab order follows DOM order — skip link → nav → hero CTAs →
+  project actions → credentials → contact. The skip link is the first
+  focusable element and becomes visible at (16, 16) when focused.
+- **Touch targets:** minimum interactive height 44px at 375px.
+- **Body text** 16px at mobile width.
+
+### Defect found and fixed during verification
+
+Measured contrast in the browser found the disabled *primary* button
+rendering white on `opacity-70` blue at **3.58:1** — below the WCAG AA
+4.5:1 minimum. Fixed by making unavailable actions always use the
+secondary (bordered) appearance with no opacity reduction, since a
+non-functional control should not look like a primary CTA anyway.
+Re-measured after the fix: **16.75:1**. All other sampled text measured
+6.88:1–17.93:1 in light mode.
+
+Dark-mode contrast was **calculated** from the token values (muted text
+≈8.2:1 on the dark background), **not** measured in the browser — the MCP
+server offers no colour-scheme emulation. Treat dark mode as reasoned,
+not verified.
+
+## Phase 2 — blockers, bugs and limitations
+
+**Blockers: none.** **Known bugs: none** — the one defect found during
+verification (disabled-button contrast) was fixed and re-verified.
+
+Limitations carried forward:
+- **No automated test coverage.** Phase 2 added none; `pnpm test` is still
+  the Phase 1 no-op. The browser verification above was a manual
+  MCP-driven pass, not a repeatable test. Real coverage is Phase 20.
+- **Dark mode is reasoned, not browser-verified** (no colour-scheme
+  emulation available via the MCP server).
+- **Mobile navigation scrolls horizontally inside its own container** at
+  375px (nav content 474px wide in a 336px scroller). This is deliberate —
+  it avoids a JavaScript disclosure menu in a phase that needs no client
+  bundle — and causes no page-level overflow, but a disclosure pattern may
+  be worth revisiting in Phase 17 (Mobile) if the link count grows.
+- **`apps/admin` is untouched** and remains the Phase 1 placeholder shell
+  with no focusable controls, so keyboard/focus testing there stays N/A.
+- The Phase 2 visual treatment is a deliberate structural minimum, not a
+  design system. Tokens live in `apps/web/src/app/globals.css` and are
+  expected to be superseded in Phase 3.
+
 ### Not implemented (deliberately, per phase scope)
 
-No Cloudflare D1, no R2, no authentication, no CMS CRUD, no Motion, no
-Three.js/R3F, no shadcn design system, no contact handling, no media
-uploads, and no real portfolio content exist in the repository. Both apps
-are still minimal accessible placeholder shells.
+No Cloudflare D1, no R2, no authentication, no CMS CRUD, no repository/
+data layer, no Zod domain schemas, no Motion, no Three.js/R3F, no shadcn,
+no contact submission, no media uploads, no theme settings system, and no
+real portfolio content exist in the repository.
 
 ## Phase 0 (environment checks)
 
@@ -244,10 +373,10 @@ pre-existing local artifacts.
   nothing. No unit or integration tests exist. The CI `test` step is wired
   and green, but that green means the script ran — not that any behavior
   is tested.
-- **Keyboard/focus verification remains N/A**, not passed. Both shells
-  contain zero focusable application controls, so there is nothing to
-  assert focus visibility against. This must be genuinely tested once the
-  first interactive control (link, button, form field) exists.
+- **Keyboard/focus verification was N/A at the time of Phase 1**, not
+  passed: both shells then contained zero focusable application controls.
+  Superseded for `apps/web` by the Phase 2 keyboard verification recorded
+  above; still N/A for `apps/admin`.
 - No end-to-end/Playwright *test suite* exists — the browser verification
   recorded above was a manual MCP-driven pass, not an automated,
   repeatable test.
@@ -255,17 +384,17 @@ pre-existing local artifacts.
 
 ## Manual actions still required from the user
 
-- Merge this documentation branch once reviewed.
+- Review the Phase 2 changes on `feat/static-portfolio-foundation` and
+  commit them (nothing has been committed).
 - Optionally confirm via `/status` that the project `.claude/settings.json`
   is loaded (cannot be checked from a tool call).
 
 ## Next suggested task
 
-**Phase 2 — Static responsive portfolio.** Establish the public
-portfolio's semantic, accessible, responsive HTML structure in `apps/web`,
-using neutral, data-shaped placeholder content only where necessary. Real
-portfolio content stays out until it is data-driven through the CMS, per
-`CLAUDE.md`. No design system, database, CMS, R2, Motion, or 3D — those
-are Phase 3 and later.
+**Phase 3 — Design system.** Establish the shared visual language and
+reusable components in `packages/ui` per `docs/DESIGN.md`, and migrate the
+Phase 2 section components onto those primitives. The Phase 2 tokens in
+`apps/web/src/app/globals.css` are a deliberate minimum and should be
+superseded by the real token system.
 
 Not implemented as part of this task.

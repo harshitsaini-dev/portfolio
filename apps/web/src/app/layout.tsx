@@ -14,7 +14,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Portfolio",
-  description: "3D portfolio web foundation",
+  description:
+    "Static responsive portfolio foundation. Content shown is placeholder.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

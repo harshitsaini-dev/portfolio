@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-08-05 — Phase 2: static responsive portfolio (branch `feat/static-portfolio-foundation`)
+
+- Built the public portfolio's semantic, accessible, responsive HTML
+  foundation in `apps/web`: sticky header with anchor navigation, hero
+  (single `<h1>`), about, projects, experience timeline, education &
+  certifications, skills & tools, contact CTA, and footer.
+- Added one temporary typed content source
+  (`apps/web/src/data/{types,placeholder-content}.ts`) and render every
+  section from it. Both files are marked as Phase 2 placeholders to be
+  replaced by `@portfolio/types`/`@portfolio/schemas` and the repository
+  layer in Phases 4–5. All content is neutral and fictional.
+- Added 12 section/layout components under `apps/web/src/components/`.
+  **All are Server Components — no `"use client"` anywhere.**
+- Added a global `:focus-visible` style, neutral surface/border/muted/
+  accent tokens with a dark-scheme variant, `scroll-margin-top` for anchor
+  targets, and reduced-motion handling for smooth scrolling.
+- Unavailable actions render as focusable, `aria-disabled` buttons with a
+  visible reason rather than dead links.
+- **No dependencies added.**
+- **Fixed a contrast defect found during verification:** the disabled
+  primary button measured 3.58:1 (below AA); unavailable actions now use
+  the secondary appearance with no opacity reduction — re-measured 16.75:1.
+- Verified with `playwright-local` MCP at 1280/768/375 px: zero console
+  errors, no horizontal overflow at any width, all 6 nav anchors resolve,
+  no duplicate ids or dangling ARIA references, 21 focusable elements all
+  with visible focus, 44px minimum touch targets.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` all pass.
+  **No automated tests were added** — coverage remains zero.
+
 ## 2026-08-05 — Phase 1 complete
 
 Documentation-only entry. No application code, package, CI, dependency, or

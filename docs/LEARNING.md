@@ -3,6 +3,37 @@
 Notes on things learned while building this project that are worth
 remembering for future work.
 
+## Phase 2
+
+- **Measure contrast, don't eyeball it.** The disabled primary button
+  looked fine and was not fine: white on a 70%-opacity blue composited to
+  **3.58:1**, under the WCAG AA 4.5:1 floor. Opacity is the trap — it
+  blends the *background* toward the page colour while the foreground text
+  stays put, so a pairing that passes at full strength can fail when
+  dimmed. Running the actual relative-luminance formula against
+  `getComputedStyle` values in the browser caught it in seconds.
+  - The fix was also the better design: a non-functional control should
+    not wear primary-CTA styling in the first place.
+- **Don't invent links that go nowhere.** With no real destinations yet,
+  the honest option is an explicit "unavailable" state — a focusable
+  `aria-disabled` button plus visible text saying why — rather than an
+  `href="#"` that lies to the reader. Modelling this in the *type*
+  (a discriminated union with `status: "available" | "unavailable"`) makes
+  the honest path the easy one and the dishonest path unrepresentable.
+- **A component rendered twice needs unique ids.** The contact CTA appears
+  in both the hero and the contact section; generating `aria-describedby`
+  ids from the label alone produced duplicates, which is invalid HTML and
+  silently breaks the association for assistive technology. Passing a
+  `context` prop fixed it. Worth a quick scripted check for duplicate ids
+  and dangling ARIA references on any page built from repeated components.
+- **`scroll-margin-top` is what makes anchor navigation work under a
+  sticky header** — without it the browser scrolls the target to y=0,
+  where the header covers it.
+- Programmatically calling `.focus()` in a loop is good for auditing focus
+  *styles*, but it destroys the real tab sequence. To test actual Tab
+  order, reload first, then press Tab. (In dev, Next.js's dev-tools overlay
+  also claims the first Tab stop; it is not present in a production build.)
+
 ## Phase 1A
 
 - **A local check that passes on stale build artifacts is not a passing
