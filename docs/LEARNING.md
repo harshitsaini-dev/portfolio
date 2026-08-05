@@ -33,7 +33,7 @@ remembering for future work.
 - **Prove the offline claim rather than asserting it.** "This test doesn't
   need Cloudflare auth" is easy to write and easy to get wrong. Running
   the whole suite with a deliberately invalid `CLOUDFLARE_API_TOKEN` — and
-  seeing 57/57 still pass — turns it into evidence.
+  seeing every check still pass — turns it into evidence.
 - **Decide `ON DELETE` per relationship.** Defaulting everything to
   CASCADE is how deleting one tag silently strips it from thirty published
   projects. The useful question is "does the parent *own* this child?" —

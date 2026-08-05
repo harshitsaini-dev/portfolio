@@ -43,12 +43,19 @@ portfolio sections migrated onto it. No new runtime dependencies; Server
 Components preserved. Merged to `main` with CI green. Automated test
 coverage remains zero — the `test` scripts are still explicit no-ops.
 
-## Phase 4 — D1 schema/migrations — **Next**
+## Phase 4 — D1 schema/migrations — **Complete**
 
 Cloudflare D1 schema and migrations for the entities listed in
 `docs/DATABASE.md`.
 
-## Phase 5 — Repository/data layer
+Delivered `migrations/0001_initial_schema.sql` (20 tables, 20 indexes),
+the repository-level `wrangler.d1.jsonc` D1 management config with binding
+`DB`, and Wrangler 4.118.0 as a root dev dependency. Added the project's
+first real automated test — a D1 migration smoke test with **59 checks**,
+passing on both Windows and GitHub Actions/Linux. Merged to `main` with CI
+green. The remote database schema is **intentionally still unapplied**.
+
+## Phase 5 — Repository/data layer — **Next**
 
 Repository/service abstractions in `packages/database`. Application code
 never issues raw queries.

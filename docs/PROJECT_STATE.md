@@ -6,29 +6,25 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 4 — D1 schema/migrations.**
+**Phase 4 — D1 schema/migrations: COMPLETE.** Committed as
+`36a239a feat: add D1 schema and migrations`, verified by **Pull Request
+#6 on GitHub Actions/Linux**, rebase-merged into `main`, and verified
+again by the **post-merge `main` CI run**.
 
-- **Implementation:** complete / ready for review.
-- **Status:** **awaiting Git/CI verification.** Not committed, not pushed,
-  and **not formally complete.**
-- **Phase 5:** not started.
-
-The migration smoke test has passed only on Windows, locally. It has never
-executed on GitHub Actions or on Linux. Phase 4 is not marked COMPLETE
-until PR CI, merge, and the post-merge `main` run all succeed.
+The Linux/CI verification gap that previously blocked completion is now
+closed: GitHub Actions installed Wrangler and `workerd` successfully on
+Linux and ran the real D1 smoke test there. The test therefore has
+**cross-platform proof on Windows and Linux**.
 
 ## Active task
 
-Phase 4 — D1 schema design, versioned migrations, D1 management config,
-and the migration smoke test.
+Phase 4 completion documentation (documentation-only; no application
+source, migration SQL, Wrangler config, package manifest, lockfile, pnpm
+workspace config, test, CI, or Cloudflare resource changes).
 
 ## Blockers
 
-**No implementation blocker.** One verification gap remains: **Linux/CI
-execution of the D1 smoke test is pending.** It spawns `workerd` via
-Wrangler, which needs its platform binary installed by a postinstall
-script on the runner — proven locally, unproven on CI until the first
-push.
+**None for Phase 4.**
 
 ## Phase status summary
 
@@ -38,10 +34,48 @@ push.
 | Phase 1 — Docs/spec + repo + CI + CLAUDE.md + `.claude` skills | **Complete** |
 | Phase 2 — Static responsive portfolio | **Complete** (merged to `main`, CI green) |
 | Phase 3 — Design system | **Complete** (merged to `main`, CI green) |
-| Phase 4 — D1 schema/migrations | Implemented; **awaiting Git/CI verification** |
+| Phase 4 — D1 schema/migrations | **Complete** (merged to `main`, CI green) |
+| Phase 5 — Repository/data layer | Not started (next) |
 
-Phases 5–22 are not started. See `docs/ROADMAP.md` for the authoritative
+Phases 6–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
+
+### Phase 4 — what was delivered
+
+**D1 resource.** One Cloudflare D1 database, `portfolio-cms`. No
+additional databases were created. **The schema migration has not been
+applied remotely**, and no production data exists.
+
+**Tooling.** Wrangler pinned to **4.118.0**, installed as a root
+workspace dev dependency — **not globally**. **`minimumReleaseAgeExclude`
+is not used**; the repository's pnpm supply-chain minimum-release-age
+protection is preserved intact. Build-script allowlisting is exact and
+limited to three named packages — the pre-existing `unrs-resolver`, plus
+`workerd` and `esbuild`. **No wildcard build-script permissions.**
+
+**Migration architecture.** Root `migrations/` directory containing
+`0001_initial_schema.sql`. History is **forward-only and immutable once
+committed or shared** — future schema changes create new migration files
+rather than rewriting `0001`. `wrangler.d1.jsonc` is a repository-level
+D1 management config, separate from any future app deployment config. The
+D1 binding name is **`DB`**. **Remote migrations are not part of normal
+CI.**
+
+**Schema.** 20 tables, 20 indexes. Key design decisions, all already
+documented in `docs/DATABASE.md` and unchanged by this pass:
+
+- TEXT primary keys holding application-generated **UUIDv7**.
+- **ISO-8601 UTC TEXT** timestamps.
+- SQLite/D1-compatible **CHECK** constraints for booleans, enums, and
+  ordering.
+- **Explicit foreign-key delete behaviors** chosen per relationship —
+  CASCADE, RESTRICT, or SET NULL — rather than defaulted.
+- **Normalized** project / media / technology relationships.
+- **R2 binary storage deferred to Phase 9**; D1 stores metadata and
+  references only.
+- **Singleton-key tables permit zero or one row.** The schema does **not**
+  guarantee a row exists. Phase 5 repository/bootstrap logic is
+  responsible for ensuring required singleton records are present.
 
 ## Phase 4 — completed work
 
@@ -133,11 +167,27 @@ From a deleted `.wrangler/` (clean state), using `wrangler.d1.jsonc`:
   idempotent at the runner level.
 - `migrations list --local` after → no unapplied migrations remaining.
 
-### Automated migration smoke test — 59/59 assertions passed
+### Automated migration smoke test — 59/59 checks passed
 
 *(Was 57. The pre-commit review added two assertions covering the
 singleton-key correction: that the PRIMARY KEY allows at most one profile
 row, and that the table legitimately permits zero rows.)*
+
+**Now verified on both platforms:**
+
+| Environment | Result |
+| --- | --- |
+| Local Windows | **59/59 passed** |
+| Pull Request #6 — GitHub Actions/Linux | **59/59 passed** |
+| Post-merge `main` — GitHub Actions/Linux | **59/59 passed** |
+
+The test runs through `packages/database`, creates its own temporary local
+D1 persistence directory, uses **Wrangler local mode only**, applies the
+migrations, verifies tables and indexes, runs `PRAGMA foreign_key_check`,
+exercises representative CHECK / UNIQUE / FOREIGN KEY / CASCADE /
+RESTRICT / partial-UNIQUE / singleton-key behavior, cleans up its own
+temporary state, **requires no Cloudflare authentication**, and **never
+uses `--remote`**.
 
 Run by `pnpm test`. It applies all migrations to a throwaway local D1
 instance in an OS temp directory and asserts:
@@ -168,9 +218,32 @@ root, from `packages/database`, and from an unrelated directory
 (`apps/web`). `shell: false` is retained for SQL argument safety, and the
 string `--remote` appears nowhere except a comment forbidding it.
 
+### CI verification
+
+- **Pull Request #6 CI passed** on GitHub Actions/Linux.
+- PR #6 was **rebase-merged** into `main`.
+- The **post-merge `main` CI run passed.**
+- GitHub Actions successfully installed **Wrangler and `workerd` on
+  Linux**, meaning the `allowBuilds` entries work on a clean runner and
+  the real D1 smoke test executes there.
+- The database test therefore has **cross-platform proof: Windows and
+  Linux.**
+
+### Test coverage — precise state
+
+| Package | `test` script | Real coverage? |
+| --- | --- | --- |
+| `@portfolio/database` | D1 migration smoke test | **Yes — 59 real checks against a live D1 engine, on Windows and Linux** |
+| `apps/web` | prints "no automated tests yet" | **No — no-op** |
+| `apps/admin` | prints "no automated tests yet" | **No — no-op** |
+
+**The repository is not fully tested.** The database schema has genuine
+automated coverage; the two applications have none. There is still **no
+UI, component, integration, or end-to-end coverage** — that is Phase 20.
+
 The test needs **no Cloudflare authentication** — verified by running the
 full suite with a deliberately invalid `CLOUDFLARE_API_TOKEN`, which still
-passed 57/57. It contains no `--remote` flag.
+passed every check. It contains no `--remote` flag.
 
 One real issue surfaced during development: the first run failed on
 "no unexpected tables" because D1 creates an internal `_cf_METADATA`
@@ -178,34 +251,48 @@ table. Inspected, confirmed to be platform-owned rather than
 migration-created, and excluded from that assertion alongside `sqlite_*`
 and `d1_*`.
 
-### Remote database status — NOT MIGRATED
+### Remote database status — STILL NOT MIGRATED
 
-The remote `portfolio-cms` database exists (created by the user) and was
-**left untouched**. Verified two ways after all local work:
+**The remote schema migration is intentionally still pending.** Phase 4
+completing and merging did **not** change this.
+
+The remote `portfolio-cms` database exists and was **left untouched**.
+Verified two ways with read-only commands:
 
 - `wrangler d1 list` → `num_tables: 0`
 - `wrangler d1 migrations list --remote` → still reports
   `0001_initial_schema.sql` as **to be applied**
 
-No `--remote` apply, no remote SQL execution, no destructive command, and
-no additional Cloudflare resource was created.
+Standing policy:
 
-## Phase 4 — known limitations
+- **No `wrangler d1 migrations apply --remote` has been executed**, at any
+  point, by anyone or any script.
+- **No remote SQL mutation has been executed.**
+- **CI must remain local-only.** The smoke test contains no `--remote`
+  flag and must never gain one.
+- Applying the migration remotely will be an **explicit, controlled,
+  human-initiated action**, taken later when deployment or runtime
+  integration actually requires it.
 
-- **Remote schema is not deployed.** Deliberate — applying remotely is a
-  human-initiated step, appropriate once Phase 5 can actually read the
-  schema.
-- **`pnpm test` is only partly real.** The database smoke test is genuine;
-  `apps/web` and `apps/admin` `test` scripts remain no-op placeholders
-  asserting nothing. There is still **zero UI, component, integration, or
-  end-to-end coverage**.
+No destructive command was run and no additional Cloudflare resource was
+created. No production data exists.
+
+## Phase 4 — known limitations (not blockers)
+
+Phase 4 is complete. These are carried forward:
+
+- **Remote schema is not deployed.** Deliberate — see the remote database
+  policy above.
+- **`pnpm test` is only partly real.** The database smoke test is genuine
+  on both platforms; `apps/web` and `apps/admin` `test` scripts remain
+  no-op placeholders asserting nothing. There is still **zero UI,
+  component, integration, or end-to-end coverage**.
 - **The schema is unexercised by application code.** Its shape is proven
   correct and self-consistent, but no repository layer has yet tried to
   satisfy a real query against it; Phase 5 may surface ergonomic gaps.
-- **No seed data.** No fixtures exist beyond the throwaway rows the smoke
-  test creates and discards. No real personal data was inserted anywhere.
-- **CI has not yet run this test.** The smoke test passes locally on
-  Windows; its first Linux/CI execution happens on push.
+- **No seed data**, and **no required singleton rows exist**. Singleton-key
+  tables permit zero rows by design; creating the required records is
+  Phase 5 bootstrap work. No real personal data was inserted anywhere.
 - `wrangler` pulls in `miniflare@5...-alpha` as a transitive dependency —
   wrangler's own choice, recorded in `pnpm-workspace.yaml`'s
   `minimumReleaseAgeExclude`, and only used by local tooling, never
@@ -801,12 +888,12 @@ pre-existing local artifacts.
 
 ## Manual actions still required from the user
 
-- Review the Phase 4 changes on `feat/d1-schema-migrations` and commit
-  them (nothing has been committed).
+- Merge this documentation branch (`docs/phase-4-completion`) once
+  reviewed.
 - Decide when to apply `0001_initial_schema.sql` to the remote
   `portfolio-cms` database. It is intentionally still pending there;
-  applying it is a deliberate human step, sensibly done once Phase 5 can
-  read the schema.
+  applying it is a deliberate, controlled human step, sensibly done once
+  Phase 5 can read the schema.
 - Optionally confirm via `/status` that the project `.claude/settings.json`
   is loaded (cannot be checked from a tool call).
 

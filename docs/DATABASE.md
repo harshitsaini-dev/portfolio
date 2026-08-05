@@ -1,6 +1,6 @@
 # Database
 
-**Status: schema and migrations implemented (Phase 4).** The Cloudflare D1
+**Status: complete and merged (Phase 4).** The Cloudflare D1
 schema exists as versioned SQL in `migrations/` and is verified against a
 real local D1 instance. **No repository, query, or application data-access
 code exists yet** — that is Phase 5.
