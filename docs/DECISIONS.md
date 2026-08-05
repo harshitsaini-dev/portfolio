@@ -3,6 +3,96 @@
 Notable architectural/tooling decisions and their rationale. Append new
 entries; do not delete history.
 
+## 2026-08-06 — Phase 5 repository/data layer
+
+- **No Zod, and no validation library at all, in this layer.** Phase 5's
+  validation need is *decoding trusted-but-unverified persisted data*, not
+  validating untrusted input — the only callers are our own future server
+  code. Hand-written row decoders in `src/mapping.ts` cover that precisely,
+  cost nothing in an edge bundle, and give better error messages than a
+  generic schema failure. Zod belongs at the API/form boundary where
+  untrusted input actually arrives; add it to `@portfolio/schemas` in Phase
+  6/7, where it will earn its bundle cost.
+- **Domain types in `@portfolio/types`; row shapes private.** One source of
+  truth for the shapes apps consume, with `Row` decoding confined to
+  `packages/database`. Three shapes per entity — entity, create input,
+  update patch — so database-managed fields cannot be supplied by callers.
+- **`D1Like` declared structurally instead of importing
+  `@cloudflare/workers-types`.** Keeps the package dependency-free
+  (not even a type-only dependency), documents exactly what is relied upon
+  in one file, and lets the tests substitute any SQLite driver without
+  mocking repository internals.
+  - The obvious risk is that a hand-written contract silently drifts from
+    the real binding, so the claim is **verified rather than asserted**:
+    a real `getPlatformProxy()` binding is passed into
+    `createRepositories` at runtime with no cast, and Cloudflare's own
+    generated `D1Database` type is compiled against `D1Like` at build time.
+    Both run in `pnpm test`. Without those, "satisfies it structurally"
+    would have been a guess.
+- **Injection over globals.** `createRepositories(db)` takes the binding as
+  an argument; there is no module-level handle. A Worker isolate may serve
+  more than one environment, so a global database would be a correctness
+  and isolation hazard. The clock and id generator are injected the same
+  way, which is what makes repository tests deterministic.
+- **ID and timestamp generation stays inside the repository boundary.**
+  Callers should not need to know that ids are UUIDv7 or that timestamps
+  are ISO-8601 — that is exactly the persistence detail this layer owns.
+  Injectability preserves testability without leaking the concern upward.
+- **UUIDv7 implemented in ~15 lines rather than added as a dependency.**
+  It uses only Web Crypto (present in Workers, Node, and browsers). Pulling
+  a package into an edge bundle for this would be poor value.
+- **Four error cases, not an error hierarchy.** `not_found`, `conflict`,
+  `invalid_data`, `database_failure` — the distinctions a caller can
+  actually act on. Public messages never contain SQL text or bound values;
+  the original error is preserved on `cause` for server-side diagnosis.
+  Constraint classification does string matching on driver messages because
+  SQLite/D1 provide no typed codes, but it is confined to one function and
+  anything unrecognised degrades to `database_failure` rather than being
+  guessed at.
+- **Patch updates use a per-repository column allowlist.** The SET clause
+  is built only from `FieldSpec` entries written in source, so a hostile
+  object key cannot become SQL, and immutable fields (`id`, `createdAt`,
+  `slug` on sections) are unreachable simply by being absent from the
+  allowlist. `undefined` means "not provided"; `null` on a nullable field
+  means "clear it". An empty patch is a no-op that deliberately does not
+  bump `updated_at`.
+- **Join tables are owned by their aggregate, not exposed as repositories.**
+  A project link has no meaning apart from its project. Top-level CRUD for
+  it would invite callers to bypass the aggregate that understands
+  ordering and replacement semantics.
+- **Shared plumbing for ordered content, not a generic table abstraction.**
+  Six domains share identical mechanics; `createOrderedRepository` factors
+  out that plumbing while each domain still declares its own table,
+  columns, decoder, insert bindings, and patch allowlist, and still exposes
+  a domain-named interface. Nothing lets a caller name a table or column at
+  runtime.
+- **Two repository test layers, not one.** The broad suite runs the
+  repositories over a `node:sqlite` `D1Like` adapter — no dependency, no
+  authentication, milliseconds to start, and Node 24's type stripping means
+  it exercises the shipped TypeScript rather than a transcription of its
+  SQL. But that adapter is *our* code, so it cannot prove our contract
+  matches Cloudflare's binding: a wrong `D1Like` and a matching wrong
+  adapter would agree perfectly. So a second, deliberately smaller suite
+  runs representative operations through a real workerd binding from
+  `getPlatformProxy()`. Breadth from the fast layer, binding truth from the
+  real one; keeping both is cheaper than making the slow one exhaustive.
+- **`getPlatformProxy` over `unstable_dev` or a hand-rolled Worker.** It
+  hands back the bindings directly with no Worker script to maintain, takes
+  `remoteBindings: false` to guarantee local-only, and exposes `dispose()`.
+  The persistence-layout mismatch it requires (`--persist-to <root>` writes
+  `<root>/v3`, the proxy wants `<root>/v3`) is asserted in the test rather
+  than assumed, so a future Wrangler change fails loudly instead of
+  silently connecting to an empty database.
+- **`uuidV7` takes an optional millisecond argument.** Needed to assert the
+  48-bit timestamp encoding exactly instead of loosely. It is the smallest
+  change that makes the function testable, keeps the `IdGenerator` shape
+  intact, and is never passed in production.
+- **Explicit `.ts` import specifiers** in `packages/database` and
+  `packages/types`. Node's type stripping resolves the literal specifier,
+  so extensionless imports cannot be loaded directly; bundlers follow `.ts`
+  happily. This is what lets the tests import the real source with no build
+  step.
+
 ## 2026-08-06 — Phase 4 D1 schema/migrations
 
 - **TEXT primary keys holding application-generated UUIDv7**, used

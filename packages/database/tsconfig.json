@@ -1,7 +1,12 @@
 {
   "extends": "../config/base.json",
   "compilerOptions": {
-    "outDir": "dist",
+    // The package is consumed as TypeScript source (by bundlers) and run
+    // directly by Node's type stripping (in tests), so it is never emitted.
+    // Explicit `.ts` specifiers are what make both of those work: Node
+    // resolves the literal path, and bundlers follow it happily.
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
     "rootDir": "src"
   },
   "include": ["src"]

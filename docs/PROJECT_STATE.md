@@ -6,25 +6,26 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 4 — D1 schema/migrations: COMPLETE.** Committed as
-`36a239a feat: add D1 schema and migrations`, verified by **Pull Request
-#6 on GitHub Actions/Linux**, rebase-merged into `main`, and verified
-again by the **post-merge `main` CI run**.
+**Phase 5 — Repository/data layer.**
 
-The Linux/CI verification gap that previously blocked completion is now
-closed: GitHub Actions installed Wrangler and `workerd` successfully on
-Linux and ran the real D1 smoke test there. The test therefore has
-**cross-platform proof on Windows and Linux**.
+- **Implementation:** complete / ready for review on branch
+  `feat/repository-data-layer`.
+- **Status:** **awaiting Git/CI verification.** Not committed, not pushed,
+  and **not formally complete.**
+- **Phase 4:** Complete (merged to `main`, CI green).
+- **Phase 6:** not started.
+
+Phase 5 is not marked COMPLETE until PR CI, merge, and the post-merge
+`main` run all succeed.
 
 ## Active task
 
-Phase 4 completion documentation (documentation-only; no application
-source, migration SQL, Wrangler config, package manifest, lockfile, pnpm
-workspace config, test, CI, or Cloudflare resource changes).
+Phase 5 — typed repository/data-access layer over the Phase 4 D1 schema.
 
 ## Blockers
 
-**None for Phase 4.**
+**No implementation blocker.** The remaining gap is Linux/CI execution of
+the new repository test suite, which is pending the first push.
 
 ## Phase status summary
 
@@ -35,10 +36,173 @@ workspace config, test, CI, or Cloudflare resource changes).
 | Phase 2 — Static responsive portfolio | **Complete** (merged to `main`, CI green) |
 | Phase 3 — Design system | **Complete** (merged to `main`, CI green) |
 | Phase 4 — D1 schema/migrations | **Complete** (merged to `main`, CI green) |
-| Phase 5 — Repository/data layer | Not started (next) |
+| Phase 5 — Repository/data layer | Implemented; **awaiting Git/CI verification** |
+| Phase 6 — Admin foundation | Not started |
 
 Phases 6–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
+
+## Phase 5 — completed work
+
+### Delivered
+
+A typed, framework-independent repository layer over the Phase 4 schema.
+**No new external dependencies.** **No application code changed** — the
+apps still render from the Phase 2 placeholder module, so no Playwright
+run was required.
+
+**`packages/types`** — the portfolio content domain types
+(`src/content.ts`): entity, create-input, update-patch, and filter shapes
+for every persistence domain.
+
+**`packages/database`** — the data layer:
+
+| File | Role |
+| --- | --- |
+| `src/d1.ts` | The minimal `D1Like` contract this package depends on |
+| `src/errors.ts` | Four-case persistence error model + driver classification |
+| `src/runtime.ts` | Injectable `Clock` / `IdGenerator`, plus a UUIDv7 implementation |
+| `src/mapping.ts` | Row decoders — every read passes through these |
+| `src/internal/sql.ts` | Allowlisted patch builder, placeholder/limit helpers |
+| `src/internal/ordered-repository.ts` | Shared CRUD plumbing for ordered content |
+| `src/repositories/*.ts` | The domain repositories |
+| `src/factory.ts` | `createRepositories(db)` composition |
+| `src/index.ts` | Curated public API |
+| `scripts/d1-test-adapter.mjs` | `D1Like` adapter over `node:sqlite`, for tests |
+| `scripts/repository-tests.mjs` | 111-check repository integration suite |
+
+### Explicitly NOT done (Phase 6+)
+
+No admin UI, no API route handlers, no Server Actions, no authentication,
+no R2 handling, no contact submission, no theme controls, no public
+portfolio conversion from placeholder data, and **no remote migration**.
+Repositories are **not wired into `apps/web` or `apps/admin`** — zero app
+behaviour change was the goal.
+
+### Repository ↔ table ownership
+
+15 repositories cover all 20 tables. Join and child tables are owned by
+the aggregate they belong to rather than exposed as top-level CRUD:
+
+| Repository | Tables owned |
+| --- | --- |
+| `projects` | `projects`, **`project_links`**, **`project_media`**, **`project_technologies`** |
+| `timeline` | `timeline_entries`, **`timeline_highlights`** |
+| `skills` | `skill_categories`, `skills` |
+| `profile` / `siteSettings` / `sceneSettings` | the three singleton-key tables |
+| `media`, `resumes`, `technologies`, `socialLinks`, `education`, `certifications`, `tools`, `sections`, `contactMessages` | one table each |
+
+A project's links have no meaning apart from their project, so they are
+reached through `projects.setLinks()` / `listLinks()`. Exposing them as a
+standalone repository would invite callers to mutate a project's
+relationships without going through the aggregate that understands them.
+
+## Phase 5 — verification actually performed
+
+| Command | Result |
+| --- | --- |
+| `pnpm install --frozen-lockfile` | **PASS** — lockfile unmodified |
+| `pnpm lint` | **PASS** (exit 0) |
+| `pnpm typecheck` | **PASS** (exit 0) |
+| `pnpm test` | **PASS** — **238 real checks** (26 + 59 + 111 + 38 + 4) |
+| `pnpm build` | **PASS** (exit 0) |
+
+### Test suites — what each one actually proves
+
+| Suite | Checks | Executes against | Proves |
+| --- | --- | --- | --- |
+| UUIDv7 | **26/26** | pure function | Format, version/variant bits, timestamp encoding, uniqueness |
+| D1 migration smoke test | **59/59** | **real Wrangler/workerd D1** | Schema and constraints |
+| Repository integration | **111/111** | repository code over a **`node:sqlite` adapter** | Repository SQL, mapping, semantics — breadth |
+| D1 binding compatibility | **38/38** | repository code through a **real workerd D1 binding** | That `D1Like` matches the actual Cloudflare binding |
+| D1Like type compatibility | **4/4** | `tsc` over **Cloudflare-generated types** | Compile-time assignability, no cast |
+| `apps/web` | — | — | **Nothing — no-op placeholder** |
+| `apps/admin` | — | — | **Nothing — no-op placeholder** |
+
+**Important distinction.** The 111-check suite runs over an adapter *we
+wrote*, so on its own it cannot prove the `D1Like` contract is correct — a
+wrong contract and a matching wrong adapter would agree. The 38-check
+suite is the actual binding proof, obtained from Wrangler's
+`getPlatformProxy()`; it is smaller on purpose because breadth is already
+covered.
+
+**Still representative, not exhaustive.** Every repository is exercised,
+but not every method of every repository, and there is no UI, component,
+or end-to-end coverage.
+
+The 111-check suite covers: singleton-key zero/one semantics; boolean and
+null mapping; rejection of structurally invalid persisted data; the
+project aggregate (create, unique-slug conflict, patch semantics,
+immutable-id protection, status/featured filtering, ordering, links, media,
+technologies, cascade on delete); batch rollback; ordered content with
+visibility filtering (sections, skills, timeline); the contact inbox
+(newest-first, status filter, status transition, `read_at` stamping,
+invalid status); the single-current-résumé invariant; `PRAGMA
+foreign_key_check` after mutations; and SQL-injection safety.
+
+The 38-check binding suite covers binding acceptance without a cast, the
+real migration being present, singleton get/upsert, project
+create/read/list/update, unique-constraint → `ConflictError`, relationship
+writes through real `batch()`, aggregate reads, **real-D1 batch
+rollback**, contact inbox flow, integer→boolean mapping, SQL-injection
+safety, and a final `PRAGMA foreign_key_check`.
+
+## Phase 5 — pre-commit verification pass
+
+A targeted review closed three gaps the first pass left open. No
+architectural change was needed — the contract and the UUID
+implementation both turned out to be correct, but neither had been
+*proven*.
+
+1. **`D1Like` was unverified against the real binding.** The 111-check
+   suite ran only over a `node:sqlite` adapter we wrote, which cannot
+   detect a wrong contract. Added
+   `scripts/d1-binding-tests.mjs`: a real workerd `env.DB` from
+   `getPlatformProxy()`, passed straight into `createRepositories` with no
+   cast. **38/38 passed** — including real-D1 batch rollback, which
+   upgrades that guarantee from "documented and locally simulated" to
+   "verified against Cloudflare's own implementation".
+2. **Compile-time assignability was claimed but not demonstrated.** Added
+   `scripts/d1-type-compatibility.mjs`, which generates Cloudflare's own
+   types with Wrangler's generator and compiles a type-only assertion.
+   **4/4 passed.** The harness was negative-controlled: deliberately
+   widening the asserted contract made it fail, so the pass is meaningful.
+   `@cloudflare/workers-types` was still not added.
+3. **`uuidV7` had only incidental coverage.** Added
+   `scripts/uuid-tests.mjs` — **26/26 passed**. **No defect was found.**
+   `uuidV7` gained an optional millisecond argument (test-only) so the
+   48-bit timestamp encoding could be asserted exactly.
+
+### Portability audit
+
+- TypeScript `strict` and `noUncheckedIndexedAccess` remain on; **no
+  compiler relaxation** was introduced. The only additions are
+  `noEmit: true` and `allowImportingTsExtensions`, both required by the
+  `.ts`-specifier setup and documented in the tsconfigs.
+- `packages/database/src` contains **no `node:` imports, no `process`, no
+  filesystem or Node database API, no `any`, and no absolute or
+  user-specific paths**. Node-only code is confined to `scripts/`.
+
+## Phase 5 — known limitations
+
+- **Not verified on Linux/CI yet** — pending first push. The binding suite
+  spawns workerd, which CI has already proven it can install (Phase 4), but
+  `getPlatformProxy` itself is new to CI.
+- **Not wired into the apps.** Deliberate; that is Phase 6+.
+- **Remote D1 batch behaviour is still unverified.** It is now proven
+  against *local* workerd, which is the same runtime, but the remote
+  service was never touched.
+- **Representative, not exhaustive, test coverage.**
+- **No bootstrap/seed operation.** Singleton-key tables still legitimately
+  return `null`; creating required rows is Phase 6 work.
+- **No Zod.** Persistence-boundary decoding is hand-written; input
+  validation belongs at the API/form boundary in Phase 6+.
+
+## Phase 5 — remote D1 status
+
+**Unchanged and still not migrated.** Verified read-only after all work:
+`wrangler d1 list` → `num_tables: 0`. No `--remote` command was executed;
+the string appears in the repository only inside comments forbidding it.
 
 ### Phase 4 — what was delivered
 
@@ -888,22 +1052,21 @@ pre-existing local artifacts.
 
 ## Manual actions still required from the user
 
-- Merge this documentation branch (`docs/phase-4-completion`) once
-  reviewed.
+- Review the Phase 5 changes on `feat/repository-data-layer` and commit
+  them (nothing has been committed).
 - Decide when to apply `0001_initial_schema.sql` to the remote
   `portfolio-cms` database. It is intentionally still pending there;
-  applying it is a deliberate, controlled human step, sensibly done once
-  Phase 5 can read the schema.
+  applying it is a deliberate, controlled human step, now sensible at any
+  point since the repository layer can read the schema.
 - Optionally confirm via `/status` that the project `.claude/settings.json`
   is loaded (cannot be checked from a tool call).
 
 ## Next suggested task
 
-**Phase 5 — Repository/data layer.** Implement repository/service
-abstractions in `packages/database` over the Phase 4 schema — typed
-queries and prepared statements consumed by `apps/web` and `apps/admin`,
-with no raw SQL in application code. The temporary
-`apps/web/src/data/` placeholder module remains the only content source
-until that layer replaces it.
+**Phase 6 — Admin foundation.** The authenticated `apps/admin` shell:
+authentication, protected routing, and layout, ahead of any CRUD. That is
+where `createRepositories(env.DB)` gets wired to a real binding for the
+first time, and where the bootstrap operation that creates required
+singleton rows belongs.
 
 Not implemented as part of this task.

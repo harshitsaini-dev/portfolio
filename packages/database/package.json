@@ -8,7 +8,10 @@
   "types": "./src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/migrations-smoke-test.mjs"
+    "test": "node scripts/uuid-tests.mjs && node scripts/migrations-smoke-test.mjs && node scripts/repository-tests.mjs && node scripts/d1-binding-tests.mjs && node scripts/d1-type-compatibility.mjs"
+  },
+  "dependencies": {
+    "@portfolio/types": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5"
