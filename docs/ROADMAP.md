@@ -55,12 +55,21 @@ first real automated test — a D1 migration smoke test with **59 checks**,
 passing on both Windows and GitHub Actions/Linux. Merged to `main` with CI
 green. The remote database schema is **intentionally still unapplied**.
 
-## Phase 5 — Repository/data layer — **Next**
+## Phase 5 — Repository/data layer — **Complete**
 
 Repository/service abstractions in `packages/database`. Application code
 never issues raw queries.
 
-## Phase 6 — Admin foundation
+Delivered 15 domain repositories over the 20 tables behind
+`createRepositories(db)`, with explicit row decoding, allowlisted patch
+updates, and a four-case persistence error model. No new external
+dependencies; join tables owned by their aggregates. Test coverage grew to
+**238 real checks**, including a real workerd/D1 binding suite and a
+compile-time `D1Database` compatibility proof. Merged to `main` with CI
+green on Linux. Not yet wired into the apps, and the remote database
+schema remains **intentionally unapplied**.
+
+## Phase 6 — Admin foundation — **Next**
 
 The authenticated `apps/admin` shell: auth, protected routing, and layout,
 ahead of any CRUD.
