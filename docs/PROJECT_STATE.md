@@ -6,16 +6,20 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 3 — Design system.** Implemented and verified in a real browser;
-awaiting human review on branch `feat/design-system` (not committed).
+**Phase 3 — Design system: COMPLETE.** Committed as
+`feat: establish portfolio design system`, verified by Pull Request #4
+GitHub Actions, merged into `main`, and verified again by the post-merge
+`main` CI run.
 
 ## Active task
 
-Phase 3 — design system, and migration of the Phase 2 portfolio onto it.
+Phase 3 completion documentation (documentation-only; no application
+code, package manifest, lockfile, CI, configuration, dependency, or
+design-system changes).
 
 ## Blockers
 
-**None.**
+**None for Phase 3.**
 
 ## Phase status summary
 
@@ -24,10 +28,33 @@ Phase 3 — design system, and migration of the Phase 2 portfolio onto it.
 | Phase 0 — Tools/environment | **Complete** |
 | Phase 1 — Docs/spec + repo + CI + CLAUDE.md + `.claude` skills | **Complete** |
 | Phase 2 — Static responsive portfolio | **Complete** (merged to `main`, CI green) |
-| Phase 3 — Design system | Built and verified; pending review |
+| Phase 3 — Design system | **Complete** (merged to `main`, CI green) |
+| Phase 4 — D1 schema/migrations | Not started (next) |
 
-Phases 4–22 are not started. See `docs/ROADMAP.md` for the authoritative
+Phases 5–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
+
+### Phase 3 — what was delivered
+
+- Semantic design tokens in `packages/ui/src/tokens.css`
+- Light and dark token sets, system-aware via `prefers-color-scheme`
+- Tailwind theme mapping in `apps/web/src/app/globals.css`
+- Typography roles (display, heading, subheading, minorHeading, lead,
+  body, meta, fine, eyebrow)
+- Layout system: container, page max width, responsive gutters, section
+  rhythm, reading measure, grid gaps, card padding, radius scale
+- Presentation primitives: action (button/link treatment), badge,
+  surface/card, container, type scale
+- All nine existing public portfolio sections migrated onto the system
+- **Zero new external runtime dependencies**
+- **Server Components preserved** — no `"use client"` anywhere
+- No Motion, Three.js, CMS, D1, R2, or any later-phase work
+
+### Phase 3 — CI
+
+- **Pull Request #4 passed GitHub Actions.**
+- Merged into `main`.
+- **The post-merge `main` GitHub Actions run passed.**
 
 ## Phase 3 — completed work
 
@@ -87,12 +114,19 @@ surface is known. Recorded in `docs/ARCHITECTURE.md`.
 | --- | --- |
 | `pnpm lint` | **PASS** (exit 0) |
 | `pnpm typecheck` | **PASS** (exit 0) — both apps and all packages |
-| `pnpm test` | **PASS as a no-op** — still zero real coverage |
+| `pnpm test` | **Exits 0, but is an explicit no-op** — see below |
 | `pnpm build` | **PASS** (exit 0) — `/` prerenders static |
 
-**No automated tests were added in Phase 3.** The `test` scripts remain
-Phase 1 placeholders that assert nothing. Automated coverage is still
-zero; that is Phase 20.
+**A green `pnpm test` is not test coverage.** The `test` script in each
+app prints `"[app] no automated tests yet (Phase 1A)"` and exits 0. It
+executes no assertions. **Automated unit, integration, and E2E coverage
+is zero**, in local runs and in CI alike — a passing CI `test` step means
+the script ran, not that any behaviour is tested. Real coverage is
+Phase 20.
+
+Everything verified in Phase 3 was verified by *manual, MCP-driven
+browser inspection*, which is evidence but not repeatable regression
+protection.
 
 ### Browser verification (`playwright-local` MCP)
 
@@ -199,20 +233,30 @@ smooth-scroll plus 150ms hover/focus colour transitions.
    remembering — a contrast script that regex-scrapes
    `getComputedStyle` will silently lie on modern colour syntax.
 
-## Phase 3 — known limitations
+## Phase 3 — known limitations (not blockers)
 
-- **Automated test coverage remains zero.** No tests were added; the
-  design system is verified by manual MCP-driven browser checks, which are
-  not repeatable regression protection. Phase 20.
-- **`apps/admin` has not adopted the tokens.** `packages/ui/tokens.css` is
-  structured for it, but the admin app still carries its own
-  `create-next-app` stylesheet. It adopts the system in Phase 6.
-- **No React primitives are shared yet** — deliberate, see the
-  architectural decision above.
-- **Mobile navigation still scrolls horizontally** inside its own
-  container at 375px. Unchanged from Phase 2 and deliberate: replacing it
-  with a JavaScript disclosure menu is Phase 17 (Mobile) work if still
-  wanted. It causes no page-level overflow and stays keyboard operable.
+Phase 3 is complete. These are carried forward, not outstanding work:
+
+- **Automated unit/integration/E2E test coverage remains zero.** No tests
+  were added; the design system is verified by manual MCP-driven browser
+  checks, which are evidence but not repeatable regression protection.
+  Phase 20.
+- **`apps/admin` has not adopted the shared design tokens.**
+  `packages/ui/tokens.css` is structured for it, but the admin app still
+  carries its own `create-next-app` stylesheet. It adopts the system in
+  Phase 6.
+- **React primitives have deliberately not been promoted to
+  `packages/ui`** — there is currently only one real React consumer. See
+  the architectural decision above and `docs/ARCHITECTURE.md`. Revisit at
+  Phase 6.
+- **Phase 3 established system-aware tokens only.** Actual theme controls,
+  persistence, and editable theme settings are Phase 10. Nothing writes
+  `data-theme` today; there is no toggle, no localStorage, no store.
+- **Mobile navigation still uses horizontal internal scrolling** at 375px.
+  Unchanged from Phase 2 and deliberate: replacing it with a JavaScript
+  disclosure menu is work for the dedicated mobile phase (Phase 17) if
+  still wanted. It causes no page-level overflow and stays keyboard
+  operable.
 - **Contrast was sampled, not exhaustively enumerated** — 12 representative
   text/background pairings plus 4 accent/ring pairings per scheme, not
   every element on the page.
@@ -578,8 +622,8 @@ pre-existing local artifacts.
 
 ## Manual actions still required from the user
 
-- Review the Phase 3 changes on `feat/design-system` and commit them
-  (nothing has been committed).
+- Merge this documentation branch (`docs/phase-3-completion`) once
+  reviewed.
 - Optionally confirm via `/status` that the project `.claude/settings.json`
   is loaded (cannot be checked from a tool call).
 

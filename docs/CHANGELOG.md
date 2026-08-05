@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-08-06 — Phase 3 complete
+
+Documentation-only entry. No application code, package manifest, lockfile,
+CI, configuration, or design-system changes.
+
+- **Phase 3 — Design system is complete.** Committed as
+  `feat: establish portfolio design system`, verified by **Pull Request #4
+  GitHub Actions**, merged into `main`, and verified again by the
+  **post-merge `main` CI run, which passed**.
+- Phases 0–3 are now complete; **Phase 4 — D1 schema/migrations** is next
+  and not started.
+- Restated the standing limitation explicitly: a green `pnpm test` is a
+  no-op script, not test coverage. **Automated unit, integration, and E2E
+  coverage remains zero** both locally and in CI.
+
 ## 2026-08-06 — Phase 3: design system (branch `feat/design-system`)
 
 - Added semantic design tokens at `packages/ui/src/tokens.css` — plain
