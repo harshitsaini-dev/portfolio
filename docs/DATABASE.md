@@ -301,9 +301,76 @@ pnpm exec wrangler d1 execute portfolio-cms --local -c wrangler.d1.jsonc --json 
 `packages/database/scripts/migrations-smoke-test.mjs`, wired into
 `pnpm test` via the `@portfolio/database` package. See `docs/TESTING.md`.
 
-## Access pattern (Phase 5)
+## Access pattern (implemented in Phase 5)
 
-All access will go through a repository/service layer in
-`packages/database`. Application code in `apps/web`/`apps/admin` will not
-issue raw queries. **No such code exists yet** — `packages/database/src`
-is still export-only.
+All access goes through the repository layer in `packages/database`.
+Application code never issues raw queries, and the package exports no
+escape hatch that would let it. See `docs/ARCHITECTURE.md` for the
+boundary and `docs/DECISIONS.md` for the design decisions.
+
+Usage:
+
+```ts
+import { createRepositories } from "@portfolio/database";
+
+const repos = createRepositories(env.DB);
+const projects = await repos.projects.listWithRelations({
+  statuses: ["published"],
+});
+```
+
+### Repository ↔ table ownership
+
+15 repositories cover the 20 tables. Join and child tables are owned by
+their aggregate rather than exposed as top-level CRUD:
+
+- **`projects`** owns `project_links`, `project_media`, and
+  `project_technologies` — reached via `setLinks` / `setMedia` /
+  `setTechnologies` and the matching `list*` methods.
+- **`timeline`** owns `timeline_highlights` via `setHighlights`.
+- **`skills`** covers both `skill_categories` and `skills`.
+- **`profile`**, **`siteSettings`**, **`sceneSettings`** are the three
+  singleton-key tables; each exposes `get(): T | null` and `upsert()`
+  rather than `create`/`update`, because identity is fixed and the schema
+  permits zero rows.
+- The rest map one repository to one table.
+
+### Relationship writes and D1 `batch()`
+
+`setLinks`, `setMedia`, `setTechnologies`, `setHighlights`, and
+`makeCurrent` replace a relationship set wholesale: one `DELETE` followed
+by the new `INSERT`s, submitted as a single `db.batch([...])`.
+
+**The guarantee relied upon** is D1's documented behaviour that a batch
+executes as one implicit transaction — all statements commit, or none do.
+Without that, a failed insert would leave the relationship set empty.
+
+**What is verified:** batch rollback is proven twice — once against the
+`node:sqlite` adapter (which implements `batch()` as a real
+`BEGIN`/`COMMIT`/`ROLLBACK`), and once **against a real workerd-backed D1
+binding** obtained via `getPlatformProxy()`. In both cases a batch whose
+insert violates a foreign key is rejected and the prior rows survive
+intact. The second is the meaningful one: it is Cloudflare's own batch
+implementation, not ours.
+
+**What is still not verified:** the same behaviour against *remote* D1.
+Phase 5 never touched the remote database. Local workerd is the same
+runtime, so this is a small remaining gap, but it is a gap.
+
+No cross-request transaction abstraction was invented. D1 offers none, and
+pretending otherwise would be worse than the honest limitation.
+
+### Query strategy
+
+Aggregate reads use a small fixed number of bounded queries rather than
+one wide join or a per-row loop. `listWithRelations` runs one query for
+the page of projects, then one each for links, media, and technologies
+using `WHERE project_id IN (...)` — four queries regardless of page size,
+instead of `1 + 3n`. A single wide join was rejected because it multiplies
+rows across three relations and needs de-duplication on the way out; the
+grouping code would be harder to read than the extra queries are to run.
+
+The Phase 4 indexes are used deliberately: `(status, position)` for the
+public project list, `(is_visible, position)` for every ordered content
+list, `(status, created_at DESC)` for the inbox. No caching was added —
+that is a later concern and would be premature here.

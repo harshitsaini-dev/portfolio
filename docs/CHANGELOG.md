@@ -1,5 +1,53 @@
 # Changelog
 
+## 2026-08-06 — Phase 5: repository/data layer (branch `feat/repository-data-layer`)
+
+- Added the portfolio content domain types to `packages/types`
+  (`src/content.ts`): entity, create-input, update-patch, and filter shapes
+  for every persistence domain. Row shapes stay private to
+  `packages/database`.
+- Built the repository layer in `packages/database`: `D1Like` contract,
+  four-case error model, injectable clock/id generator with a UUIDv7
+  implementation, row decoders, an allowlisted patch builder, 15 domain
+  repositories, and `createRepositories(db)` composition behind a curated
+  public API. **No `executeRawSql()` escape hatch.**
+- Join and child tables are owned by their aggregate — `projects` owns
+  `project_links` / `project_media` / `project_technologies`, `timeline`
+  owns `timeline_highlights` — rather than exposed as top-level CRUD.
+- **No new external dependencies.** No Zod (persistence decoding is
+  hand-written; input validation belongs at the Phase 6+ API boundary), no
+  `@cloudflare/workers-types` (the D1 surface is declared structurally), no
+  test framework.
+- **No application code changed.** Repositories are not wired into
+  `apps/web` or `apps/admin` yet, so no Playwright verification was needed.
+- **Added 111 repository integration tests** that run the real repository
+  modules against a real SQL engine with the real migration applied, via a
+  `D1Like` adapter over Node's built-in `node:sqlite`. Covers singleton
+  semantics, row mapping, the project aggregate, batch rollback, ordered
+  content, the contact inbox, the single-current-résumé invariant,
+  `PRAGMA foreign_key_check`, and SQL-injection safety.
+- **Added 38 D1 binding compatibility tests** (pre-commit pass) that run
+  the repositories through a **real workerd-backed `env.DB`** obtained from
+  Wrangler's `getPlatformProxy()` and passed into `createRepositories` with
+  no cast. This is the actual proof that `D1Like` matches Cloudflare's
+  binding — the `node:sqlite` adapter is our own code and could not prove
+  it. **Real-D1 batch rollback is verified here.**
+- **Added 4 static type-compatibility checks** that generate Cloudflare's
+  own types with Wrangler's generator and compile a type-only assertion
+  that `D1Database` satisfies `D1Like` and `createRepositories(env.DB)`
+  type-checks without a cast. Negative-controlled.
+  `@cloudflare/workers-types` was still not added.
+- **Added 26 UUIDv7 tests** — format, version nibble, RFC variant bits,
+  exact 48-bit timestamp encoding across boundary cases, ordering, and
+  10,000 same-millisecond ids all distinct. **No defect found**; `uuidV7`
+  gained a test-only optional millisecond argument.
+- The 59-check D1 migration smoke test is unchanged and still runs first.
+- `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`,
+  `pnpm test` (**238 real checks**: 26 + 59 + 111 + 38 + 4), `pnpm build`
+  all pass.
+- `migrations/0001_initial_schema.sql` is **unchanged**, and the remote
+  `portfolio-cms` database is **still not migrated** (`num_tables: 0`).
+
 ## 2026-08-06 — Phase 4 complete
 
 Documentation-only entry. No application source, migration SQL, Wrangler

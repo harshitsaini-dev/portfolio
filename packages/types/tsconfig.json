@@ -1,7 +1,9 @@
 {
   "extends": "../config/base.json",
   "compilerOptions": {
-    "outDir": "dist",
+    // Consumed as TypeScript source; never emitted. See packages/database.
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
     "rootDir": "src"
   },
   "include": ["src"]

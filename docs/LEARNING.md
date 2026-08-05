@@ -3,6 +3,91 @@
 Notes on things learned while building this project that are worth
 remembering for future work.
 
+## Phase 5
+
+- **The allowlist is the injection defence, and it comes free with good
+  design.** Building an `UPDATE ... SET` clause from an incoming patch
+  object is where ORMs get owned: if the *keys* become column names, a key
+  like `"title = 'pwned', is_featured = 1 --"` is SQL. Declaring
+  `{ field → { column, encode } }` per repository means the only
+  identifiers that ever reach SQL are ones written in source, and unknown
+  keys are silently ignored. The same table also makes `id` and
+  `createdAt` unpatchable — not by checking for them, but by their absence.
+- **A test that can't reach the failure state isn't testing the failure.**
+  The first attempt at "invalid persisted data is rejected" tried to
+  `UPDATE tools SET is_visible = 7` — and the schema's CHECK refused it.
+  The schema was doing its job; the test was unreachable. The fix was to
+  assert *both* halves: that the schema refuses the bad write, and that the
+  decoder rejects the bad row when handed one by a stubbed driver. Two
+  honest assertions beat one that quietly never ran.
+- **Test the code, not a transcription of it.** Driving `wrangler d1
+  execute` from outside can only run SQL strings, which would have meant
+  re-typing each repository's query into the test — proving the test's copy
+  works, not the repository. Importing the real modules and giving them a
+  `D1Like` adapter tests the shipped code. That the layer depends on a
+  ~10-method interface rather than a concrete driver is what made this
+  possible; a narrow dependency is a testability feature, not just tidiness.
+- **`node:sqlite` is a serious testing option now.** Built into Node 22+:
+  no dependency, no container, no auth, milliseconds to start, and real SQL
+  semantics. Combined with Node 24 running TypeScript directly via type
+  stripping, an integration suite needs no build step and no test runner.
+  The honest caveat is that it isn't workerd — so schema proof stays with
+  the Wrangler-based smoke test and this suite covers repository logic.
+- **Node's type stripping resolves the *literal* specifier.** Extensionless
+  `./factory` imports — normal under `moduleResolution: Bundler` — simply
+  don't load. Explicit `.ts` specifiers plus
+  `allowImportingTsExtensions` make the same source work for both tsc and
+  Node, which is what removed the build step from the test loop.
+- **`satisfies` doesn't pin a generic.** Annotating a config object with
+  `satisfies FieldSpecs<XUpdate>` still let inference widen `TUpdate` from
+  the literal, producing errors that pointed at the wrong place entirely.
+  Passing explicit type arguments to the factory fixed it, and made the
+  annotation redundant — the property is contextually typed once the
+  generic is pinned.
+- **Model what the database actually guarantees.** Singleton-key tables
+  permit zero rows, so the repository returns `Profile | null` and offers
+  no `getOrThrow` convenience. A repository that pretends a row always
+  exists just moves the null check somewhere less careful.
+- **Don't claim transactionality you haven't verified.** D1 documents
+  `batch()` as one implicit transaction, and the relationship-replace
+  operations depend on that. The first pass could only say "verified
+  against our adapter, trusted remotely" — which was honest but weak. The
+  follow-up pass ran the same operation through a real workerd binding and
+  watched Cloudflare's own batch roll back. Same code, much stronger claim.
+- **A test double cannot validate the contract it implements.** The
+  111-check suite ran the repositories over a `D1Like` adapter *we* wrote.
+  If `D1Like` had the wrong method shape, the adapter would have had the
+  same wrong shape and every test would still pass. Adapter-backed tests
+  prove *your logic*; only the real dependency proves *your contract*. The
+  fix was not to replace the fast suite but to add a small second one
+  against a real `getPlatformProxy()` binding — breadth from the cheap
+  layer, truth from the real one.
+- **"Satisfies structurally" is a hypothesis until a compiler says so.**
+  Asserting that Cloudflare's `D1Database` fits our hand-written interface
+  was reasonable and, as it turned out, correct — but it had never been
+  compiled. Wrangler can generate the real types, so proving it took one
+  temp directory and a three-line assertion file. Any claim of the form "X
+  is type-compatible with Y" is cheap to verify and embarrassing to get
+  wrong.
+  - And the proof itself needs a negative control: deliberately requiring
+    a method `D1Database` lacks made the check fail, which is what makes
+    the passing result mean something.
+- **Hand-rolled crypto-adjacent code deserves direct tests, not incidental
+  ones.** Every row id comes from a 15-line `uuidV7`. The repository tests
+  touched it constantly but only ever asserted "ids are distinct strings" —
+  which a function returning a counter would satisfy. Testing the actual
+  spec (version nibble, variant bits, exact 48-bit big-endian timestamp,
+  10k same-millisecond uniqueness) required making the timestamp
+  injectable: a one-argument change that turned an untestable function into
+  a verifiable one. Worth checking the RNG varies too — a constant-output
+  generator passes every format assertion.
+- **Wrangler's persistence layout is asymmetric.** `--persist-to <dir>`
+  writes into `<dir>/v3/...`, but `getPlatformProxy({ persist: { path } })`
+  wants the versioned directory itself. Guessing wrong connects you to an
+  empty database that silently passes nothing — so the test asserts the
+  directory exists before connecting, turning a future layout change into a
+  loud failure instead of a mysterious one.
+
 ## Phase 4
 
 - **`shell: true` re-splits your arguments.** The smoke test first drove

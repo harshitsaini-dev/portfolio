@@ -55,6 +55,52 @@ surface is known from two real consumers rather than guessed from one.
 Portfolio-content-specific section components stay in `apps/web`
 regardless.
 
+## Data access (Phase 5)
+
+The boundary, top to bottom:
+
+```
+application / server code   (apps/web, apps/admin — Phase 6+)
+  → repository interfaces    @portfolio/database public API
+    → D1 implementations     private
+      → prepared statements  private
+        → D1
+```
+
+**`packages/database` depends on no framework.** No React, no Next.js, no
+browser globals, no Node built-ins — so it runs unchanged on Cloudflare
+Workers/OpenNext. It does not even import `@cloudflare/workers-types`: the
+D1 surface it needs is declared structurally as `D1Like` in `src/d1.ts`, so
+the dependency is documented in one place.
+
+That `D1Like` matches the real binding is **verified, not assumed**, in two
+independent ways (see `docs/TESTING.md`):
+
+- **Runtime** — a real workerd-backed `env.DB` from Wrangler's
+  `getPlatformProxy()` is passed straight into `createRepositories(env.DB)`
+  with no cast, and 38 checks exercise reads, writes, aggregates, batch
+  rollback, and mapping through it.
+- **Compile time** — Cloudflare's own generated `D1Database` type is
+  asserted assignable to `D1Like`, and `createRepositories(env.DB)` is
+  compiled with no cast.
+
+**Dependency injection, no globals.** `createRepositories(env.DB)` is the
+only entry point. There is no module-level database handle: a Worker
+isolate can serve requests for more than one environment, so a global would
+be both a correctness and an isolation hazard. The clock and id generator
+are injectable too, which is what makes the repository tests deterministic.
+
+**No raw-SQL escape hatch.** The package deliberately exports no
+`executeRawSql()`. The moment one exists, SQL starts appearing in route
+handlers and components — exactly what this layer is for. Query helpers,
+row decoders, and SQL builders are not exported either; the public surface
+is the factory, the repository interfaces, the error model, and the
+runtime.
+
+**Types live in `@portfolio/types`.** Domain entities and their
+create/update/filter shapes are shared; database *row* shapes are private
+to `packages/database` and are decoded at its boundary.
+
 ## Data flow (target shape, not yet implemented)
 
 ```
