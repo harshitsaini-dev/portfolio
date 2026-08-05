@@ -1,48 +1,131 @@
 # Roadmap
 
-High-level phase plan. Phases are sequential; later phases are not started
-until explicitly scoped and approved.
+The authoritative phase plan. Phases are sequential; a later phase is not
+started until the previous one is complete and the next is explicitly
+scoped and approved.
 
-## Phase 1A — Repository Foundation (current)
+Status legend: **Complete** · **Next** · Not started.
 
-Monorepo scaffold: `apps/web`, `apps/admin`, shared `packages/*`, tooling
-(lint/typecheck/test/build/CI), Claude Code project config and skills,
-documentation set. No real content, no database, no auth, no 3D.
+## Phase 0 — Tools/environment — **Complete**
 
-## Phase 1B — Shared Contracts (proposed, not started)
+Toolchain confirmed and recorded (Node 24, pnpm 11, git). Exact versions
+are in `docs/PROJECT_STATE.md`.
 
-Define `@portfolio/types` and `@portfolio/schemas` for core entities
-(profile, projects, technologies, etc.) as plain TypeScript/validation
-code, consumed by placeholder UI. Still no database.
+## Phase 1 — Docs/spec + repo + CI + CLAUDE.md + `.claude` skills — **Complete**
 
-## Phase 2 — Database Layer (proposed, not started)
+pnpm monorepo scaffold (`apps/web`, `apps/admin`, shared `packages/*`),
+the documentation set, GitHub Actions CI, root `CLAUDE.md`, and the nine
+`.claude/skills`. Both apps build and render as minimal accessible
+shells; browser-verified via Playwright MCP at desktop and mobile widths
+with zero console errors; CI passes on `main`. Automated unit/integration
+test coverage is still zero by design — the `test` scripts are explicit
+no-ops.
 
-Cloudflare D1 schema + migrations in `packages/database`, repository/service
-layer, entity list per `docs/DATABASE.md`.
+## Phase 2 — Static responsive portfolio — **Next**
 
-## Phase 3 — Admin CMS CRUD (proposed, not started)
+Establish the public portfolio's semantic, accessible, responsive HTML
+structure. Neutral, data-shaped placeholder content only where necessary —
+no CMS, no database, no 3D. Semantic HTML, keyboard operability, visible
+focus, WCAG AA contrast, and reduced-motion support are requirements of
+this phase, not follow-ups.
 
-Authenticated admin app with create/read/update/delete flows for content
-entities, backed by the Phase 2 database layer.
+## Phase 3 — Design system
 
-## Phase 4 — Public Portfolio Content (proposed, not started)
+Establish the shared visual language and reusable components in
+`packages/ui`, per the direction in `docs/DESIGN.md`.
 
-`apps/web` renders real, data-driven content sourced from the database via
-shared packages.
+## Phase 4 — D1 schema/migrations
 
-## Phase 5 — Media & Storage (proposed, not started)
+Cloudflare D1 schema and migrations for the entities listed in
+`docs/DATABASE.md`.
 
-Cloudflare R2 integration for project media and resume uploads.
+## Phase 5 — Repository/data layer
 
-## Phase 6 — 3D Experience (proposed, not started)
+Repository/service abstractions in `packages/database`. Application code
+never issues raw queries.
 
-Three.js / React Three Fiber / Motion-driven enhancements to the public
-site, respecting accessibility and reduced-motion requirements (see
-`.claude/skills/threejs-performance` and `.claude/skills/accessibility-review`).
+## Phase 6 — Admin foundation
 
-## Phase 7 — Deployment (proposed, not started)
+The authenticated `apps/admin` shell: auth, protected routing, and layout,
+ahead of any CRUD.
+
+## Phase 7 — Projects CMS vertical slice
+
+One entity end to end — projects — proving the full create/read/update/
+delete path through the data layer before the remaining entities follow.
+
+## Phase 8 — Remaining CMS
+
+The rest of the content entities, following the pattern established by the
+projects slice.
+
+## Phase 9 — R2/media
+
+Cloudflare R2 integration for project media and resume uploads, including
+upload validation.
+
+## Phase 10 — Theme/settings
+
+Site settings and theming, including the light/dark/system requirement.
+
+## Phase 11 — Contact/inbox
+
+Contact form handling and the admin-side message inbox, with input
+validation, rate limiting, and spam protection.
+
+## Phase 12 — Motion
+
+Motion-driven animation across the public site, respecting
+`prefers-reduced-motion`.
+
+## Phase 13 — 3D foundation
+
+Three.js / React Three Fiber groundwork — lazy loading, asset pipeline,
+and non-3D fallbacks. See `.claude/skills/threejs-performance`.
+
+## Phase 14 — Hero 3D
+
+The 3D hero experience, layered over an HTML-first hero that remains
+usable without WebGL.
+
+## Phase 15 — Contribution Playground
+
+The interactive contribution playground feature.
+
+## Phase 16 — Loading/skeletons
+
+Loading states and skeleton UI across both apps.
+
+## Phase 17 — Mobile
+
+Mobile-specific refinement, including touch targets and reduced work on
+constrained devices.
+
+## Phase 18 — Accessibility
+
+A dedicated accessibility pass across both apps. See
+`.claude/skills/accessibility-review`.
+
+## Phase 19 — Performance
+
+Performance profiling and optimization, including 3D and asset budgets.
+
+## Phase 20 — Automated/MCP testing
+
+Real automated test coverage — unit, integration, and Playwright E2E —
+replacing the Phase 1 no-op `test` scripts.
+
+## Phase 21 — Security review
+
+A dedicated security pass: authorization, input validation, secrets,
+security headers, and upload/URL handling. See
+`.claude/skills/security-review`.
+
+## Phase 22 — Deployment
 
 Cloudflare Workers deployment via OpenNext for both apps, with CI/CD.
+
+---
 
 Each phase should update this roadmap, `docs/PROJECT_STATE.md`, and
 `docs/CHANGELOG.md` on completion.

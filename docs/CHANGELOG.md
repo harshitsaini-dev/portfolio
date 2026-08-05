@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-08-05 — Phase 1 complete
+
+Documentation-only entry. No application code, package, CI, dependency, or
+configuration changes.
+
+- **Phase 0 (environment setup) and Phase 1 (repository foundation) are
+  complete.**
+- The `next typegen` fix shipped as **Pull Request #1, which passed GitHub
+  Actions**, was **merged into `main`**, and the **post-merge `main` run
+  also passed**. CI is now verified green on a fresh runner.
+- Recorded that Playwright MCP browser verification previously passed for
+  both `apps/web` and `apps/admin` at desktop (1280×800) and mobile
+  (375×812) widths, with **zero console errors or warnings** and no
+  horizontal overflow.
+- Restated the standing limitations: automated unit/integration test
+  coverage is **zero** (the `test` scripts remain explicit foundation
+  no-ops), and keyboard/focus testing stays **N/A** because neither shell
+  has a focusable application control yet.
+- Confirmed no D1, R2, auth, CMS CRUD, Motion, Three.js, or other
+  later-phase functionality has been implemented.
+- Aligned `docs/ROADMAP.md` with the authoritative Phase 0–22 sequence,
+  marking Phase 0 and Phase 1 complete and Phase 2 (Static responsive
+  portfolio) as next.
+
 ## 2026-08-05 — CI typegen fix (branch `fix/ci-typegen`)
 
 - Fixed the first GitHub Actions CI failure. Both apps' `typecheck` script
