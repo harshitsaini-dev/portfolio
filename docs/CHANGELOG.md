@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-08-05 — CI typegen fix (branch `fix/ci-typegen`)
+
+- Fixed the first GitHub Actions CI failure. Both apps' `typecheck` script
+  changed from `tsc --noEmit` to `next typegen && tsc --noEmit` so
+  Next.js route-aware global types (`LayoutProps`, `PageProps`,
+  `RouteContext`) are generated before standalone TypeScript checking.
+- Upgraded CI action majors to remove the Node 20 runtime deprecation
+  warning: `actions/checkout` v4 → v7, `actions/setup-node` v4 → v6,
+  `pnpm/action-setup` v4 → v6. Each was verified to declare
+  `using: node24` in its own `action.yml`, and every input this workflow
+  passes is still declared in the new major. Not yet exercised in CI.
+- No application code changed, so the prior Playwright browser
+  verification remains valid and was not re-run.
+
 ## 2026-08-05 — Phase 1A browser verification
 
 - Performed the outstanding real-browser verification with the

@@ -137,11 +137,78 @@ about this project's own UI was possible, so the focus test is recorded as
 not applicable and must be redone once the first real interactive control
 (link, button, or form field) exists.
 
+## CI failure #1 and fix (branch `fix/ci-typegen`, 2026-08-05)
+
+The first GitHub Actions run failed at the `pnpm typecheck` step:
+
+```
+apps/web/src/app/layout.tsx(20,50):   error TS2304: Cannot find name 'LayoutProps'.
+apps/admin/src/app/layout.tsx(20,50): error TS2304: Cannot find name 'LayoutProps'.
+```
+
+**Why local passed but clean CI failed.** `LayoutProps`, `PageProps`, and
+`RouteContext` are route-aware *global* helpers that Next.js generates
+into `.next/types` — they are not shipped in the `next` package's static
+type declarations. Generation happens during `next dev`, `next build`, or
+`next typegen`. Locally, `.next` already contained those generated types
+from earlier dev/build runs, so a bare `tsc --noEmit` resolved them. A
+fresh CI runner has no `.next` at all, and the CI job ran `typecheck`
+*before* `build`, so nothing had generated them yet. The local
+environment was passing on stale artifacts — a false green.
+
+**Fix.** Both apps' `typecheck` script now runs typegen first:
+
+```
+"typecheck": "next typegen && tsc --noEmit"
+```
+
+This is Next.js's own supported command for exactly this case, adds no
+dependency, and keeps `LayoutProps` in the layouts (it is the official
+route-aware helper and later phases are expected to use generated route
+types — removing it would hide the problem rather than fix it).
+
+**Reproduction and re-verification.** `apps/web/.next` and
+`apps/admin/.next` were deleted (nothing else — `node_modules`,
+`pnpm-lock.yaml`, and all source were left intact) to simulate a clean
+runner. From that state, a bare `npx tsc --noEmit` in `apps/web`
+reproduced the exact CI error (`TS2304`, exit 2). With the fix in place,
+from the same clean state:
+
+| Command | Result |
+| --- | --- |
+| `pnpm typecheck` | **PASS** (exit 0) — both apps logged "Generating route types... ✓ Types generated successfully", then clean `tsc`; all 4 packages clean |
+| `pnpm lint` | **PASS** (exit 0) |
+| `pnpm test` | **PASS as an honest no-op** — zero real coverage (see below) |
+| `pnpm build` | **PASS** (exit 0) — both apps built static `/` and `/_not-found` |
+
+`pnpm test` still only prints `"[app] no automated tests yet (Phase 1A)"`
+and exits 0. It asserts nothing and represents **zero automated test
+coverage**. It exists solely to keep the workspace script and CI step
+wired.
+
+No application code changed — only the two `typecheck` scripts and
+`.github/workflows/ci.yml` — so the Playwright browser verification
+recorded above remains valid and was not re-run.
+
+**CI action runtime warning (also addressed).** The failed run warned that
+`actions/checkout@v4`, `actions/setup-node@v4`, and `pnpm/action-setup@v4`
+target the deprecated Node 20 action runtime. This was *not* the cause of
+the failure. Each action's own `action.yml` was checked at its current
+stable major and all three declare `using: node24`, and every input this
+workflow passes still exists in the new major, so they were upgraded to
+`actions/checkout@v7`, `actions/setup-node@v6`, `pnpm/action-setup@v6`.
+These cannot be validated locally and remain unproven until the next CI
+run. (Note for later: `pnpm/action-setup` now advertises a successor
+action, `pnpm/setup`. Migrating is a separate maintenance task, not done
+here.)
+
 ## Known blockers / bugs
 
-- **Not verified:** the GitHub Actions CI workflow has never executed —
-  there is no remote and no commit, so `ci.yml` is untested in practice.
-  This is the only remaining Definition-of-Done gap.
+- **Not verified:** the GitHub Actions CI workflow has still not passed.
+  The typegen fix and the action-version upgrades are verified locally
+  only; CI must be pushed and observed green before Phase 1 can be
+  declared complete. **Do not claim CI passes until GitHub Actions
+  actually reports success.**
 - **Deferred, not a defect:** keyboard focus visibility is untestable
   until the first interactive control exists (see the browser
   verification section above).
