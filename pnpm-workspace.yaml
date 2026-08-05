@@ -1,5 +1,16 @@
 packages:
   - "apps/*"
   - "packages/*"
+# pnpm blocks dependency postinstall scripts by default. Each entry below is
+# a transitive dependency of the toolchain that genuinely needs its script;
+# this is not a blanket opt-in, and additions must be justified the same way.
 allowBuilds:
+  # Installs the platform-specific native binary used by
+  # eslint-import-resolver-typescript to resolve TS path aliases during lint.
   unrs-resolver: true
+  # workerd is the Cloudflare Workers runtime that backs `wrangler --local`.
+  # Its postinstall fetches the platform-specific runtime binary; without it
+  # local D1 cannot start.
+  workerd: true
+  # esbuild (a wrangler dependency) installs its platform-specific binary.
+  esbuild: true
