@@ -21,7 +21,7 @@ with zero console errors; CI passes on `main`. Automated unit/integration
 test coverage is still zero by design — the `test` scripts are explicit
 no-ops.
 
-## Phase 2 — Static responsive portfolio — **Next**
+## Phase 2 — Static responsive portfolio — **Complete**
 
 Establish the public portfolio's semantic, accessible, responsive HTML
 structure. Neutral, data-shaped placeholder content only where necessary —
@@ -29,12 +29,21 @@ no CMS, no database, no 3D. Semantic HTML, keyboard operability, visible
 focus, WCAG AA contrast, and reduced-motion support are requirements of
 this phase, not follow-ups.
 
-## Phase 3 — Design system
+Merged to `main` with CI green.
+
+## Phase 3 — Design system — **Complete**
 
 Establish the shared visual language and reusable components in
 `packages/ui`, per the direction in `docs/DESIGN.md`.
 
-## Phase 4 — D1 schema/migrations
+Delivered semantic tokens in `packages/ui/src/tokens.css` with
+system-aware light/dark sets, a Tailwind mapping, typography roles, a
+layout/spacing system, and action/badge/surface primitives; all public
+portfolio sections migrated onto it. No new runtime dependencies; Server
+Components preserved. Merged to `main` with CI green. Automated test
+coverage remains zero — the `test` scripts are still explicit no-ops.
+
+## Phase 4 — D1 schema/migrations — **Next**
 
 Cloudflare D1 schema and migrations for the entities listed in
 `docs/DATABASE.md`.
