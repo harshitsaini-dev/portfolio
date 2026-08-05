@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-08-06 — Phase 4 complete
+
+Documentation-only entry. No application source, migration SQL, Wrangler
+config, package manifest, lockfile, workspace config, test, CI, or
+Cloudflare resource changes.
+
+- **Phase 4 — D1 schema/migrations is complete.** Committed as
+  `36a239a feat: add D1 schema and migrations`, verified by **Pull Request
+  #6 on GitHub Actions/Linux**, rebase-merged into `main`, and verified
+  again by the **post-merge `main` CI run**.
+- GitHub Actions installed Wrangler and `workerd` successfully on Linux,
+  so the real D1 migration smoke test now has **cross-platform proof —
+  59/59 checks on both Windows and Linux**.
+- Phases 0–4 complete; **Phase 5 — Repository/data layer** is next and not
+  started.
+- Restated precisely: `@portfolio/database` has real automated D1
+  schema coverage, while the `apps/web` and `apps/admin` test scripts
+  remain no-ops. There is still no UI/component/E2E coverage.
+- **The remote `portfolio-cms` schema migration remains intentionally
+  unapplied.** No `--remote` apply or remote SQL mutation has been
+  executed; CI stays local-only.
+
 ## 2026-08-06 — Phase 4: D1 schema/migrations (branch `feat/d1-schema-migrations`)
 
 - Added `migrations/0001_initial_schema.sql` — the complete CMS schema in

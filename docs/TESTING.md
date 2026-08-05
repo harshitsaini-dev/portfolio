@@ -6,7 +6,7 @@
 
 | Package | `test` script | Real? |
 | --- | --- | --- |
-| `@portfolio/database` | D1 migration smoke test | **Yes — 59 assertions against a real D1 instance** |
+| `@portfolio/database` | D1 migration smoke test | **Yes — 59 checks against a real D1 instance, green on Windows and CI/Linux** |
 | `@portfolio/web` | prints "no automated tests yet" | No — no-op placeholder |
 | `@portfolio/admin` | prints "no automated tests yet" | No — no-op placeholder |
 
@@ -63,7 +63,8 @@ Design decisions:
 - **Local only, no authentication.** `--local` plus an isolated
   `--persist-to` mean it never contacts Cloudflare. Verified by running
   the whole suite with a deliberately invalid `CLOUDFLARE_API_TOKEN` — it
-  still passed 57/57. `--remote` must never appear in this file or in CI.
+  still passed every check. `--remote` must never appear in this file or
+  in CI.
 - **The negative controls are built in.** Valid seed inserts must succeed
   (the helper throws on unexpected non-zero exit) while invalid ones must
   fail, so the constraint assertions cannot pass vacuously.
