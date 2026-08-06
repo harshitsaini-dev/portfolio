@@ -1,9 +1,41 @@
 # Changelog
 
+## 2026-08-06 — Phase 8: Education CMS complete
+
+Documentation-only entry. No application, test, schema, repository,
+package, migration, config, CI, or Cloudflare resource changes.
+
+- **Education CMS — the fourth Phase 8 subtask — is complete.** Merged into
+  `main` as `99e59cd feat: add education CMS` via **Pull Request #22**,
+  which passed CI on GitHub Actions/Linux; the **post-merge `main` CI run
+  `31110395395` passed** as well, covering install, lint, typecheck, tests,
+  and build.
+- **Final real test total: 1140** — database **287** (unchanged; education
+  reused the ordered repository as-is, so no repository contract changed),
+  admin **853**. All 980 previous checks still pass, and `apps/web` remains
+  the only no-op suite.
+- **A reusable validation rule came out of it:** update schemas must not
+  inherit defaults through `.partial()`. Create defaults and update
+  optionality are separate concerns; education's update shape uses optional
+  fields with no defaults, and a partial update is proven to preserve
+  existing position and visibility.
+- **The immediate next engineering task is
+  `fix/timeline-partial-update-defaults`** — the same regression in the
+  merged timeline update schema. Timeline CMS itself remains **complete**;
+  this is a post-merge repair.
+- **Phase 8 remains IN PROGRESS.** Certifications is the next entity after
+  that fix and is not started; Skills, Tools, Socials, and Sections are not
+  started.
+- **Remote `portfolio-cms` schema remains intentionally unapplied**, remote
+  D1 was not mutated, no `--remote` runtime path exists, and **Cloudflare
+  Access dashboard configuration remains pending**. The production OpenNext
+  D1 provider remains Phase 22; no R2 work exists.
+
 ## 2026-08-06 — Phase 8: Education CMS (branch `feat/remaining-cms-education`)
 
-**Status: implemented, awaiting review. Not committed. Phase 8 remains IN
-PROGRESS — this is its fourth entity.**
+**Status at the time: implemented, awaiting review. Subsequently merged
+into `main` as `99e59cd`. Phase 8 remains IN PROGRESS — this is its fourth
+entity.**
 
 ### Added
 

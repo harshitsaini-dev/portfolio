@@ -160,8 +160,28 @@ foundation suite gained containment coverage (67 → **76 checks**), taking
 the total to **980 real checks**. Merged to `main` as `6d65504` with CI
 green on Linux.
 
-**Next entity: Education.** Not started. The remaining entities —
-Certifications, Skills, Tools, Socials, Sections — are also not started. The
+**Education CMS: complete.** The first entity that needed no new
+architecture at all — `withAdminPage` routes, static metadata, the same
+mutation order and `ActionResult`, the same field primitives, and
+`createOrderedRepository` **unchanged**, so `packages/database` was not
+touched and the database subtotal held at 287. Delivered `/education`,
+`/education/new`, and `/education/[id]` over only the committed columns,
+with an explicit validated `position`, a labelled `is_visible` control, and
+hidden rows badged rather than filtered from the admin view. It also
+established a reusable validation rule: **update schemas must not inherit
+defaults through `.partial()`** — create defaults and update optionality
+are separate concerns. Test coverage grew to **1140 real checks**
+(287 data/repository + 853 admin). Merged to `main` as `99e59cd` with CI
+green on Linux.
+
+**Immediate next engineering task:
+`fix/timeline-partial-update-defaults`.** Education surfaced the same
+defaults-through-`.partial()` regression in the merged timeline update
+schema. Timeline CMS remains **complete**; this is a post-merge repair, not
+outstanding feature work.
+
+**Next entity after that fix: Certifications.** Not started. The remaining
+entities — Skills, Tools, Socials, Sections — are also not started. The
 remote database schema remains **intentionally unapplied**, and **Cloudflare
 Access dashboard configuration is still pending**.
 
