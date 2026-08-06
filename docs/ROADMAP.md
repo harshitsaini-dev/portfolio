@@ -85,12 +85,26 @@ CI green on Linux. **Cloudflare Access dashboard configuration is still
 pending**, and the remote database schema remains **intentionally
 unapplied**.
 
-## Phase 7 — Projects CMS vertical slice — **Next**
+## Phase 7 — Projects CMS vertical slice — **Complete**
 
 One entity end to end — projects — proving the full create/read/update/
 delete path through the data layer before the remaining entities follow.
 
-## Phase 8 — Remaining CMS
+Delivered `/projects`, `/projects/new`, and `/projects/[id]` behind the
+Phase 6 `withAdminPage` invariant, with strict shared Zod schemas as the
+untrusted-input boundary, a fixed
+`requireAdminIdentity()` → validation → repository → typed-result mutation
+order, and a single D1 composition boundary whose production provider is
+deliberately deferred to Phase 22. Test coverage grew to **511 real
+checks** (238 data/repository + 273 admin), including a suite that invokes
+the real exported mutations unauthenticated and proves nothing changes.
+Merged to `main` with CI green on Linux after one source-policy CI failure
+and a focused fix. Public-site data conversion was deliberately **not**
+pulled forward; the remote database schema remains **intentionally
+unapplied**, and **Cloudflare Access dashboard configuration is still
+pending**.
+
+## Phase 8 — Remaining CMS — **Next**
 
 The rest of the content entities, following the pattern established by the
 projects slice.
