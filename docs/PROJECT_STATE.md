@@ -20,10 +20,9 @@ something passed without running it.
   as `aae6d38 feat: add timeline CMS`, verified by **Pull Request #18 on
   GitHub Actions/Linux** and again by the **post-merge `main` CI run
   `31100867892`**.
-- **Immediate next engineering task: the Admin populated-list responsive
-  overflow fix** — a known pre-existing regression on `/projects` and
-  `/technologies`, deliberately left out of the Timeline branch. See
-  *Next suggested task*.
+- **Admin populated-list responsive overflow regression: FIXED, awaiting
+  review.** On `fix/admin-list-table-overflow`; not committed. See
+  *Responsive overflow regression* below.
 - **Education CMS: next entity** after that fix — **not started**, and not
   to be implemented until explicitly scoped and approved.
 - **Later Phase 8 entities** — Certifications, Skills, Tools, Socials,
@@ -39,9 +38,84 @@ Phase 22** (fail-closed until then).
 
 ## Active task
 
-Timeline CMS completion documentation (documentation-only; no application,
-test, schema, repository, package, migration, config, CI, or Cloudflare
-resource changes).
+**Admin populated-list responsive overflow fix.** Implemented; awaiting
+review.
+
+## Responsive overflow regression — FIXED (awaiting review)
+
+### Root cause
+
+Tailwind's `sr-only` is `position: absolute`, and an absolutely positioned
+element is laid out against its nearest **positioned** ancestor. A
+`overflow-x-auto` container that is not itself positioned therefore does
+**not** contain such a descendant. So a wide list table scrolled correctly
+inside its wrapper while its `sr-only` action labels resolved against the
+viewport from a cell beyond it, widening the document's scroll area and
+scrolling the whole page sideways on a phone.
+
+The shared-shell half — `min-w-0` on `main` — was already fixed during
+Timeline and **remains required**: a flex item's automatic minimum size is
+its content, so without it a wide table stretches `main` past the viewport
+before the wrapper ever receives a constrained width to scroll within. Both
+halves are needed; neither alone is sufficient.
+
+### The fix
+
+`relative` added to the existing `overflow-x-auto` wrapper on
+`/projects` and `/technologies`, matching what `/timeline` already did.
+Two lines of styling. No table redesign, no column changes, no card
+conversion, no data or action changes, no navigation changes.
+
+**What was deliberately not used:** global `overflow-x-hidden`, clipping the
+page, removing `sr-only` text, shrinking tables until unusable, or hiding
+columns on mobile. Each of those hides the symptom by discarding either
+accessible content or legibility. The correct fix contains the positioned
+descendant instead — the accessible text stays in the DOM and stays
+reachable.
+
+### Verification (`playwright-local` MCP, real local D1, seeded rows)
+
+Manual MCP verification — **not** automated Playwright CI tests. Every page
+was checked with **at least one real row seeded**, because the empty state
+renders no table and passes regardless — which is exactly how this defect
+survived two merges.
+
+`/projects` and `/technologies`, populated, at 1280 / 768 / 375: **no
+page-level horizontal scrolling at any width.** At 375 specifically, for
+both pages:
+
+| Proof | `/projects` | `/technologies` |
+| --- | --- | --- |
+| Document width ≤ viewport | 375 ≤ 375 ✓ | 375 ≤ 375 ✓ |
+| `window.scrollTo(500,0)` moves the page | **no** ✓ | **no** ✓ |
+| Wrapper `scrollWidth > clientWidth` | 704 > 343 ✓ | 640 > 343 ✓ |
+| Wrapper can actually scroll | ✓ | ✓ |
+| Caption + `sr-only` labels still in DOM | 3 `sr-only`, caption present ✓ | 3 `sr-only`, caption present ✓ |
+| Row actions keyboard-focusable | ✓ | ✓ |
+
+Keyboard access was checked beyond focusability: focusing the off-screen
+**Edit** link scrolled the *wrapper* to reveal it (`scrollLeft > 0`) while
+the page itself stayed put (`scrollX === 0`), and the link ended up inside
+the viewport.
+
+Regression checks: `/timeline` populated at 375 still has no page-level
+sideways scroll and still scrolls internally with its caption intact;
+`/profile` is unaffected (document 360 ≤ 375); admin navigation renders all
+five real destinations and every link is focusable.
+
+### Automated coverage
+
+The admin foundation suite gained a **horizontal scroll containment**
+group (67 → 76 checks). It asserts that every `overflow-x-auto` wrapper in
+a protected page is also `relative`, and that the shell's `main` carries
+`min-w-0`, with four negative controls proving the check rejects a bare
+wrapper and a mixed pair.
+
+This is a structural source assertion, which the project already uses for
+the `withAdminPage` invariant and the removed-global scan. It earns its
+place here because the defect regressed twice and is invisible to any check
+that does not seed rows — a new list page that forgets `relative` now fails
+in CI rather than shipping.
 
 ## Phase 8 — Timeline CMS (COMPLETE)
 
@@ -460,14 +534,12 @@ fail-closed behaviour.
 
 ## Next suggested task
 
-**1. `fix/admin-list-table-overflow`** — the known pre-existing responsive
-regression on the populated `/projects` and `/technologies` lists. This is
-the immediate next *engineering* task, ahead of the next entity.
+**Education CMS** — the next Phase 8 entity. Not started, and not to be
+implemented until explicitly scoped and approved. Rationale at the end of
+this file.
 
-**2. Education CMS** — the next Phase 8 entity, after that fix. Not started.
-
-Neither is to be implemented until explicitly scoped and approved. Rationale
-for both is at the end of this file.
+The responsive overflow regression that previously sat ahead of it is now
+**fixed and awaiting review** — see *Responsive overflow regression* above.
 
 ## Phase 8 — Timeline CMS: verification actually performed
 
@@ -493,7 +565,7 @@ and the post-merge `main` run:
 | D1Like type compatibility | 4 | — |
 | **Database subtotal** | **287** | **+31 — the repository contract changed** |
 | Admin authentication | 42 | — |
-| Admin foundation / invariant | **67** | +6 — the invariant discovered the three new routes |
+| Admin foundation / invariant | **67** | +6 — the invariant discovered the three new routes (later 76; see the regression fix) |
 | Admin D1 composition boundary | 34 | — |
 | Projects CMS | 96 | — |
 | Technologies CMS | 90 | — |
@@ -838,12 +910,10 @@ than changed here.
   entities of several.
 - **The remaining CMS entities are not implemented** — Education (next
   entity), Certifications, Skills, Tools, Socials, Sections.
-- **A known responsive regression is outstanding on `/projects` and
-  `/technologies`.** Once populated, their absolutely-positioned `sr-only`
-  content escapes the table scroll container and the page still scrolls
-  sideways at 375px. Timeline is unaffected. Deliberately not repaired in
-  the Timeline branch; queued as `fix/admin-list-table-overflow`, which
-  should be the immediate next engineering task.
+- ~~A known responsive regression is outstanding on `/projects` and
+  `/technologies`.~~ **Fixed** on `fix/admin-list-table-overflow` and
+  awaiting review — see *Responsive overflow regression* near the top of
+  this file.
 - **The public site is still placeholder-driven.** Profile and timeline data
   exist in D1, but `apps/web` has not been converted to read them.
 - **`apps/web` automated tests remain a no-op** — still the only
@@ -2553,14 +2623,10 @@ Local development needs none of this: set `ADMIN_DEV_AUTH=enabled` in
 
 ## Next suggested task
 
-**Before the next entity: a focused `fix/*` branch for the pre-existing
-list-table overflow.** `/projects` and `/technologies` still scroll the page
-sideways at narrow widths once populated (measured: 323px on `/projects` at
-375px). The repair is small and known — `relative` on each list's
-`overflow-x-auto` wrapper, matching what `/timeline` already does — but it
-touches merged slices and belongs in its own branch with its own
-verification, not inside a feature. Suggested branch:
-`fix/admin-list-table-overflow`.
+**Done: the focused `fix/admin-list-table-overflow` branch.** `/projects`
+and `/technologies` no longer scroll the page sideways once populated —
+`relative` on each list's `overflow-x-auto` wrapper, matching `/timeline`,
+plus a containment assertion in the foundation suite. Awaiting review.
 
 **Phase 8, next entity: Education.** It is the closest sibling of the
 timeline entry — another ordered, visibility-toggleable content table using

@@ -3,6 +3,36 @@
 Notable architectural/tooling decisions and their rationale. Append new
 entries; do not delete history.
 
+## 2026-08-06 — Admin list horizontal overflow
+
+### Scroll wrappers are positioned containing blocks, by rule
+
+Any `overflow-x-auto` wrapper in the admin must also be `relative`. This is
+a standing rule, not a per-page fix: Tailwind's `sr-only` is
+`position: absolute`, and an absolutely positioned descendant is laid out
+against its nearest *positioned* ancestor, so an unpositioned scroll
+container does not contain it. The wrapper scrolls correctly while the
+escaped label widens the document.
+
+Paired with `min-w-0` on the shell's `main` — a flex item's automatic
+minimum size is its content — these are the two halves of "a wide table
+scrolls inside itself, not the page". Both are asserted in the admin
+foundation suite so a new list page cannot ship without them.
+
+### Overflow is fixed by containment, never by hiding
+
+Explicitly rejected: global `overflow-x-hidden`, clipping the page, removing
+`sr-only` text, shrinking tables past legibility, and hiding columns on
+mobile without product justification. Each resolves the symptom by
+discarding accessible content, usability, or data. If accessible markup
+appears to cause a layout bug, the layout is what is wrong.
+
+### Responsive checks on list pages must seed rows
+
+An empty list renders no table, so every mobile check against an unseeded
+page passes for a reason unrelated to what it claims. This rule exists
+because two merged slices were verified that way. See `docs/TESTING.md`.
+
 ## 2026-08-06 — Phase 8 Timeline CMS
 
 ### The repository grew an aggregate write rather than the action growing a transaction

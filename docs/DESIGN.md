@@ -36,11 +36,20 @@ is otherwise its content), and the `overflow-x-auto` wrapper is `relative`
 (so absolutely-positioned `sr-only` labels resolve inside it rather than
 against the viewport).
 
-The shell half is in place for every page. **The wrapper half is currently
-only on `/timeline`** — `/projects` and `/technologies` were already merged
-when the defect was found, so the Timeline branch deliberately left them
-alone, and they still overflow once populated. `fix/admin-list-table-overflow`
-should apply the same `relative` to their wrappers.
+**Both halves are now in place on every admin list**, and the foundation
+suite asserts them: any protected page with an `overflow-x-auto` wrapper
+must also make it `relative`, and the shell's `main` must carry `min-w-0`.
+
+Why `relative` matters: Tailwind's `sr-only` is `position: absolute`, and an
+absolutely positioned element is laid out against its nearest **positioned**
+ancestor — a non-positioned scroll container does not contain it. Without it,
+the table scrolls correctly while its `sr-only` action labels resolve against
+the viewport and widen the document.
+
+Fix overflow by **containing** the positioned descendant, never by hiding
+it. Do not reach for global `overflow-x-hidden`, drop `sr-only` text, shrink
+tables past legibility, or hide columns on mobile without product
+justification — each trades accessible content or usability for a symptom.
 
 The check that matters is whether the *page* can be scrolled sideways
 (`window.scrollTo(500, 0)` then reading `scrollX`), not whether an element

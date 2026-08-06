@@ -3,6 +3,41 @@
 Notes on things learned while building this project that are worth
 remembering for future work.
 
+## Phase 8 — Admin list overflow fix
+
+### An absolutely positioned descendant escapes an unpositioned scroll container
+
+The part I had to actually understand rather than pattern-match: an
+`overflow-x-auto` container clips and scrolls its *in-flow* descendants, but
+an absolutely positioned one is laid out against the nearest **positioned**
+ancestor — which, for an unpositioned wrapper, is something further up, or
+the initial containing block. Tailwind's `sr-only` is
+`position: absolute`, so the accessible labels inside a wide table were
+being placed relative to the viewport from a cell far to its right.
+
+That is why the table scrolled correctly while the *page* also scrolled: two
+different containing blocks, doing exactly what they were told. `relative` on
+the wrapper makes it the containing block and the symptom disappears.
+
+### Fix the containment, not the symptom
+
+Every quick fix on offer here — `overflow-x-hidden` on the body, dropping the
+`sr-only` labels, shrinking the table, hiding columns on mobile — works by
+removing something: the ability to scroll, the accessible name, the
+legibility, or the data. The actual fix adds one word and removes nothing.
+
+When an accessibility feature appears to be "causing" a layout bug, that is
+usually a sign the layout is wrong, not the accessibility feature.
+
+### The check that would have caught it is the check nobody writes
+
+The invariant is boring — "wrappers that scroll must be positioned" — and
+asserting it structurally felt like testing CSS. But this had regressed
+twice, and the browser evidence that should have caught it was measuring
+empty tables. A structural assertion is not a substitute for rendering
+verification; it is insurance against the day the rendering verification
+looks at the wrong state again.
+
 ## Phase 8 — Timeline CMS
 
 ### "Is this atomic?" deserves an answer, not an assumption

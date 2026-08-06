@@ -388,6 +388,81 @@ try {
     })(),
   );
 
+  // ---- Scroll-container containment --------------------------------------
+  startGroup("Horizontal scroll containment");
+
+  /**
+   * Every `overflow-x-auto` wrapper must also be `relative`.
+   *
+   * This is a real invariant, not a style preference. Tailwind's `sr-only`
+   * is `position: absolute`, and an absolutely positioned element is laid
+   * out against its nearest *positioned* ancestor — a non-positioned scroll
+   * container does not contain it. So a wide list table scrolls correctly
+   * inside its wrapper while its `sr-only` action labels resolve against
+   * the viewport from a cell beyond it, widening the document's scroll area
+   * and making the whole page scroll sideways on a phone.
+   *
+   * Asserted structurally because it regressed twice: the empty state
+   * renders no table, so a page can look responsive in every check that
+   * does not seed rows. A new list page that forgets `relative` now fails
+   * here instead of shipping.
+   */
+  function scrollWrapperIsContained(source) {
+    const wrappers = source.match(/className="[^"]*overflow-x-auto[^"]*"/g) ?? [];
+    return wrappers.every((wrapper) => /\brelative\b/.test(wrapper));
+  }
+
+  const wrapperPages = protectedPages.filter((pagePath) =>
+    readFileSync(pagePath, "utf8").includes("overflow-x-auto"),
+  );
+
+  check(
+    "at least one list page uses a horizontal scroll wrapper",
+    wrapperPages.length > 0,
+  );
+
+  for (const pagePath of wrapperPages) {
+    const name = pagePath
+      .slice(pagePath.indexOf("(protected)"))
+      .replace(/\\/g, "/");
+    check(
+      `${name} makes its scroll wrapper a positioned containing block`,
+      scrollWrapperIsContained(readFileSync(pagePath, "utf8")),
+      "an absolutely positioned `sr-only` descendant would escape it and scroll the page sideways",
+    );
+  }
+
+  check(
+    "the containment check REJECTS a bare overflow-x-auto wrapper",
+    !scrollWrapperIsContained('<div className="mt-8 overflow-x-auto">'),
+  );
+  check(
+    "the containment check REJECTS one contained wrapper beside one that is not",
+    !scrollWrapperIsContained(
+      '<div className="relative overflow-x-auto"><div className="overflow-x-auto">',
+    ),
+  );
+  check(
+    "the containment check ACCEPTS a positioned wrapper",
+    scrollWrapperIsContained('<div className="relative mt-8 overflow-x-auto">'),
+  );
+  check(
+    "the containment check ignores pages with no scroll wrapper",
+    scrollWrapperIsContained('<div className="mt-8">'),
+  );
+
+  // The shared shell half of the same behaviour: `main` is a flex item, and
+  // a flex item's automatic minimum size is its content, so without
+  // `min-w-0` a wide table stretches it past the viewport before the
+  // wrapper ever gets a constrained width to scroll within.
+  check(
+    "the admin shell's main region carries min-w-0",
+    /<main[\s\S]{0,200}?className="[^"]*\bmin-w-0\b[^"]*"/.test(
+      readFileSync(join(appDir, "..", "components", "admin-shell.tsx"), "utf8"),
+    ),
+    "without it the list tables stretch `main` past the viewport",
+  );
+
   // ---- Navigation integrity ---------------------------------------------
   startGroup("Navigation integrity");
 

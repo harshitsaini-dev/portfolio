@@ -1,5 +1,48 @@
 # Changelog
 
+## 2026-08-06 — Fix: Admin populated-list horizontal overflow (branch `fix/admin-list-table-overflow`)
+
+**Status: implemented, awaiting review. Not committed. Phase 8 remains IN
+PROGRESS; this is a focused regression fix, not a CMS entity.**
+
+### Fixed
+
+- **`/projects` and `/technologies` no longer scroll the page sideways at
+  narrow widths once populated.** Tailwind's `sr-only` is
+  `position: absolute`, and an absolutely positioned element resolves
+  against its nearest *positioned* ancestor — so a non-positioned
+  `overflow-x-auto` container did not contain it, and the `sr-only` action
+  labels widened the document from a cell beyond the viewport.
+  Fixed by adding `relative` to each list's existing scroll wrapper,
+  matching what `/timeline` already did. Two lines of styling.
+
+### Added
+
+- `apps/admin/scripts/shell-tests.mjs` — 67 → **76 checks**: a horizontal
+  scroll containment group asserting that every protected page's
+  `overflow-x-auto` wrapper is also `relative` and that the shell's `main`
+  carries `min-w-0`, with four negative controls. The defect regressed twice
+  and is invisible to any check that does not seed rows, so it is now
+  asserted structurally.
+
+### Not changed
+
+Database schema, `packages/database`, `packages/schemas`, Server Actions,
+CMS behaviour, navigation, table columns, `/timeline`, `/profile`,
+Cloudflare resources, and the public site. The shared shell `min-w-0` from
+the Timeline branch remains required and was not altered.
+
+### Verification
+
+`pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`,
+`pnpm test` (**980 checks**, up from 971 with all 971 preserved), and
+`pnpm build` all **PASS**. Browser-verified via Playwright MCP against real
+local D1 **with seeded rows** at 1280 / 768 / 375 for both pages: document
+width within viewport, no page-level sideways scroll, wrapper scrolling
+internally, captions and `sr-only` labels intact, and row actions keyboard
+focusable — focusing an off-screen Edit link scrolls the wrapper, not the
+page. `/timeline` and `/profile` re-checked for regressions.
+
 ## 2026-08-06 — Phase 8: Timeline CMS complete
 
 Documentation-only entry. No application, test, schema, repository,
@@ -23,11 +66,11 @@ package, migration, config, CI, or Cloudflare resource changes.
 - **Final real test total: 971** — database **287** (repository integration
   126 → 157 for the aggregate-write and rollback coverage), admin **684**.
   `apps/web` remains the only no-op suite.
-- **A pre-existing responsive regression remains outstanding** on the
+- **A pre-existing responsive regression was left outstanding** on the
   populated `/projects` and `/technologies` lists. It was discovered during
   Timeline verification and deliberately kept out of that feature branch —
-  those files were restored to `main` before the commit. Queued as
-  `fix/admin-list-table-overflow`, the immediate next engineering task.
+  those files were restored to `main` before the commit. Since fixed on
+  `fix/admin-list-table-overflow` (see the entry above).
 - **Phase 8 remains IN PROGRESS.** Education is the next entity and is not
   started; Certifications, Skills, Tools, Socials, and Sections are not
   started.
