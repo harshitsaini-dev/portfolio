@@ -2,11 +2,10 @@
 
 ## Current state (Phase 8 — Timeline CMS complete)
 
-`pnpm test` runs **fourteen real suites and one no-op** — **1140 checks**.
-The 980 verified after the responsive fix all still pass on Windows and on
-GitHub Actions/Linux (PR #20 and its post-merge `main` run); the Education
-CMS added the rest and is not yet CI-verified. What each one actually
-proves matters, so be precise:
+`pnpm test` runs **fourteen real suites and one no-op** — **1140 checks**,
+verified on Windows and on GitHub Actions/Linux (PR #22 and its post-merge
+`main` run). The 980 verified after the responsive fix all still pass. What
+each one actually proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
