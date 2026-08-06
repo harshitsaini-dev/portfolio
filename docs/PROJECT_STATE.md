@@ -12,12 +12,14 @@ something passed without running it.
   `97d6425 feat: add technologies CMS`, verified by **Pull Request #14 on
   GitHub Actions/Linux** and again by the **post-merge `main` CI run
   `31084430634`**.
-- **Profile CMS: implemented, awaiting review.** On
-  `feat/remaining-cms-profile`; not committed, not pushed, and **not
-  complete** — it is complete only after review, PR CI, merge, the
-  post-merge `main` run, and completion documentation.
-- **Later Phase 8 entities** — Timeline/Experience, Education,
-  Certifications, Skills, Tools, Socials, Sections: **not started**.
+- **Profile CMS: COMPLETE.** Merged into `main` as
+  `f2ff5c3 feat: add profile CMS`, verified by **Pull Request #16 on
+  GitHub Actions/Linux** and again by the **post-merge `main` CI run
+  `31094360487`**.
+- **Timeline / professional experience: NEXT** — not started, and not to be
+  implemented until explicitly scoped and approved.
+- **Later Phase 8 entities** — Education, Certifications, Skills, Tools,
+  Socials, Sections: **not started**.
 - **Phase 7:** Complete (merged to `main`, CI green).
 - **Phase 8 is NOT complete.** It is complete only when every entity it
   covers is delivered and verified.
@@ -29,9 +31,11 @@ Phase 22** (fail-closed until then).
 
 ## Active task
 
-**Phase 8 — Profile CMS.** Implemented; awaiting review.
+Profile CMS completion documentation (documentation-only; no application,
+test, schema, repository, package, migration, config, CI, or Cloudflare
+resource changes).
 
-## Phase 8 — Profile CMS (awaiting review)
+## Phase 8 — Profile CMS (COMPLETE)
 
 ### Route — one, because the entity is a singleton
 
@@ -133,18 +137,32 @@ anyone asked for. Revisit only if a real need appears.
 
 ### Public-site boundary — unchanged, and deliberately
 
-`apps/web` was **not touched**. Phase 7 established that public-side data
-conversion is not part of the CMS slices, and nothing in the roadmap or
-architecture moves it into this one. The project rule that admin-editable
-content ultimately comes from data still holds; the conversion is simply
-not this subtask's job, and pulling it forward would be scope expansion
-into unreviewed work.
+**Profile data now genuinely exists in D1 locally**, created through the
+admin. `apps/web` was still **not touched**: it continues to render the
+Phase 2 placeholder-driven public profile content, and will until the
+roadmap reaches the public data-integration work.
+
+Phase 7 established that public-side conversion is not part of the CMS
+slices, and nothing in the roadmap or architecture moves it into this one.
+The project rule that admin-editable content ultimately comes from data
+still holds — the conversion is simply not this subtask's job, and pulling
+it forward would be scope expansion into unreviewed work. **No
+admin-created content was hardcoded into React.**
 
 ### Navigation
 
 Profile became a real linked destination, replacing its "Phase 8"
 placeholder. Every other unbuilt entry stays an unlinked, phase-labelled
 placeholder — no dead links.
+
+### Phase 8 — Profile CMS — CI
+
+- **Pull Request #16 CI passed** on GitHub Actions/Linux.
+- PR #16 was **rebase-merged** into `main` as
+  `f2ff5c3 feat: add profile CMS`.
+- The **post-merge `main` CI run `31094360487` passed.**
+- Linux therefore verified install, lint, typecheck, tests, and build for
+  the merged Profile CMS state.
 
 ## Phase 8 — Technologies CMS (COMPLETE)
 
@@ -288,11 +306,14 @@ fail-closed behaviour.
 
 ## Next suggested task
 
-Review the Profile CMS. After it merges, the next Phase 8 entity is
-suggested at the end of this file — **not to be implemented until
-explicitly scoped and approved**.
+**Timeline / professional experience** — the next Phase 8 entity. Not
+started, and not to be implemented until explicitly scoped and approved.
+Rationale at the end of this file.
 
 ## Phase 8 — Profile CMS: verification actually performed
+
+Locally on Windows, and again on **GitHub Actions/Linux** for both PR #16
+and the post-merge `main` run:
 
 | Command | Result |
 | --- | --- |
@@ -375,6 +396,13 @@ Manual MCP verification — **not** automated Playwright CI tests.
 - Console errors relevant to the feature: **none** — only HMR reconnects
   and 404s from dev-server restarts, which is development-session noise.
 
+A POST carrying a fabricated `Next-Action` id also returned 404. That is
+**transport behaviour only** and proves nothing about authorization — Next
+rejects an unknown action id before any application code runs, so a
+completely unguarded app answers identically. **The mutation-authorization
+proof is the exported-action suite above**, which invokes the real
+`saveProfileAction` with no identity and reads the database back.
+
 Local test data and the temporary dev-auth file were removed afterwards.
 
 ## Phase status summary
@@ -389,7 +417,7 @@ Local test data and the temporary dev-auth file were removed afterwards.
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
 | Phase 6 — Admin foundation | **Complete** (merged to `main`, CI green) |
 | Phase 7 — Projects CMS vertical slice | **Complete** (merged to `main`, CI green) |
-| Phase 8 — Remaining CMS | **In progress** — Technologies CMS **complete** (merged, CI green); Profile CMS implemented, awaiting review; other entities not started |
+| Phase 8 — Remaining CMS | **In progress** — Technologies CMS **complete**; Profile CMS **complete** (both merged, CI green); Timeline next; other entities not started |
 
 Phases 9–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
@@ -529,10 +557,12 @@ than changed here.
 
 ## Phase 8 — known limitations (not blockers)
 
-- **Phase 8 is not complete.** Technologies is one entity of several.
-- **Profile and the remaining CMS entities are not implemented** —
-  Timeline/Experience, Education, Certifications, Skills, Tools, Socials,
-  Sections.
+- **Phase 8 is not complete.** Technologies and Profile are two entities of
+  several.
+- **The remaining CMS entities are not implemented** — Timeline/Experience
+  (next), Education, Certifications, Skills, Tools, Socials, Sections.
+- **The public site is still placeholder-driven.** Profile data exists in
+  D1, but `apps/web` has not been converted to read it.
 - **`apps/web` automated tests remain a no-op** — still the only
   fake-green script in the repository.
 - **Browser tests remain manual MCP verification**, not automated

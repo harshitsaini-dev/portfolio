@@ -1,11 +1,11 @@
 # Testing
 
-## Current state (Phase 8 — Profile CMS in review)
+## Current state (Phase 8 — Profile CMS complete)
 
-`pnpm test` runs **twelve real suites and one no-op** — **780 checks**.
-The 670 verified after the Technologies CMS all still pass, on Windows and
-on GitHub Actions/Linux; the Profile CMS added the rest and is not yet
-CI-verified. What each one actually proves matters, so be precise:
+`pnpm test` runs **twelve real suites and one no-op** — **780 checks**,
+verified on Windows and on GitHub Actions/Linux (PR #16 and the post-merge
+`main` run). The 670 verified after the Technologies CMS all still pass.
+What each one actually proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
