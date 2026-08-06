@@ -1,5 +1,65 @@
 # Changelog
 
+## 2026-08-06 — Phase 8: Education CMS (branch `feat/remaining-cms-education`)
+
+**Status: implemented, awaiting review. Not committed. Phase 8 remains IN
+PROGRESS — this is its fourth entity.**
+
+### Added
+
+- `packages/schemas/src/education.ts` — strict create and update schemas
+  over only the committed columns, with `YYYY-MM-DD` dates, an
+  `endedOn ≥ startedOn` cross-field rule, a non-negative integer
+  `position`, and a strict boolean `isVisible`.
+- `apps/admin/src/lib/actions/education.ts` — create/update/delete actions
+  on the established `requireAdminIdentity()` → Zod → repository →
+  `ActionResult` order.
+- `apps/admin/src/app/(protected)/education/{page,new/page,[id]/page}.tsx`
+  — all via `withAdminPage`, all static metadata, list wrapper `relative
+  overflow-x-auto` per the containment rule.
+- `apps/admin/src/components/education/{education-form,delete-education-entry-form}.tsx`
+  — accessible form on the shared field primitives, explicit numeric
+  position, labelled visibility checkbox, two-step delete.
+- `apps/admin/scripts/education-tests.mjs` — **112 checks**.
+
+### Fixed (within this entity)
+
+- **A partial update would have silently reset unmentioned columns.**
+  Deriving the update shape with `.partial()` does not neutralise
+  `.default()` — the defaults are still materialised for absent keys, so a
+  patch carried `position: 0`, `isVisible: true`, and `null` for every
+  optional, which the repository's allowlist then wrote. Caught by the
+  local-D1 tests. The update shape now uses plain `.optional()` fields with
+  no defaults, asserted directly.
+
+### Changed
+
+- `apps/admin/scripts/action-auth-tests.mjs` — 168 → **209 checks**.
+- `apps/admin/src/lib/navigation.ts` — Education is a real destination.
+
+### Not changed
+
+`migrations/0001_initial_schema.sql`, `packages/database` (the education
+repository already had everything needed, so no repository-package tests
+were added and the database subtotal stays **287**), `apps/web`, and
+Cloudflare resources. No other Phase 8 entity was touched.
+
+### Known follow-up
+
+The same partial-update defect exists latently in the **merged** timeline
+module and was deliberately **not** repaired here. Queued as
+`fix/timeline-partial-update-defaults`.
+
+### Verification
+
+`pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`,
+`pnpm test` (**1140 checks** — database 287, admin 853 — up from 980 with
+all 980 preserved), and `pnpm build` all **PASS**; `/education*` routes are
+`ƒ (Dynamic)`. Browser-verified via Playwright MCP against real local D1
+**with seeded rows**, including the populated list at 375px with no
+page-level sideways scroll, and a canary proving **zero education data** in
+unauthenticated plain/RSC/forged responses.
+
 ## 2026-08-06 — Fix: Admin populated-list horizontal overflow (branch `fix/admin-list-table-overflow`)
 
 **Status: COMPLETE.** Merged into `main` as

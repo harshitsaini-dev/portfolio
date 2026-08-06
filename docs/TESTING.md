@@ -2,24 +2,31 @@
 
 ## Current state (Phase 8 — Timeline CMS complete)
 
-`pnpm test` runs **thirteen real suites and one no-op** — **980 checks**,
-verified on Windows and on GitHub Actions/Linux (PR #20 and its post-merge
-`main` run). The 971 verified after the Timeline CMS all still pass. What
-each one actually proves matters, so be precise:
+`pnpm test` runs **fourteen real suites and one no-op** — **1140 checks**.
+The 980 verified after the responsive fix all still pass on Windows and on
+GitHub Actions/Linux (PR #20 and its post-merge `main` run); the Education
+CMS added the rest and is not yet CI-verified. What each one actually
+proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
 | Admin authentication | **42** | real `jose` verification, locally minted tokens | The Access JWT boundary and the development-auth guard |
-| Admin foundation | **76** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, the protected-page invariant, and horizontal scroll containment |
+| Admin foundation | **83** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, the protected-page invariant, and horizontal scroll containment |
 | **D1 composition boundary** | **34** | the real `binding.ts`, the **working tree**, plus `tsc` over Wrangler-generated Cloudflare types | Production fails closed, the provider seam composes, and Phase 22's provider already type-checks |
 | **Projects CMS** | **96** | the real schemas, and **real local D1** via `getPlatformProxy()` | The validation boundary and the full CRUD + relationship path |
 | **Technologies CMS** | **90** | the real schemas, and **real local D1** | The validation boundary, CRUD, the page-level usage composition, and `ON DELETE RESTRICT` |
 | **Profile CMS** | **77** | the real schema, and **real local D1** | The validation boundary and the singleton create-then-update lifecycle |
 | **Timeline CMS** | **110** | the real schemas, and **real local D1** | The validation boundary and the parent/child aggregate lifecycle |
-| **Server Action authorization** | **168** | the **real exported action functions** for all four entities, against real local D1 | Unauthenticated mutations are denied and change nothing |
+| **Education CMS** | **112** | the real schemas, and **real local D1** | The validation boundary, partial-patch safety, and the ordered CRUD lifecycle |
+| **Server Action authorization** | **209** | the **real exported action functions** for all five entities, against real local D1 | Unauthenticated mutations are denied and change nothing |
 
-Subtotals: **admin 693** (42 + 76 + 34 + 96 + 90 + 77 + 110 + 168) and
-**database 287** (26 + 59 + 157 + 41 + 4, detailed below) — **980 total**.
+Subtotals: **admin 853** (42 + 83 + 34 + 96 + 90 + 77 + 110 + 112 + 209)
+and **database 287** (26 + 59 + 157 + 41 + 4, detailed below) —
+**1140 total**.
+
+The database subtotal is **unchanged** by the Education CMS: education
+already used `createOrderedRepository` with everything the CMS needed, so
+no repository contract changed and no repository-package tests were added.
 
 The database subtotal moves only when a **repository contract** changes.
 Profile added none, because the Phase 5 singleton contract already
@@ -171,6 +178,44 @@ an `overflow-x-auto` wrapper must also make it `relative`, and the shell's
 a bare wrapper and a mixed pair. It cannot replace the browser check — it
 asserts the structure, not the rendering — but it does stop a new list page
 from silently shipping without containment.
+
+## Education CMS tests (Phase 8)
+
+`apps/admin/scripts/education-tests.mjs` — **112 checks**.
+
+Scope note: education uses `createOrderedRepository` unchanged, and the
+generic ordered plumbing (position ordering, `visibleOnly` filtering) is
+already proven in `packages/database` via the sections fixtures. That is not
+repeated here.
+
+**Validation.** Accepted input with trimming and blank → `null` for every
+optional; 22 rejection cases (empty/over-long required fields, length
+limits, malformed dates, an end date before the start, negative/fractional/
+absurd/non-numeric positions, non-boolean visibility, non-object payloads);
+and proof that `id`, `createdAt`, `updatedAt`, and unknown fields are
+rejected on both shapes.
+
+**Partial-patch safety — the check that found a real bug.** A single-field
+patch must parse to exactly one key, and each unmentioned field is asserted
+**absent rather than defaulted**. `.partial()` does not neutralise
+`.default()`, so a shape built that way silently carries `position: 0`,
+`isVisible: true`, and `null` for every optional — which the repository's
+allowlist then writes, resetting columns the caller never mentioned. The
+local-D1 lifecycle caught it before this ever ran in a browser.
+
+**Documented boundary.** Date validation is *shape-only*: `2024-13-99`
+matches `YYYY-MM-DD` and is accepted. Asserted explicitly rather than
+assumed, and shared with the projects and timeline modules, so any
+tightening is applied consistently rather than to one entity.
+
+**Lifecycle against real local D1.** No rows initially; create; read back
+every column; update with position and visibility changes; `createdAt`
+immutable while `updatedAt` advances; blank optionals clearing to `null`; a
+hidden entry still listed in the admin but excluded from `visibleOnly`;
+`NotFoundError` for a missing entry; an invalid payload rejected before the
+database with the row byte-identical; a second entry ordered correctly by
+position; delete removing only the target with the other surviving; and
+`PRAGMA foreign_key_check`.
 
 ## Timeline CMS tests (Phase 8)
 

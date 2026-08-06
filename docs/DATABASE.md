@@ -271,6 +271,33 @@ Note that `skills` also has `UNIQUE (category_id, name)`, whose leading
 column already serves "skills in this category"; the additional index
 exists only for the ordered read.
 
+## Education in the admin (Phase 8)
+
+The education CMS uses the Phase 5 repository **entirely unchanged** —
+`createOrderedRepository` already supplies `getById`, `list` (with
+`visibleOnly`), `create`, `update`, and `delete`, and ordering lives in
+that abstraction rather than in the CMS. No method was added, so the
+repository-package suites were not extended either.
+
+Two schema facts the CMS relies on:
+
+- `position INTEGER NOT NULL DEFAULT 0 CHECK (position >= 0)` and
+  `is_visible INTEGER NOT NULL CHECK (is_visible IN (0, 1))` are **real
+  columns**, so both are exposed as validated admin controls. Listing is
+  ordered by `position` with `created_at` as the tie-breaker; the admin
+  view shows hidden rows badged rather than filtered, and `visibleOnly` is
+  reserved for public reads.
+- **Nothing references `education`.** There is no child table and no
+  incoming foreign key, so a delete removes exactly one row and cascades to
+  nothing — verified rather than assumed, alongside
+  `PRAGMA foreign_key_check`.
+
+A patch-shape caution that applies to every ordered entity here: an update
+schema must not be built from a defaulted create schema with `.partial()`,
+because the defaults still materialise for absent keys and the repository's
+patch allowlist will write them — silently resetting `position` and
+`is_visible`. See `docs/ARCHITECTURE.md`.
+
 ## Timeline in the admin (Phase 8)
 
 `timeline_highlights` remains owned solely by the timeline aggregate — no

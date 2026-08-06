@@ -5,6 +5,7 @@
 // bodies) and are a different concern from the row decoders in
 // `@portfolio/database`, which validate data read back out of the database.
 // Both apps consume these so input validation is never duplicated per app.
+export * from "./education.ts";
 export * from "./profile.ts";
 export * from "./projects.ts";
 export * from "./technologies.ts";

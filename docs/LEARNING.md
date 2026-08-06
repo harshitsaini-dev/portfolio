@@ -3,6 +3,45 @@
 Notes on things learned while building this project that are worth
 remembering for future work.
 
+## Phase 8 — Education CMS
+
+### `.partial()` does not undo `.default()`
+
+The bug this slice found, and the one worth remembering: deriving an update
+schema as `createSchema.partial()` looks like it produces "every field
+optional", but a field declared with `.default()` is still *materialised*
+when its key is absent. The patch arrives carrying `position: 0`,
+`isVisible: true`, and `null` for every optional — values the caller never
+sent — and the repository's patch allowlist dutifully writes them.
+
+The user-visible effect would have been editing a qualification and
+silently resetting the entry's display order and un-hiding it. Nothing
+about the code reads as dangerous; the two APIs simply compose differently
+than they appear to.
+
+### The test caught it because it asserted persisted state, not parse success
+
+The validation half of the suite passed the whole time — the schema *did*
+accept a partial patch. What failed was the local-D1 assertion that a
+hidden entry stays hidden and an ordered entry keeps its position. Checking
+"did the mutation succeed?" would have been green; checking "is the row
+still what I expect?" was not.
+
+Worth generalising: for anything that writes, assert the state afterwards,
+not just the absence of an error.
+
+### Uniformity is a reason to look harder, not to look less
+
+I wrote education's schemas by copying the timeline module, which is
+exactly what a settled pattern is *for*. The copy inherited a latent defect,
+and it only surfaced because education's tests happened to exercise a
+partial patch against real D1 while timeline's did not.
+
+Two consequences. A pattern propagates bugs as efficiently as it propagates
+structure. And finding one in the copy is evidence about the original —
+which is why the timeline module is now recorded as affected and queued for
+its own fix, rather than quietly repaired here or left unmentioned.
+
 ## Phase 8 — Admin list overflow fix
 
 ### An absolutely positioned descendant escapes an unpositioned scroll container

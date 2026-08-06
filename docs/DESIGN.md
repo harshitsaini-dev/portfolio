@@ -5,6 +5,25 @@
 `@portfolio/ui/tokens.css`, which closes the Phase 3 limitation that the
 admin app had not adopted the shared tokens.
 
+## The ordered collection form (Phase 8 — education)
+
+Education needed **no new design work**: the same sectioned layout, the same
+field primitives, the same error summary and focus behaviour, the same
+two-step delete. It is worth recording precisely because nothing was added —
+the ordered collection form is now a settled pattern that certifications,
+tools, socials, and sections can reuse.
+
+Its two ordered-entity controls, both matching timeline:
+
+- **Position** — an explicit labelled numeric input with `min={0}` and a
+  hint that lower numbers appear first. No drag-and-drop, and no implicit
+  ranking.
+- **Visible** — a labelled checkbox whose hint states the consequence
+  ("Uncheck to hide this entry from the public site. It stays listed
+  here."). Hidden rows remain in the admin list with a **Hidden** badge:
+  the admin view is the editorial view, and hiding a record from the person
+  managing it would be the wrong kind of honesty.
+
 ## Editing owned child rows (Phase 8 — timeline highlights)
 
 The first CMS screen where the user edits a list of child records inline.
