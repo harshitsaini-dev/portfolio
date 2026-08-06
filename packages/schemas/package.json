@@ -11,5 +11,9 @@
   },
   "devDependencies": {
     "typescript": "^5"
+  },
+  "dependencies": {
+    "@portfolio/types": "workspace:*",
+    "zod": "4.4.3"
   }
 }

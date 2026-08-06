@@ -271,9 +271,27 @@ Note that `skills` also has `UNIQUE (category_id, name)`, whose leading
 column already serves "skills in this category"; the additional index
 exists only for the ordered read.
 
+## Application wiring (Phase 7)
+
+The admin app reaches D1 through exactly one module,
+`apps/admin/src/lib/db/binding.ts` → `getAdminRepositories()`. No React
+component, Server Action, or route handler constructs a binding or writes
+SQL; every write goes through the Phase 5 repositories.
+
+Project relationships (links, technologies, media) are written through the
+project aggregate's `setLinks` / `setTechnologies` / `setMedia`, which use
+D1 `batch()` — so a partially applied relationship set is not possible.
+A bad technology or media id surfaces as a foreign-key `ConflictError`
+and is reported to the user as a conflict, never as a SQL message.
+
+Media attachments have no admin UI yet: no asset can exist before R2
+(Phase 9), so the form sends an empty media array rather than inventing
+asset ids.
+
 ## Local vs remote policy
 
-**Phase 4 applied migrations locally only.** The remote `portfolio-cms`
+**Phase 4 applied migrations locally only, and that is still true after
+Phase 7** — the CMS runs against local D1 only. The remote `portfolio-cms`
 database still has **zero tables**, verified with `wrangler d1 list`
 (`num_tables: 0`) and `wrangler d1 migrations list --remote`, which still
 reports `0001_initial_schema.sql` as pending.

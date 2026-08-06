@@ -188,6 +188,82 @@ UI components never talk to the database directly; they go through the
 service layer once it exists. Types shared between layers live in
 `packages/types` to avoid duplication and drift.
 
+## CMS vertical slice (Phase 7)
+
+Projects is the first entity wired end to end, and its shape is the
+**template Phase 8 follows** for the remaining entities.
+
+```
+Client form (payload JSON)
+  → Server Action                          apps/admin/src/lib/actions/projects.ts
+      1. requireAdminIdentity()            authorization first, always
+      2. Zod schema                        @portfolio/schemas — untrusted input
+      3. repository                        @portfolio/database — never raw SQL
+      4. ActionResult                      typed, leak-free
+  → getAdminRepositories()                 apps/admin/src/lib/db/binding.ts
+  → D1
+```
+
+### Database composition boundary
+
+`src/lib/db/binding.ts` is the **only** module that resolves a D1 binding.
+Components never see one, and repositories are constructed per call rather
+than held in a global — a Worker isolate can serve more than one
+environment, so shared mutable repository state would be both a
+correctness and an isolation hazard.
+
+- **Production: explicitly not implemented.** The documented
+  `@opennextjs/cloudflare` API for reaching a Worker binding is
+  `getCloudflareContext().env.DB`. That package is not installed, because
+  installing it also requires an app-level `wrangler.json`
+  (`compatibility_date`, `nodejs_compat`), an `open-next.config.ts`, and
+  `initOpenNextCloudflareForDev()` in `next.config.ts` — that is Phase 22.
+  So the module exposes a narrow provider seam,
+  `setAdminDatabaseProvider(() => Promise<D1Like>)`, and **production fails
+  closed with a clear internal error** until Phase 22 registers
+  `async () => getCloudflareContext().env.DB`. Nothing here claims to work
+  in production today.
+- **Local:** `next dev` is a Node server with no Workers `env`, so the
+  binding comes from Wrangler's `getPlatformProxy()` (real workerd-backed
+  local D1, `remoteBindings: false`). The import is dynamic and
+  development-guarded; `serverExternalPackages: ["wrangler"]` keeps it out
+  of the production bundle.
+
+### Two validation layers, on purpose
+
+`@portfolio/schemas` validates **untrusted input crossing into the
+system**. `@portfolio/database` decodes **rows coming out of a store we
+own**. They answer different questions, so merging them would either
+weaken input checking or make persistence reject its own valid rows.
+Types are inferred from the schemas, so validator and type cannot drift.
+
+### Server Actions are endpoints
+
+A Server Action is a POST endpoint reachable independently of the page
+that rendered its form, so each one calls `requireAdminIdentity()` itself
+rather than trusting route protection. Authorization is **never** read
+from a hidden form field.
+
+`ActionResult` distinguishes only what the UI renders differently —
+validation / conflict / not_found / failure — and never carries SQL, a
+constraint string, or a stack trace.
+
+`redirect()` is called **outside** the try/catch: it signals by throwing,
+so catching it would report a spurious failure. Redirecting on the server
+also avoids a client-navigation race and works without JavaScript.
+
+### Route metadata is not an authorization boundary
+
+Route `metadata` is evaluated independently of the page component, so
+`generateMetadata` would run outside `withAdminPage`. The Projects routes
+therefore use **static** `metadata` only — no per-record titles.
+
+### Public portfolio boundary
+
+Phase 7 stops at the admin. `apps/web` still renders its Phase 2
+placeholder module and was not touched; the ROADMAP scopes this phase to
+CRUD "through the data layer" and says nothing about public rendering.
+
 ## Deployment target (future)
 
 Cloudflare Workers, via OpenNext for Next.js. No Cloudflare-specific code
@@ -197,6 +273,7 @@ migration low-friction later.
 
 ## Current status
 
-Phase 1A only: the structure above exists as scaffolding/skeletons. No
-cross-package imports are wired up yet because there is no shared logic to
-import.
+Through **Phase 7**: shared UI tokens, D1 schema, repository layer,
+authenticated admin shell, and one complete CMS vertical slice (projects).
+The remaining CMS entities (Phase 8), R2 uploads (Phase 9), and the
+public-site data conversion are not implemented.

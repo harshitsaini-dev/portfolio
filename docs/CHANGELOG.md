@@ -1,5 +1,120 @@
 # Changelog
 
+## 2026-08-06 — Phase 7 correction pass (branch `feat/projects-cms`)
+
+**Status: still awaiting review and CI. Not committed.**
+
+### Fixed
+
+- **Removed an invented production API.** `src/lib/db/binding.ts` claimed a
+  future OpenNext adapter would populate `globalThis.__ADMIN_DB__`. No such
+  API exists; the documented accessor is `getCloudflareContext().env.DB`.
+  Replaced with a narrow `setAdminDatabaseProvider()` seam whose production
+  implementation is **explicitly deferred to Phase 22** and which **fails
+  closed** with a clear internal error until then.
+  `@opennextjs/cloudflare` was deliberately **not** installed — it would
+  drag `wrangler.json`, `open-next.config.ts`, and
+  `initOpenNextCloudflareForDev()` (Phase 22) into a CMS phase.
+- **Replaced a worthless security proof.** A 404 from `POST` with a
+  fabricated `Next-Action` id was reported as evidence that mutations
+  reject unauthenticated callers. It is not — Next rejects unknown action
+  ids before any application code runs.
+
+### Added
+
+- `apps/admin/scripts/action-auth-tests.mjs` — **48 checks**. Invokes the
+  **real exported** create/update/delete actions with no identity against
+  real local D1 and proves nothing is inserted, modified, or deleted; that
+  auth runs before validation and before the database is touched; that a
+  forged or missing Access assertion is denied and development auth does
+  not rescue it; plus an authenticated positive control.
+- `apps/admin/scripts/db-composition-tests.mjs` — **25 checks**. Asserts
+  `__ADMIN_DB__` is gone, production fails closed without falling back,
+  the provider seam composes per call, `wrangler` cannot reach production
+  runtime code, and — via `tsc` over Wrangler-generated Cloudflare types —
+  that a provider returning `D1Database` satisfies `AdminDatabaseProvider`
+  **without a cast**, with a negative control.
+
+### Changed
+
+- `apps/admin/next.config.ts` — `serverExternalPackages: ["wrangler"]`
+  **re-evaluated and kept**; removing it was measured and `next build`
+  fails, pulling the Wrangler CLI into the production Server Component
+  graph. The comment now records that measurement.
+- Documentation corrected across `PROJECT_STATE.md`, `ARCHITECTURE.md`,
+  `DECISIONS.md`, and `TESTING.md`.
+
+### Verification
+
+`pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`,
+`pnpm test` (**502 checks**, up from 434), and `pnpm build` all **PASS**;
+`/projects*` routes remain `ƒ (Dynamic)`. Browser re-verification confirmed
+authenticated CRUD still works through the refactored binding, and a seeded
+canary proved **zero project data** in any unauthenticated plain/RSC/forged
+response.
+
+## 2026-08-06 — Phase 7: Projects CMS vertical slice (branch `feat/projects-cms`)
+
+**Status: implemented, awaiting review and CI. Not committed.**
+
+### Added
+
+- `packages/schemas/src/projects.ts` — the untrusted-input boundary:
+  `projectCreateSchema` (`.strict()`), `projectUpdateSchema`,
+  `projectIdSchema`, an http/https-only URL schema, a slug-shape schema,
+  and `suggestSlug()`.
+- `apps/admin/src/lib/db/binding.ts` — the app's single D1 composition
+  boundary. A narrow `setAdminDatabaseProvider()` seam whose production
+  implementation is **explicitly deferred to Phase 22** (fails closed until
+  then), and a cached `getPlatformProxy()` locally, `remoteBindings:
+  false`.
+- `apps/admin/src/lib/actions/result.ts` — typed `ActionResult`
+  (success / validation / conflict / not_found / failure), leak-free by
+  construction, intended for Phase 8 reuse.
+- `apps/admin/src/lib/actions/projects.ts` — create/update/delete Server
+  Actions, each `requireAdminIdentity()` → Zod → repository → typed
+  result, with `redirect()` outside the try/catch.
+- `apps/admin/src/components/form/field.tsx` — labelled field primitives.
+- `apps/admin/src/components/projects/{project-form,delete-project-form}.tsx`
+  — `useActionState` form with error-summary focus and slug auto-suggest;
+  two-step delete confirmation.
+- `apps/admin/src/app/(protected)/projects/{page,new/page,[id]/page}.tsx`
+  — all via `withAdminPage`, all static `metadata`.
+- `apps/admin/scripts/projects-tests.mjs` — **96 checks** (validation +
+  real local D1 CRUD).
+
+### Changed
+
+- `apps/admin/scripts/shell-tests.mjs` — 47 → **53 checks**; the invariant
+  matcher replaced with a balanced-angle-bracket scanner (the old regex
+  could not parse nested generics and produced a false negative on the
+  correctly-guarded `[id]/page.tsx`).
+- `apps/admin/next.config.ts` — `serverExternalPackages: ["wrangler"]`.
+- `apps/admin/tsconfig.json` — `target` ES2017 → ES2022 (BigInt literals).
+- `apps/admin/src/lib/navigation.ts` + `admin-nav.tsx` — Projects is a
+  real destination; prefix matching for `aria-current`.
+- `packages/ui/src/tokens.css` — `--danger` / `--danger-fg` in all three
+  blocks.
+
+### Fixed
+
+- Delete left the user on the edit page of a deleted project (client
+  `router.push` racing revalidation) — moved to a server-side `redirect()`.
+
+### Verification
+
+`pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`,
+`pnpm test` (**502 checks**), and `pnpm build` all **PASS**; every
+`/projects*` route builds as `ƒ (Dynamic)`. Full CRUD, validation,
+accessibility, responsive, and unauthenticated-confidentiality checks
+performed in a real browser against local D1.
+
+### Not included
+
+Public-site data conversion (deferred — ROADMAP scopes Phase 7 to the data
+layer), media upload UI (Phase 9), other CMS entities (Phase 8), and any
+remote D1 or Cloudflare Access change.
+
 ## 2026-08-06 — Phase 6 complete
 
 Documentation-only entry. No application, auth, component, test, package
@@ -13,7 +128,7 @@ changes.
 - Linux CI verified lint, typecheck, tests, and build, including the two
   new admin suites. Total: **327 real checks** (238 data/repository + 89
   admin).
-- Phases 0–6 complete; **Phase 7 — Projects CMS vertical slice** is next
+- Phases 0—6 complete; **Phase 7 — Projects CMS vertical slice** is next
   and not started.
 - `apps/admin` no longer has a no-op test script; **`apps/web` is now the
   only no-op suite**. Coverage remains representative, not exhaustive.
@@ -87,7 +202,7 @@ workspace config, test, CI, or Cloudflare resource changes.
 - Linux CI proved `getPlatformProxy`, workerd, and Wrangler type
   generation all work on a clean runner — the parts of the **238-check**
   suite that had previously only run on Windows.
-- Phases 0–5 complete; **Phase 6 — Admin foundation** is next and not
+- Phases 0—5 complete; **Phase 6 — Admin foundation** is next and not
   started.
 - Restated precisely: the 111 adapter checks are repository-logic tests
   over a `node:sqlite` D1 adapter and are **not** proof of the real D1
@@ -159,7 +274,7 @@ Cloudflare resource changes.
 - GitHub Actions installed Wrangler and `workerd` successfully on Linux,
   so the real D1 migration smoke test now has **cross-platform proof —
   59/59 checks on both Windows and Linux**.
-- Phases 0–4 complete; **Phase 5 — Repository/data layer** is next and not
+- Phases 0—4 complete; **Phase 5 — Repository/data layer** is next and not
   started.
 - Restated precisely: `@portfolio/database` has real automated D1
   schema coverage, while the `apps/web` and `apps/admin` test scripts
@@ -227,7 +342,7 @@ CI, configuration, or design-system changes.
   `feat: establish portfolio design system`, verified by **Pull Request #4
   GitHub Actions**, merged into `main`, and verified again by the
   **post-merge `main` CI run, which passed**.
-- Phases 0–3 are now complete; **Phase 4 — D1 schema/migrations** is next
+- Phases 0—3 are now complete; **Phase 4 — D1 schema/migrations** is next
   and not started.
 - Restated the standing limitation explicitly: a green `pnpm test` is a
   no-op script, not test coverage. **Automated unit, integration, and E2E
@@ -293,7 +408,7 @@ CI, configuration, or design-system changes.
   (`apps/web/src/data/{types,placeholder-content}.ts`) and render every
   section from it. Both files are marked as Phase 2 placeholders to be
   replaced by `@portfolio/types`/`@portfolio/schemas` and the repository
-  layer in Phases 4–5. All content is neutral and fictional.
+  layer in Phases 4—5. All content is neutral and fictional.
 - Added 12 section/layout components under `apps/web/src/components/`.
   **All are Server Components — no `"use client"` anywhere.**
 - Added a global `:focus-visible` style, neutral surface/border/muted/
@@ -332,7 +447,7 @@ configuration changes.
   has a focusable application control yet.
 - Confirmed no D1, R2, auth, CMS CRUD, Motion, Three.js, or other
   later-phase functionality has been implemented.
-- Aligned `docs/ROADMAP.md` with the authoritative Phase 0–22 sequence,
+- Aligned `docs/ROADMAP.md` with the authoritative Phase 0—22 sequence,
   marking Phase 0 and Phase 1 complete and Phase 2 (Static responsive
   portfolio) as next.
 

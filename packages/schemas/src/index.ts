@@ -1,5 +1,8 @@
-// Shared validation schemas package.
-// No domain schemas exist yet. Future validation (e.g. zod schemas for
-// projects, profile, contact_messages) will be added here and consumed by
-// both apps/web and apps/admin so input validation is never duplicated.
-export {};
+// Shared validation schemas.
+//
+// Phase 7 added the project mutation schemas. These validate UNTRUSTED
+// input (forms, request bodies) and are a different concern from the row
+// decoders in `@portfolio/database`, which validate data read back out of
+// the database. Both apps consume these so input validation is never
+// duplicated per app.
+export * from "./projects.ts";

@@ -32,6 +32,32 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  /**
+   * Keep `wrangler` out of the bundle.
+   *
+   * `src/lib/db/binding.ts` dynamically imports it to obtain a local D1
+   * binding during development. Turbopack resolves dynamic imports
+   * statically, so this is not cosmetic — removing the line was measured,
+   * and `next build` fails with:
+   *
+   *   Import trace: Server Component:
+   *     wrangler/wrangler-dist/cli.js
+   *     → src/lib/db/binding.ts
+   *     → src/app/(protected)/projects/[id]/page.tsx
+   *
+   * i.e. the bundler pulls the entire Wrangler CLI into the production
+   * Server Component graph. Marking it external leaves it as a runtime
+   * `require` instead, resolved only if the development branch executes.
+   *
+   * That branch cannot execute in production: `getAdminDatabase()` throws
+   * when `NODE_ENV === "production"` before reaching the resolver that
+   * contains the import, and Next inlines that comparison at build time.
+   * `scripts/db-composition-tests.mjs` asserts both halves — the runtime
+   * throw, and that `wrangler` is referenced exactly once, dynamically,
+   * inside the development-only resolver, and is a devDependency.
+   */
+  serverExternalPackages: ["wrangler"],
+
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

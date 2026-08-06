@@ -69,7 +69,13 @@ export function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
                 );
               }
 
-              const isCurrent = pathname === item.href;
+              // Exact match for the dashboard; prefix match elsewhere, so
+              // `/projects/new` and `/projects/<id>` still mark Projects as
+              // the current section rather than leaving nothing highlighted.
+              const isCurrent =
+                item.href === "/"
+                  ? pathname === "/"
+                  : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
               return (
                 <li key={item.label}>

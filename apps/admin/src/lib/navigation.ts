@@ -33,7 +33,7 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
   {
     heading: "Content",
     items: [
-      { label: "Projects", availableIn: "Phase 7" },
+      { label: "Projects", href: "/projects" },
       { label: "Profile", availableIn: "Phase 8" },
       { label: "Experience", availableIn: "Phase 8" },
       { label: "Education", availableIn: "Phase 8" },
