@@ -8,12 +8,15 @@ something passed without running it.
 
 **Phase 8 — Remaining CMS. In progress.**
 
-- **Active task:** **Technologies CMS** — the first focused task inside
-  Phase 8. Implemented on `feat/remaining-cms-technologies`; **awaiting
-  review**, not committed, not pushed, and **not complete**.
-- **Phase 7:** Complete (merged to `main`, CI green).
-- **Later Phase 8 entities** — Profile, Timeline/Experience, Education,
+- **Technologies CMS: COMPLETE.** Merged into `main` as
+  `97d6425 feat: add technologies CMS`, verified by **Pull Request #14 on
+  GitHub Actions/Linux** and again by the **post-merge `main` CI run
+  `31084430634`**.
+- **Profile CMS: NEXT** — not started, and not to be implemented until
+  explicitly scoped and approved.
+- **Later Phase 8 entities** — Timeline/Experience, Education,
   Certifications, Skills, Tools, Socials, Sections: **not started**.
+- **Phase 7:** Complete (merged to `main`, CI green).
 - **Phase 8 is NOT complete.** It is complete only when every entity it
   covers is delivered and verified.
 
@@ -21,7 +24,13 @@ Unchanged and still outstanding: the **remote `portfolio-cms` schema
 remains unapplied**, and **Cloudflare Access dashboard configuration
 remains pending**.
 
-## Phase 8 — Technologies CMS (active task)
+## Active task
+
+Technologies CMS completion documentation (documentation-only; no
+application, test, schema, repository, package, migration, config, or CI
+changes).
+
+## Phase 8 — Technologies CMS (COMPLETE)
 
 ### Routes
 
@@ -150,15 +159,9 @@ and verified again by the **post-merge `main` CI run `31077681211`**.
 
 - **Phases 0–7:** Complete.
 
-## Active task
-
-**Phase 8 — Technologies CMS** (see the Phase 8 section above). Awaiting
-review; not committed.
-
 ## Blockers
 
-**None.** Phase 7 has none, and the Technologies CMS task has no
-implementation blocker.
+**None.** Phase 7 has none, and the Technologies CMS subtask has none.
 
 Two items remain outstanding but are **deployment prerequisites, not
 blockers** — see *Known limitations* and *Manual actions*: the
@@ -169,9 +172,9 @@ fail-closed behaviour.
 
 ## Next suggested task
 
-Review the Technologies CMS. After it merges, the next Phase 8 entity —
-**not to be implemented until explicitly scoped and approved** — is
-suggested at the end of this file.
+**Profile CMS** — the next Phase 8 entity. Not started, and not to be
+implemented until explicitly scoped and approved. Rationale at the end of
+this file.
 
 ## Phase status summary
 
@@ -185,12 +188,15 @@ suggested at the end of this file.
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
 | Phase 6 — Admin foundation | **Complete** (merged to `main`, CI green) |
 | Phase 7 — Projects CMS vertical slice | **Complete** (merged to `main`, CI green) |
-| Phase 8 — Remaining CMS | **In progress** — Technologies CMS awaiting review; other entities not started |
+| Phase 8 — Remaining CMS | **In progress** — Technologies CMS **complete** (merged, CI green); Profile CMS next; other entities not started |
 
 Phases 9–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
 
 ## Phase 8 — Technologies CMS: verification actually performed
+
+Locally on Windows, and again on **GitHub Actions/Linux** for both PR #14
+and the post-merge `main` run:
 
 | Command | Result |
 | --- | --- |
@@ -290,7 +296,16 @@ Manual MCP verification — **not** automated Playwright CI tests.
   canary appearing **0 times**.
 - Console errors relevant to the feature: **none**. The session log
   contains only HMR WebSocket reconnects from dev-server restarts and 404s
-  for records deleted during the flows.
+  for records deleted during the flows — development-session noise, not
+  feature failures.
+
+**These checks were performed before the repository-ownership correction,
+and were not re-run afterwards.** That correction moved the usage-count
+query from `TechnologiesRepository` to `ProjectsRepository` and changed the
+page to compose the two repositories; it is internal and
+output-equivalent — the same counts, the same rendered markup — and it is
+covered by the automated suites, which were re-run and pass. Recorded
+plainly rather than implying a fresh browser pass that did not happen.
 
 ### Sub-44px touch targets — checked, and pre-existing
 
@@ -298,7 +313,37 @@ Two links measure under 44px at 375px width: the visually-hidden "Skip to
 main content" link, and the inline breadcrumb. Both are **identical to the
 existing Projects pages** (verified side by side), so this is the
 established breadcrumb pattern rather than a regression introduced here.
-Every button and primary action meets the 44px minimum.
+Every button and primary action meets the 44px minimum. Deferred to the
+dedicated accessibility phase (Phase 18) as a deliberate decision rather
+than changed here.
+
+### Phase 8 — Technologies CMS — CI
+
+- **Pull Request #14 CI passed** on GitHub Actions/Linux.
+- PR #14 was **rebase-merged** into `main` as
+  `97d6425 feat: add technologies CMS`.
+- The **post-merge `main` CI run `31084430634` passed.**
+- Linux therefore verified install, lint, typecheck, tests, and build for
+  the merged Technologies CMS state.
+
+## Phase 8 — known limitations (not blockers)
+
+- **Phase 8 is not complete.** Technologies is one entity of several.
+- **Profile and the remaining CMS entities are not implemented** —
+  Timeline/Experience, Education, Certifications, Skills, Tools, Socials,
+  Sections.
+- **`apps/web` automated tests remain a no-op** — still the only
+  fake-green script in the repository.
+- **Browser tests remain manual MCP verification**, not automated
+  Playwright CI. Automated E2E is Phase 20.
+- **Remote D1 remains unmigrated**, so the CMS is local-only.
+- **A real deployed Cloudflare Access session remains unverified** end to
+  end.
+- **The production OpenNext D1 binding provider remains deferred to
+  Phase 22**, and fails closed until then.
+- **No R2 / media upload** — Phase 9.
+- **The small mobile breadcrumb / skip-link touch-target pattern** remains
+  deferred to the dedicated accessibility phase (Phase 18).
 
 ## Phase 7 — completed work
 

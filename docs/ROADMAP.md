@@ -104,10 +104,28 @@ pulled forward; the remote database schema remains **intentionally
 unapplied**, and **Cloudflare Access dashboard configuration is still
 pending**.
 
-## Phase 8 — Remaining CMS — **Next**
+## Phase 8 — Remaining CMS — **In progress**
 
 The rest of the content entities, following the pattern established by the
 projects slice.
+
+**Technologies CMS: complete.** Delivered `/technologies`,
+`/technologies/new`, and `/technologies/[id]` behind `withAdminPage`, with
+strict shared Zod schemas over only the fields the committed table has
+(`name`, `slug`, nullable `category`), the same
+`requireAdminIdentity()` → validation → repository → typed-result mutation
+order, and safe conflict handling for the `ON DELETE RESTRICT` join with
+projects. `project_technologies` remains owned exclusively by
+`ProjectsRepository`, which exposes `countByTechnology()`; the admin page
+composes that with `repos.technologies.list()`. Test coverage grew to
+**670 real checks** (256 data/repository + 414 admin). Merged to `main` as
+`97d6425` with CI green on Linux.
+
+**Next: Profile CMS.** Not started. The remaining entities —
+Timeline/Experience, Education, Certifications, Skills, Tools, Socials,
+Sections — are also not started. The remote database schema remains
+**intentionally unapplied**, and **Cloudflare Access dashboard
+configuration is still pending**.
 
 ## Phase 9 — R2/media
 

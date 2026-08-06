@@ -1,11 +1,11 @@
 # Testing
 
-## Current state (Phase 8 — Technologies CMS in review)
+## Current state (Phase 8 — Technologies CMS complete)
 
-`pnpm test` runs **eleven real suites and one no-op** — **670 checks**.
-The 511 verified at the end of Phase 7 all still pass, on Windows and on
-GitHub Actions/Linux; the Technologies CMS added the rest and is not yet
-CI-verified. What each one actually proves matters, so be precise:
+`pnpm test` runs **eleven real suites and one no-op** — **670 checks**,
+verified on Windows and on GitHub Actions/Linux (PR #14 and the post-merge
+`main` run). The 511 verified at the end of Phase 7 all still pass. What
+each one actually proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
