@@ -2,15 +2,16 @@
 
 ## Current state (Phase 8 — Timeline CMS complete)
 
-`pnpm test` runs **thirteen real suites and one no-op** — **971 checks**,
-verified on Windows and on GitHub Actions/Linux (PR #18 and the post-merge
-`main` run). The 780 verified after the Profile CMS all still pass. What
-each one actually proves matters, so be precise:
+`pnpm test` runs **thirteen real suites and one no-op** — **980 checks**.
+The 971 verified after the Timeline CMS all still pass on Windows and on
+GitHub Actions/Linux (PR #18 and its post-merge `main` run); the responsive
+overflow fix added nine and is not yet CI-verified. What each one actually
+proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
 | Admin authentication | **42** | real `jose` verification, locally minted tokens | The Access JWT boundary and the development-auth guard |
-| Admin foundation | **67** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, and the protected-page invariant |
+| Admin foundation | **76** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, the protected-page invariant, and horizontal scroll containment |
 | **D1 composition boundary** | **34** | the real `binding.ts`, the **working tree**, plus `tsc` over Wrangler-generated Cloudflare types | Production fails closed, the provider seam composes, and Phase 22's provider already type-checks |
 | **Projects CMS** | **96** | the real schemas, and **real local D1** via `getPlatformProxy()` | The validation boundary and the full CRUD + relationship path |
 | **Technologies CMS** | **90** | the real schemas, and **real local D1** | The validation boundary, CRUD, the page-level usage composition, and `ON DELETE RESTRICT` |
@@ -18,8 +19,8 @@ each one actually proves matters, so be precise:
 | **Timeline CMS** | **110** | the real schemas, and **real local D1** | The validation boundary and the parent/child aggregate lifecycle |
 | **Server Action authorization** | **168** | the **real exported action functions** for all four entities, against real local D1 | Unauthenticated mutations are denied and change nothing |
 
-Subtotals: **admin 684** (42 + 67 + 34 + 96 + 90 + 77 + 110 + 168) and
-**database 287** (26 + 59 + 157 + 41 + 4, detailed below) — **971 total**.
+Subtotals: **admin 693** (42 + 76 + 34 + 96 + 90 + 77 + 110 + 168) and
+**database 287** (26 + 59 + 157 + 41 + 4, detailed below) — **980 total**.
 
 The database subtotal moves only when a **repository contract** changes.
 Profile added none, because the Phase 5 singleton contract already
@@ -146,6 +147,31 @@ covers the *application* boundary:
   `AdminDatabaseProvider`, with **no `as unknown as`, `any`, or
   `@ts-expect-error`**. A negative control confirms a wrongly-typed
   provider is rejected.
+
+## Responsive verification must use POPULATED lists
+
+The corrected lesson, recorded because it cost two merges:
+
+**A data table's empty state renders no table.** Every "no horizontal
+overflow at 375px" check that ran against an unseeded list was measuring a
+page with nothing wide on it, and passed for a reason unrelated to the
+claim. Populated tables were only ever measured at 1280 and 768, where they
+fit anyway.
+
+So: seed at least one real row before any responsive check on a list page,
+and measure the **user-facing symptom** — can the page be scrolled sideways
+(`window.scrollTo(500, 0)`, then read `scrollX`)? — rather than a proxy like
+`documentElement.scrollWidth`, which legitimately reports a wide value for
+content inside a working scroll container and will send you after the wrong
+element.
+
+The structural half of this is now automated, in the **horizontal scroll
+containment** group of the admin foundation suite: any protected page with
+an `overflow-x-auto` wrapper must also make it `relative`, and the shell's
+`main` must carry `min-w-0`. Four negative controls prove the check rejects
+a bare wrapper and a mixed pair. It cannot replace the browser check — it
+asserts the structure, not the rendering — but it does stop a new list page
+from silently shipping without containment.
 
 ## Timeline CMS tests (Phase 8)
 

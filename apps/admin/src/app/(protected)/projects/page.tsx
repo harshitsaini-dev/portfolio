@@ -69,7 +69,14 @@ export default withAdminPage(async () => {
           </Link>
         </div>
       ) : (
-        <div className="mt-8 overflow-x-auto">
+        // `relative` is load-bearing alongside `overflow-x-auto`. The
+        // `sr-only` labels in this table are absolutely positioned, and an
+        // absolutely positioned element is laid out against its nearest
+        // *positioned* ancestor — a non-positioned scroll container does not
+        // contain it. Without `relative` they resolve against the viewport
+        // from a cell that sits beyond it, widening the document's scroll
+        // area even though the table itself scrolls correctly.
+        <div className="relative mt-8 overflow-x-auto">
           <table className="w-full min-w-[44rem] border-collapse text-left text-sm">
             <caption className="sr-only">
               All projects, ordered by display position
