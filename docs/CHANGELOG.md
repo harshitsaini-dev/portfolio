@@ -1,9 +1,39 @@
 # Changelog
 
+## 2026-08-06 — Phase 8: Technologies CMS complete
+
+Documentation-only entry. No application, test, schema, repository,
+package, migration, config, or CI changes.
+
+- **Technologies CMS — the first Phase 8 subtask — is complete.** Merged
+  into `main` as `97d6425 feat: add technologies CMS` via **Pull Request
+  #14**, which passed CI on GitHub Actions/Linux; the **post-merge `main`
+  CI run `31084430634` passed** as well, covering install, lint,
+  typecheck, tests, and build.
+- **A repository-ownership violation was found in review and corrected
+  before commit.** The usage-count aggregation initially sat on
+  `TechnologiesRepository`, where it queried `project_technologies` — a
+  table Phase 5 assigns to the projects aggregate. It moved to
+  `ProjectsRepository.countByTechnology()`, the technology repository went
+  back to owning only its own table, and the admin page now composes the
+  two. The rejected arrangement never shipped.
+- **Final real test total: 670** — database **256** (up from 238, for
+  canonical coverage of the new repository method), admin **414**.
+  `apps/web` remains the only no-op suite.
+- **Phase 8 remains IN PROGRESS.** Profile CMS is next and not started;
+  Timeline/Experience, Education, Certifications, Skills, Tools, Socials,
+  and Sections are not started.
+- **Remote `portfolio-cms` schema remains intentionally unapplied**, remote
+  D1 was not mutated, no `--remote` runtime path exists, and **Cloudflare
+  Access dashboard configuration remains pending**. OpenNext deployment
+  wiring and the production D1 provider remain Phase 22; no R2 bucket or
+  upload workflow exists yet.
+
 ## 2026-08-06 — Phase 8: Technologies CMS (branch `feat/remaining-cms-technologies`)
 
-**Status: implemented, awaiting review. Not committed. Phase 8 is NOT
-complete — this is its first entity.**
+**Status at the time: implemented, awaiting review. Subsequently corrected
+in review and merged into `main` as `97d6425`. Phase 8 is NOT complete —
+this is its first entity.**
 
 ### Added
 
