@@ -69,12 +69,23 @@ compile-time `D1Database` compatibility proof. Merged to `main` with CI
 green on Linux. Not yet wired into the apps, and the remote database
 schema remains **intentionally unapplied**.
 
-## Phase 6 — Admin foundation — **Next**
+## Phase 6 — Admin foundation — **Complete**
 
 The authenticated `apps/admin` shell: auth, protected routing, and layout,
 ahead of any CRUD.
 
-## Phase 7 — Projects CMS vertical slice
+Delivered the Cloudflare Access authentication boundary with server-side
+JWT verification via `jose`, an opt-in development identity that cannot
+activate in production, and the `withAdminPage` protected-page invariant —
+enforced by a recursive test after browser verification proved a layout
+redirect alone still serializes child page content. Added a responsive,
+accessible admin shell on the shared design tokens. Test coverage grew to
+**327 real checks** (238 data/repository + 89 admin). Merged to `main` with
+CI green on Linux. **Cloudflare Access dashboard configuration is still
+pending**, and the remote database schema remains **intentionally
+unapplied**.
+
+## Phase 7 — Projects CMS vertical slice — **Next**
 
 One entity end to end — projects — proving the full create/read/update/
 delete path through the data layer before the remaining entities follow.
