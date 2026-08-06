@@ -3,6 +3,47 @@
 Notes on things learned while building this project that are worth
 remembering for future work.
 
+## Phase 8 — Profile CMS
+
+### Let the constraint pick the route shape
+
+The reflex after two collection CMS slices is to build a third one: a list,
+a `/new`, an `/[id]`. The profile table's `CHECK (id = 'singleton')` makes
+all three meaningless — there is nothing to list, nothing to create a
+second of, and no id to choose. Reading the constraint first turned "how do
+I adapt the collection pattern?" into "this is a different shape", which
+was both less code and a more honest UI.
+
+### Not every capability belongs in the UI
+
+`ProfileRepository.clear()` exists and works. Surfacing it would have been
+the "complete CRUD" reflex, and it would have put a no-undo wipe of the
+site's identity one mis-click away for a workflow nobody asked for. The
+repository is a toolkit, not a specification for the interface.
+
+### The empty state is a real state, not an error
+
+The schema permits zero rows, so `get()` returning `null` is normal. It
+would have been easy to treat that as "not found" and render an error, or
+to auto-create a blank row on first visit to dodge the case entirely. Both
+would have been lies about what the system holds. Rendering the same form
+with different wording was less work than either.
+
+### Announce success politely; announce failure assertively
+
+The error summary takes focus because a failure needs attention. The save
+confirmation uses `role="status"` and does not, because yanking focus after
+a *successful* action is disorienting. Same form, two different urgencies —
+worth distinguishing rather than reaching for `role="alert"` both times.
+
+### Test counts should track contracts, not features
+
+The profile repository already covered its singleton lifecycle, so this
+slice added zero repository-package tests and the database subtotal stayed
+at 256. After the technologies correction — where a *contract* change did
+require canonical coverage — the rule became clear: repository tests grow
+when a repository contract grows, not once per feature that consumes it.
+
 ## Phase 8 — Technologies CMS
 
 ### A structural invariant pays out when you forget about it

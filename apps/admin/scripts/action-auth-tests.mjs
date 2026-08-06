@@ -513,6 +513,107 @@ try {
   );
 
   // =========================================================================
+  // Profile (Phase 8) — a singleton, but the same boundary and same proof.
+  // =========================================================================
+  const profileActions = await import("../src/lib/actions/profile.ts");
+  check(
+    "the real profile action module exports the save mutation",
+    typeof profileActions.saveProfileAction === "function",
+  );
+  check(
+    "there is no separate create/update/delete pair for a singleton",
+    typeof profileActions.createProfileAction === "undefined" &&
+      typeof profileActions.deleteProfileAction === "undefined",
+  );
+
+  /** Valid profile payload for these checks. */
+  function profilePayload(overrides = {}) {
+    return {
+      fullName: "Guarded Person",
+      headline: "Engineer",
+      tagline: null,
+      bio: null,
+      location: null,
+      availability: null,
+      publicEmail: null,
+      ...overrides,
+    };
+  }
+
+  startGroup("Unauthenticated profile SAVE cannot create");
+
+  clearAuthEnvironment();
+  const consultedBeforeProfile = providerConsulted;
+
+  equal("no profile exists before the attempt", await repos.profile.get(), null);
+
+  const profileCreateAttempt = await invoke(
+    profileActions.saveProfileAction,
+    payloadForm(profilePayload()),
+  );
+  equal("the action does not return a result", profileCreateAttempt.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    profileCreateAttempt.error?.name,
+    "AdminUnauthorizedError",
+  );
+  equal(
+    "no profile was created",
+    await repos.profile.get(),
+    null,
+  );
+
+  startGroup("Profile auth wins before validation and the database");
+
+  const profileOrder = await invoke(
+    profileActions.saveProfileAction,
+    payloadForm({ fullName: "", headline: "", id: "singleton", bogus: true }),
+  );
+  equal("an invalid unauthenticated payload still throws", profileOrder.kind, "threw");
+  equal(
+    "it is an authorization failure, not a validation result",
+    profileOrder.error?.name,
+    "AdminUnauthorizedError",
+  );
+  equal(
+    "the database was never consulted during any denied profile call",
+    providerConsulted,
+    consultedBeforeProfile,
+  );
+
+  startGroup("Unauthenticated profile SAVE cannot modify an existing profile");
+
+  // Seed a profile directly, then prove an unauthenticated save leaves it
+  // byte-identical.
+  const seededProfile = await repos.profile.upsert({
+    fullName: "Existing Person",
+    headline: "Existing Headline",
+    tagline: "Existing tagline",
+    publicEmail: "existing@example.test",
+  });
+
+  const profileUpdateAttempt = await invoke(
+    profileActions.saveProfileAction,
+    payloadForm(profilePayload({ fullName: "Hijacked", headline: "Hijacked" })),
+  );
+  equal("the action does not return a result", profileUpdateAttempt.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    profileUpdateAttempt.error?.name,
+    "AdminUnauthorizedError",
+  );
+  const profileAfterAttempt = await repos.profile.get();
+  equal("fullName is unchanged", profileAfterAttempt?.fullName, seededProfile.fullName);
+  equal("headline is unchanged", profileAfterAttempt?.headline, seededProfile.headline);
+  equal("tagline is unchanged", profileAfterAttempt?.tagline, seededProfile.tagline);
+  equal("publicEmail is unchanged", profileAfterAttempt?.publicEmail, seededProfile.publicEmail);
+  equal("updatedAt is unchanged", profileAfterAttempt?.updatedAt, seededProfile.updatedAt);
+  check(
+    "the whole record is logically identical",
+    JSON.stringify(profileAfterAttempt) === JSON.stringify(seededProfile),
+  );
+
+  // =========================================================================
   startGroup("A forged Access assertion is also rejected");
 
   // With Access configured, a caller supplying a self-signed or junk
@@ -722,6 +823,98 @@ try {
   check(
     "the untouched target technology is still there",
     (await repos.technologies.getById(techVictim.id)) !== null,
+  );
+
+  // =========================================================================
+  startGroup("Positive control — the profile action works when authenticated");
+
+  // The seeded profile is still present, so this exercises the update path;
+  // the create path is covered against a clean database in profile-tests.
+  const authedProfileSave = await invoke(
+    profileActions.saveProfileAction,
+    payloadForm(
+      profilePayload({ fullName: "Authenticated Person", headline: "Staff Engineer" }),
+    ),
+  );
+  equal(
+    "an authenticated save returns a result rather than redirecting",
+    authedProfileSave.kind,
+    "returned",
+  );
+  equal("it reports success", authedProfileSave.result?.status, "success");
+  check(
+    "it reports when the profile was created, without exposing the singleton key",
+    typeof authedProfileSave.result?.data?.createdAt === "string" &&
+      !JSON.stringify(authedProfileSave.result?.data ?? {}).includes("singleton"),
+    JSON.stringify(authedProfileSave.result?.data),
+  );
+  equal(
+    "the profile really changed",
+    (await repos.profile.get())?.fullName,
+    "Authenticated Person",
+  );
+  equal(
+    "createdAt was preserved through the action",
+    (await repos.profile.get())?.createdAt,
+    seededProfile.createdAt,
+  );
+
+  // Malformed input through the real action must come back as validation.
+  const badProfile = await invoke(
+    profileActions.saveProfileAction,
+    payloadForm(profilePayload({ fullName: "", publicEmail: "not-an-email" })),
+  );
+  equal("malformed input returns a result", badProfile.kind, "returned");
+  equal("it is reported as validation", badProfile.result?.status, "validation");
+  check(
+    "field errors are keyed by field name",
+    Boolean(
+      badProfile.result?.fieldErrors?.fullName &&
+        badProfile.result?.fieldErrors?.publicEmail,
+    ),
+  );
+  equal(
+    "the stored profile was not touched by the invalid save",
+    (await repos.profile.get())?.fullName,
+    "Authenticated Person",
+  );
+
+  // A client-supplied singleton key must be rejected even when authenticated.
+  const forcedKey = await invoke(
+    profileActions.saveProfileAction,
+    payloadForm(profilePayload({ id: "singleton", fullName: "Key Setter" })),
+  );
+  equal(
+    "a client-supplied singleton id is rejected",
+    forcedKey.result?.status,
+    "validation",
+  );
+  equal(
+    "and the profile is unchanged",
+    (await repos.profile.get())?.fullName,
+    "Authenticated Person",
+  );
+
+  const forcedTimestamps = await invoke(
+    profileActions.saveProfileAction,
+    payloadForm(profilePayload({ createdAt: "2000-01-01T00:00:00.000Z" })),
+  );
+  equal(
+    "a client-supplied createdAt is rejected",
+    forcedTimestamps.result?.status,
+    "validation",
+  );
+
+  // Still exactly one profile row after every attempt above.
+  const profileRows = await db.prepare("SELECT COUNT(*) AS n FROM profile").all();
+  equal("exactly one profile row exists", Number(profileRows.results[0].n), 1);
+
+  check(
+    "no result message leaks SQL, constraint text, or the singleton key",
+    [badProfile, forcedKey, forcedTimestamps].every((outcome) => {
+      const serialized = JSON.stringify(outcome.result ?? {});
+      return !/SQLITE|constraint|singleton|profile\./i.test(serialized);
+    }),
   );
 
   // =========================================================================

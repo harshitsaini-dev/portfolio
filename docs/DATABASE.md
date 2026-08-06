@@ -271,6 +271,31 @@ Note that `skills` also has `UNIQUE (category_id, name)`, whose leading
 column already serves "skills in this category"; the additional index
 exists only for the ordered read.
 
+## Profile in the admin (Phase 8)
+
+The profile CMS uses the Phase 5 repository **entirely unchanged** —
+`get(): Profile | null` and `upsert()`. No method was added, so the
+repository-package suites were not extended either; they already cover the
+singleton contract.
+
+What the CMS relies on, and what the schema guarantees:
+
+- `id TEXT PRIMARY KEY CHECK (id = 'singleton')` allows **at most one row**
+  and does not guarantee one exists. The admin treats zero rows as a normal
+  state rather than an error, which is why `get()` returning `null` is
+  handled on the same screen that edits an existing row.
+- **The key is never client-supplied.** It is absent from
+  `profileSaveSchema`, `.strict()` rejects an attempt to send it, and the
+  repository binds `'singleton'` itself. The CHECK constraint remains the
+  backstop, and a direct insert under any other key is rejected — tested.
+- `upsert()` uses `ON CONFLICT(id) DO UPDATE`, which preserves
+  `created_at` from the original insert while advancing `updated_at`. The
+  CMS surfaces that as "Last updated <date>".
+
+`clear()` exists on the repository but is **not exposed in the admin UI** —
+deleting the site's identity is not a routine editorial action. See
+`docs/DECISIONS.md`.
+
 ## Technologies in the admin (Phase 8)
 
 The technologies CMS uses the Phase 5 technology repository **unchanged**.

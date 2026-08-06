@@ -1,23 +1,29 @@
 # Testing
 
-## Current state (Phase 8 — Technologies CMS complete)
+## Current state (Phase 8 — Profile CMS in review)
 
-`pnpm test` runs **eleven real suites and one no-op** — **670 checks**,
-verified on Windows and on GitHub Actions/Linux (PR #14 and the post-merge
-`main` run). The 511 verified at the end of Phase 7 all still pass. What
-each one actually proves matters, so be precise:
+`pnpm test` runs **twelve real suites and one no-op** — **780 checks**.
+The 670 verified after the Technologies CMS all still pass, on Windows and
+on GitHub Actions/Linux; the Profile CMS added the rest and is not yet
+CI-verified. What each one actually proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
 | Admin authentication | **42** | real `jose` verification, locally minted tokens | The Access JWT boundary and the development-auth guard |
-| Admin foundation | **59** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, and the protected-page invariant |
+| Admin foundation | **61** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, and the protected-page invariant |
 | **D1 composition boundary** | **34** | the real `binding.ts`, the **working tree**, plus `tsc` over Wrangler-generated Cloudflare types | Production fails closed, the provider seam composes, and Phase 22's provider already type-checks |
 | **Projects CMS** | **96** | the real schemas, and **real local D1** via `getPlatformProxy()` | The validation boundary and the full CRUD + relationship path |
 | **Technologies CMS** | **90** | the real schemas, and **real local D1** | The validation boundary, CRUD, the page-level usage composition, and `ON DELETE RESTRICT` |
-| **Server Action authorization** | **93** | the **real exported action functions** for both entities, against real local D1 | Unauthenticated create/update/delete are denied and change nothing |
+| **Profile CMS** | **77** | the real schema, and **real local D1** | The validation boundary and the singleton create-then-update lifecycle |
+| **Server Action authorization** | **124** | the **real exported action functions** for all three entities, against real local D1 | Unauthenticated mutations are denied and change nothing |
 
-Subtotals: **admin 414** (42 + 59 + 34 + 96 + 90 + 93) and **database 256**
-(26 + 59 + 126 + 41 + 4, detailed below) — **670 total**.
+Subtotals: **admin 524** (42 + 61 + 34 + 96 + 90 + 77 + 124) and
+**database 256** (26 + 59 + 126 + 41 + 4, detailed below) — **780 total**.
+
+The database subtotal is **unchanged** by the Profile CMS: the Phase 5
+profile repository contract already covered the singleton lifecycle, so
+nothing was added there. New repository-package tests are added when a
+repository *contract* changes — not once per CMS entity.
 
 **The database subtotal is no longer 238.** Extending the `ProjectRepository`
 contract with `countByTechnology()` required canonical tests in the
@@ -138,6 +144,36 @@ covers the *application* boundary:
   `AdminDatabaseProvider`, with **no `as unknown as`, `any`, or
   `@ts-expect-error`**. A negative control confirms a wrongly-typed
   provider is rejected.
+
+## Profile CMS tests (Phase 8)
+
+`apps/admin/scripts/profile-tests.mjs` — **77 checks**, in the same two
+halves as the other CMS suites.
+
+Scope note: this suite deliberately does **not** re-prove the repository's
+singleton contract. `packages/database/scripts/repository-tests.mjs`
+already owns upsert-creates-then-updates, `created_at` preservation,
+`updated_at` advancing, the CHECK constraint rejecting a second row, and
+zero rows being valid. What this suite adds is what the **CMS** depends on:
+that the validated payload the Server Action passes through produces the
+row the page reads back, and that no payload can introduce a second profile
+or steer the singleton key.
+
+**Validation.** Accepted input with trimming; every optional field
+normalising blank → `null`; email format checked while *clearing* the email
+stays valid; 20 rejection cases (empty/over-long required fields, length
+limits on every optional column, three malformed-email shapes, non-object
+payloads); and explicit proof that `id`, `createdAt`, `updatedAt`, and
+unknown fields are all rejected by `.strict()` — including an `id` of
+`"singleton"` itself and of a different value.
+
+**Lifecycle against real local D1.** No row initially; first save creates;
+values read back including a multi-paragraph bio; a second save updates the
+**same** row with exactly one row remaining; `createdAt` preserved and
+`updatedAt` advanced; blank optionals clearing to `null`; a payload
+carrying an `id` rejected before the database is reached with the stored
+row untouched; the schema CHECK rejecting a direct insert under any other
+key; and `PRAGMA foreign_key_check` clean.
 
 ## Technologies CMS tests (Phase 8)
 
