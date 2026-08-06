@@ -65,10 +65,17 @@ export function AdminShell({
             <AdminNav />
           </aside>
 
+          {/*
+            `min-w-0` is load-bearing: a flex item's automatic minimum size
+            is its content, so without it a wide child — the CMS list tables,
+            which carry a `min-w-*` so their columns stay legible — stretches
+            `main` past the viewport and scrolls the whole page sideways
+            instead of scrolling inside its own `overflow-x-auto` wrapper.
+          */}
           <main
             id="main-content"
             tabIndex={-1}
-            className="flex-1 px-4 py-8 sm:px-6 lg:px-8"
+            className="min-w-0 flex-1 px-4 py-8 sm:px-6 lg:px-8"
           >
             {children}
           </main>

@@ -5,6 +5,48 @@
 `@portfolio/ui/tokens.css`, which closes the Phase 3 limitation that the
 admin app had not adopted the shared tokens.
 
+## Editing owned child rows (Phase 8 — timeline highlights)
+
+The first CMS screen where the user edits a list of child records inline.
+The pattern, for the entities that follow:
+
+- **Children live on the parent's screen**, not their own route. They are
+  saved with the parent in one write, so splitting them across screens would
+  imply a save boundary that does not exist.
+- **Reordering is move-up / move-down buttons**, not drag-and-drop — the
+  design system has no accessible drag implementation, and the accessible
+  control should be the only control rather than a fallback. Each button
+  names the row it moves ("Move highlight 2 up"), so the list is operable
+  without seeing it.
+- **Structural changes are announced.** Reorder, add, and remove update a
+  polite `role="status"` region ("Highlight moved to position 2 of 3"),
+  because they are visual changes a screen-reader user would otherwise have
+  to rediscover by re-reading the list.
+- **Errors are per row.** A child validation failure marks only the offending
+  row `aria-invalid` with its own message, while the summary at the top of
+  the form takes focus.
+- Reorder and remove controls keep the 44px minimum.
+
+### Populated list tables must scroll inside themselves
+
+Found while testing timeline at 375px, and true of every admin list: a table
+with a `min-w-*` will drag the whole page sideways unless two things hold —
+the shell's `main` carries `min-w-0` (a flex item's automatic minimum size
+is otherwise its content), and the `overflow-x-auto` wrapper is `relative`
+(so absolutely-positioned `sr-only` labels resolve inside it rather than
+against the viewport).
+
+The shell half is in place for every page. **The wrapper half is currently
+only on `/timeline`** — `/projects` and `/technologies` are merged slices
+that this feature branch deliberately did not touch, so they still overflow
+once populated. A separate focused fix should apply the same `relative` to
+their wrappers.
+
+The check that matters is whether the *page* can be scrolled sideways
+(`window.scrollTo(500, 0)` then reading `scrollX`), not whether an element
+reports a wide bounding box — inside a working scroll container it will,
+correctly.
+
 ## Singleton editing (Phase 8 — profile)
 
 A singleton needs one thing the collection forms do not: the screen must

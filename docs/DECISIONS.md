@@ -3,6 +3,62 @@
 Notable architectural/tooling decisions and their rationale. Append new
 entries; do not delete history.
 
+## 2026-08-06 — Phase 8 Timeline CMS
+
+### The repository grew an aggregate write rather than the action growing a transaction
+
+Composing `create()` with `setHighlights()` would have been two round-trips
+with no shared transaction: a failing highlight leaves the entry persisted
+and empty. The options were compensating logic in the Server Action, or an
+aggregate method in the repository. The repository owns the join, owns the
+batch primitive, and is the only layer that can express "these commit
+together" — so `createWithHighlights()` / `updateWithHighlights()` were
+added there, and the actions stayed thin.
+
+Atomicity was not assumed. The repository suite forces a `NULL` bullet
+against `content NOT NULL` and asserts the parent update rolled back, that
+`updatedAt` did not advance, and that a failed create left no orphan.
+
+### Existence is checked before the batch, not inferred from it
+
+`meta.changes === 0` cannot distinguish "no such entry" from "nothing to
+change" — with an empty patch and no highlights, every statement
+legitimately affects zero rows. So `updateWithHighlights` reads the entry
+first and throws `NotFoundError`. The narrow race that opens is closed by
+the foreign key: a row deleted in between makes the highlight inserts fail
+and aborts the batch.
+
+### Move-up/move-down instead of drag-and-drop
+
+Drag-and-drop is the obvious reordering affordance and the wrong first
+choice here: the design system ships no accessible drag implementation, and
+a pointer-only reorder leaves keyboard and screen-reader users unable to
+achieve the same result. Buttons are the accessible control, so they are the
+*only* control rather than a fallback bolted onto one that excludes people.
+Reorder, add, and remove are announced through a polite `role="status"`
+region, because they are visual changes that would otherwise have to be
+rediscovered by re-reading the list.
+
+### Highlight order is array order, never a client-supplied position
+
+The form sends an ordered list; the server assigns `position` from the
+index. A client-supplied `position` is rejected by `.strict()`. This means
+ordering cannot drift from what was submitted, cannot depend on DOM order,
+and cannot be made non-contiguous by a hostile payload.
+
+### A 40-highlight ceiling, as an application-level bound
+
+An **application-level bound to keep one aggregate edit reasonably sized** —
+editorial and defensive, chosen by us. Forty is well past any real role's
+bullet list, and past that point the content is a document rather than a
+timeline entry; the cap also stops a single submission from growing the
+aggregate's write into an arbitrarily long statement list.
+
+**No Cloudflare D1 platform limit is being claimed.** None was consulted,
+and none should be inferred from this number. If a documented platform limit
+ever becomes relevant it should be cited explicitly rather than implied by a
+cap that exists for product reasons.
+
 ## 2026-08-06 — Phase 8 Profile CMS
 
 ### One route and one action, because the entity is a singleton

@@ -1,29 +1,31 @@
 # Testing
 
-## Current state (Phase 8 — Profile CMS complete)
+## Current state (Phase 8 — Timeline CMS in review)
 
-`pnpm test` runs **twelve real suites and one no-op** — **780 checks**,
-verified on Windows and on GitHub Actions/Linux (PR #16 and the post-merge
-`main` run). The 670 verified after the Technologies CMS all still pass.
-What each one actually proves matters, so be precise:
+`pnpm test` runs **thirteen real suites and one no-op** — **971 checks**.
+The 780 verified after the Profile CMS all still pass, on Windows and on
+GitHub Actions/Linux; the Timeline CMS added the rest and is not yet
+CI-verified. What each one actually proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
 | Admin authentication | **42** | real `jose` verification, locally minted tokens | The Access JWT boundary and the development-auth guard |
-| Admin foundation | **61** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, and the protected-page invariant |
+| Admin foundation | **67** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, and the protected-page invariant |
 | **D1 composition boundary** | **34** | the real `binding.ts`, the **working tree**, plus `tsc` over Wrangler-generated Cloudflare types | Production fails closed, the provider seam composes, and Phase 22's provider already type-checks |
 | **Projects CMS** | **96** | the real schemas, and **real local D1** via `getPlatformProxy()` | The validation boundary and the full CRUD + relationship path |
 | **Technologies CMS** | **90** | the real schemas, and **real local D1** | The validation boundary, CRUD, the page-level usage composition, and `ON DELETE RESTRICT` |
 | **Profile CMS** | **77** | the real schema, and **real local D1** | The validation boundary and the singleton create-then-update lifecycle |
-| **Server Action authorization** | **124** | the **real exported action functions** for all three entities, against real local D1 | Unauthenticated mutations are denied and change nothing |
+| **Timeline CMS** | **110** | the real schemas, and **real local D1** | The validation boundary and the parent/child aggregate lifecycle |
+| **Server Action authorization** | **168** | the **real exported action functions** for all four entities, against real local D1 | Unauthenticated mutations are denied and change nothing |
 
-Subtotals: **admin 524** (42 + 61 + 34 + 96 + 90 + 77 + 124) and
-**database 256** (26 + 59 + 126 + 41 + 4, detailed below) — **780 total**.
+Subtotals: **admin 684** (42 + 67 + 34 + 96 + 90 + 77 + 110 + 168) and
+**database 287** (26 + 59 + 157 + 41 + 4, detailed below) — **971 total**.
 
-The database subtotal is **unchanged** by the Profile CMS: the Phase 5
-profile repository contract already covered the singleton lifecycle, so
-nothing was added there. New repository-package tests are added when a
-repository *contract* changes — not once per CMS entity.
+The database subtotal moves only when a **repository contract** changes.
+Profile added none, because the Phase 5 singleton contract already
+sufficed. Timeline added 31, because it extended the timeline repository
+with `createWithHighlights()` / `updateWithHighlights()` — and an atomicity
+guarantee has to be proven where it lives.
 
 **The database subtotal is no longer 238.** Extending the `ProjectRepository`
 contract with `countByTechnology()` required canonical tests in the
@@ -144,6 +146,36 @@ covers the *application* boundary:
   `AdminDatabaseProvider`, with **no `as unknown as`, `any`, or
   `@ts-expect-error`**. A negative control confirms a wrongly-typed
   provider is rejected.
+
+## Timeline CMS tests (Phase 8)
+
+`apps/admin/scripts/timeline-tests.mjs` — **110 checks**, plus **31** in the
+repository package.
+
+**Where the split falls.** The repository suite owns the raw aggregate
+semantics, because that is where the guarantee lives: batch ordering,
+position renumbering, and — the reason the methods exist — **rollback**. It
+forces a failing child (a `NULL` bullet against `content NOT NULL`) and
+asserts the parent update rolled back with it, `updatedAt` did not advance,
+the previous highlights survived intact, a failed create left no orphaned
+parent, and an unrelated bystander entry was untouched throughout.
+
+The CMS suite owns what the Server Actions depend on:
+
+- **Validation** — accepted input; 19 parent rejections (empty/over-long
+  required fields, malformed dates, an end date before the start, negative
+  and fractional positions, non-object payloads); 10 **child** rejections,
+  including highlights carrying `id`, `position`, `timelineEntryId`, or
+  `createdAt`; the 40-highlight ceiling with its boundary tested on both
+  sides; and proof that a child error is keyed to its own index
+  (`highlights.1.content`).
+- **Aggregate lifecycle against real local D1** — create with three
+  highlights in submitted order at contiguous positions; update parent and
+  children together; reorder purely by array order; clear all highlights;
+  an invalid payload rejected before the database with the stored aggregate
+  and `updatedAt` unchanged; `NotFoundError` for a missing entry; delete
+  cascading owned highlights while an unrelated entry and its highlights
+  survive; an explicit **orphan-row query**; and `PRAGMA foreign_key_check`.
 
 ## Profile CMS tests (Phase 8)
 

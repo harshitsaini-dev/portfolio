@@ -614,6 +614,165 @@ try {
   );
 
   // =========================================================================
+  // Timeline (Phase 8) — a parent/child aggregate, same boundary.
+  // =========================================================================
+  const timelineActions = await import("../src/lib/actions/timeline.ts");
+  check(
+    "the real timeline action module exports all three mutations",
+    typeof timelineActions.createTimelineEntryAction === "function" &&
+      typeof timelineActions.updateTimelineEntryAction === "function" &&
+      typeof timelineActions.deleteTimelineEntryAction === "function",
+  );
+  check(
+    "highlights have no independent Server Actions of their own",
+    Object.keys(timelineActions).every(
+      (name) => !/highlight/i.test(name),
+    ),
+    Object.keys(timelineActions).join(", "),
+  );
+
+  function timelinePayload(overrides = {}) {
+    return {
+      role: "Guarded Role",
+      organization: "Guarded Ltd",
+      highlights: [{ content: "Guarded bullet" }],
+      ...overrides,
+    };
+  }
+
+  /** Count highlight rows across the whole table. */
+  async function highlightRowCount() {
+    const result = await db
+      .prepare("SELECT COUNT(*) AS n FROM timeline_highlights")
+      .all();
+    return Number(result.results[0].n);
+  }
+
+  // A record the unauthenticated update/delete attempts will target.
+  const timelineVictim = await repos.timeline.createWithHighlights(
+    { role: "Existing Role", organization: "Existing Ltd", position: 2 },
+    ["Existing bullet one", "Existing bullet two"],
+  );
+  const timelineBefore = await repos.timeline.getById(timelineVictim.id);
+  const timelineHighlightsBefore = await repos.timeline.listHighlights(
+    timelineVictim.id,
+  );
+  const timelineCountBefore = (await repos.timeline.list()).length;
+  const highlightCountBefore = await highlightRowCount();
+  const consultedBeforeTimeline = providerConsulted;
+
+  startGroup("Unauthenticated timeline CREATE cannot insert");
+
+  clearAuthEnvironment();
+
+  const timelineCreate = await invoke(
+    timelineActions.createTimelineEntryAction,
+    payloadForm(timelinePayload()),
+  );
+  equal("the action does not return a result", timelineCreate.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    timelineCreate.error?.name,
+    "AdminUnauthorizedError",
+  );
+  equal(
+    "no entry was inserted",
+    (await repos.timeline.list()).length,
+    timelineCountBefore,
+  );
+  equal(
+    "and no highlight row was inserted either",
+    await highlightRowCount(),
+    highlightCountBefore,
+  );
+
+  startGroup("Timeline auth wins before validation and the database");
+
+  const timelineOrder = await invoke(
+    timelineActions.createTimelineEntryAction,
+    payloadForm({ role: "", organization: "", id: "x", highlights: [{ content: "" }] }),
+  );
+  equal("an invalid unauthenticated payload still throws", timelineOrder.kind, "threw");
+  equal(
+    "it is an authorization failure, not a validation result",
+    timelineOrder.error?.name,
+    "AdminUnauthorizedError",
+  );
+  equal(
+    "the database was never consulted during any denied timeline call",
+    providerConsulted,
+    consultedBeforeTimeline,
+  );
+
+  startGroup("Unauthenticated timeline UPDATE cannot modify");
+
+  const timelineUpdate = await invoke(
+    timelineActions.updateTimelineEntryAction,
+    payloadForm(
+      { role: "Hijacked", organization: "Hijacked", highlights: [{ content: "Hijacked" }] },
+      timelineVictim.id,
+    ),
+  );
+  equal("the action does not return a result", timelineUpdate.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    timelineUpdate.error?.name,
+    "AdminUnauthorizedError",
+  );
+  const timelineAfterUpdate = await repos.timeline.getById(timelineVictim.id);
+  equal("role is unchanged", timelineAfterUpdate?.role, timelineBefore?.role);
+  equal(
+    "organization is unchanged",
+    timelineAfterUpdate?.organization,
+    timelineBefore?.organization,
+  );
+  equal("updatedAt is unchanged", timelineAfterUpdate?.updatedAt, timelineBefore?.updatedAt);
+  check(
+    "the whole parent record is logically identical",
+    JSON.stringify(timelineAfterUpdate) === JSON.stringify(timelineBefore),
+  );
+  const timelineHighlightsAfter = await repos.timeline.listHighlights(
+    timelineVictim.id,
+  );
+  equal(
+    "the owned highlights are unchanged in count",
+    timelineHighlightsAfter.length,
+    timelineHighlightsBefore.length,
+  );
+  check(
+    "and identical in content and order",
+    JSON.stringify(timelineHighlightsAfter) ===
+      JSON.stringify(timelineHighlightsBefore),
+  );
+
+  startGroup("Unauthenticated timeline DELETE cannot remove");
+
+  const timelineDelete = await invoke(
+    timelineActions.deleteTimelineEntryAction,
+    payloadForm({}, timelineVictim.id),
+  );
+  equal("the action does not return a result", timelineDelete.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    timelineDelete.error?.name,
+    "AdminUnauthorizedError",
+  );
+  check(
+    "the entry still exists afterwards",
+    (await repos.timeline.getById(timelineVictim.id)) !== null,
+  );
+  equal(
+    "the entry count is unchanged",
+    (await repos.timeline.list()).length,
+    timelineCountBefore,
+  );
+  equal(
+    "its owned highlights were not cascaded away",
+    (await repos.timeline.listHighlights(timelineVictim.id)).length,
+    timelineHighlightsBefore.length,
+  );
+
+  // =========================================================================
   startGroup("A forged Access assertion is also rejected");
 
   // With Access configured, a caller supplying a self-signed or junk
@@ -914,6 +1073,134 @@ try {
     [badProfile, forcedKey, forcedTimestamps].every((outcome) => {
       const serialized = JSON.stringify(outcome.result ?? {});
       return !/SQLITE|constraint|singleton|profile\./i.test(serialized);
+    }),
+  );
+
+  // =========================================================================
+  startGroup("Positive control — timeline actions work when authenticated");
+
+  const authedTimelineCreate = await invoke(
+    timelineActions.createTimelineEntryAction,
+    payloadForm(
+      timelinePayload({
+        role: "Authenticated Role",
+        highlights: [{ content: "Bullet one" }, { content: "Bullet two" }],
+      }),
+    ),
+  );
+  equal("an authenticated create redirects on success", authedTimelineCreate.kind, "redirect");
+  equal("it redirects to the list", authedTimelineCreate.to, "/timeline?created=1");
+
+  const createdTimeline = (await repos.timeline.list()).find(
+    (entry) => entry.role === "Authenticated Role",
+  );
+  check("the entry really was inserted", Boolean(createdTimeline));
+  equal(
+    "its highlights were written in the same aggregate",
+    (await repos.timeline.listHighlights(createdTimeline.id)).length,
+    2,
+  );
+
+  // Malformed parent → validation, nothing written.
+  const badParent = await invoke(
+    timelineActions.updateTimelineEntryAction,
+    payloadForm({ role: "" }, createdTimeline.id),
+  );
+  equal("a malformed parent returns a result", badParent.kind, "returned");
+  equal("it is reported as validation", badParent.result?.status, "validation");
+  check(
+    "the error is keyed to the parent field",
+    Boolean(badParent.result?.fieldErrors?.role),
+  );
+
+  // Malformed child → validation, keyed to the offending row.
+  const badChild = await invoke(
+    timelineActions.updateTimelineEntryAction,
+    payloadForm(
+      { highlights: [{ content: "Fine" }, { content: "" }] },
+      createdTimeline.id,
+    ),
+  );
+  equal("a malformed child returns a result", badChild.kind, "returned");
+  equal("it is reported as validation", badChild.result?.status, "validation");
+  check(
+    "the error is keyed to the offending highlight index",
+    Boolean(badChild.result?.fieldErrors?.["highlights.1.content"]),
+    JSON.stringify(Object.keys(badChild.result?.fieldErrors ?? {})),
+  );
+  equal(
+    "the aggregate was not partially written",
+    (await repos.timeline.listHighlights(createdTimeline.id)).length,
+    2,
+  );
+
+  // Database-managed fields rejected even when authenticated.
+  const managedTimeline = await invoke(
+    timelineActions.updateTimelineEntryAction,
+    payloadForm({ id: "forced", createdAt: "2000-01-01" }, createdTimeline.id),
+  );
+  equal(
+    "client-supplied database-managed fields are rejected",
+    managedTimeline.result?.status,
+    "validation",
+  );
+
+  // A successful aggregate update.
+  const authedTimelineUpdate = await invoke(
+    timelineActions.updateTimelineEntryAction,
+    payloadForm(
+      { role: "Authenticated Role v2", highlights: [{ content: "Only bullet" }] },
+      createdTimeline.id,
+    ),
+  );
+  equal("an authenticated update redirects on success", authedTimelineUpdate.kind, "redirect");
+  equal(
+    "the parent really changed",
+    (await repos.timeline.getById(createdTimeline.id))?.role,
+    "Authenticated Role v2",
+  );
+  equal(
+    "and the highlights were replaced",
+    (await repos.timeline.listHighlights(createdTimeline.id)).length,
+    1,
+  );
+
+  const missingTimeline = await invoke(
+    timelineActions.updateTimelineEntryAction,
+    payloadForm({ role: "Ghost" }, "does-not-exist"),
+  );
+  equal(
+    "updating a missing entry returns not_found",
+    missingTimeline.result?.status,
+    "not_found",
+  );
+
+  const authedTimelineDelete = await invoke(
+    timelineActions.deleteTimelineEntryAction,
+    payloadForm({}, createdTimeline.id),
+  );
+  equal("an authenticated delete redirects on success", authedTimelineDelete.kind, "redirect");
+  equal("it redirects to the list", authedTimelineDelete.to, "/timeline");
+  equal(
+    "the entry really was removed",
+    await repos.timeline.getById(createdTimeline.id),
+    null,
+  );
+  equal(
+    "its highlights cascaded away",
+    (await repos.timeline.listHighlights(createdTimeline.id)).length,
+    0,
+  );
+  check(
+    "the untouched target entry is still there",
+    (await repos.timeline.getById(timelineVictim.id)) !== null,
+  );
+
+  check(
+    "no timeline result message leaks SQL or constraint text",
+    [badParent, badChild, managedTimeline, missingTimeline].every((outcome) => {
+      const serialized = JSON.stringify(outcome.result ?? {});
+      return !/SQLITE|constraint|timeline_highlights|FOREIGN KEY/i.test(serialized);
     }),
   );
 

@@ -1,5 +1,71 @@
 # Changelog
 
+## 2026-08-06 — Phase 8: Timeline CMS (branch `feat/remaining-cms-timeline`)
+
+**Status: implemented, awaiting review. Not committed. Phase 8 remains IN
+PROGRESS — this is its third entity.**
+
+### Added
+
+- `packages/schemas/src/timeline.ts` — strict entry and highlight schemas
+  over only the committed columns, with a `YYYY-MM-DD` date rule, an
+  `endedOn ≥ startedOn` cross-field check that still allows the null
+  "current role" case, and a 40-highlight cap documented as an
+  application-level bound (no platform limit claimed).
+- `apps/admin/src/lib/actions/timeline.ts` — create/update/delete actions.
+  Highlights travel with the entry; there are **no independent child
+  actions**.
+- `apps/admin/src/app/(protected)/timeline/{page,new/page,[id]/page}.tsx`
+  — all via `withAdminPage`, all static metadata.
+- `apps/admin/src/components/timeline/{timeline-form,delete-timeline-entry-form}.tsx`
+  — parent fields plus an inline highlight editor with add/edit/remove and
+  **accessible move-up/move-down reordering** (no drag-and-drop), announced
+  via a polite `role="status"` region.
+- `apps/admin/scripts/timeline-tests.mjs` — **110 checks**.
+
+### Changed
+
+- `packages/database/src/repositories/timeline.ts` — added
+  `createWithHighlights()` and `updateWithHighlights()`, which write the
+  entry and its highlights in **one `db.batch()`**. `create()` +
+  `setHighlights()` was two round-trips and could leave a half-saved
+  aggregate. Transaction logic stayed in the repository.
+- `packages/database/scripts/repository-tests.mjs` — 126 → **157 checks**,
+  including forced batch failures proving the parent update rolls back with
+  a failing child and that unrelated entries survive.
+- `apps/admin/scripts/action-auth-tests.mjs` — 124 → **168 checks**.
+- `apps/admin/src/lib/navigation.ts` — Experience is a real destination.
+
+### Fixed (Timeline only)
+
+- **Page-level horizontal scrolling on the populated `/timeline` list at
+  mobile widths.** Two causes: the shell's `main` was `flex-1` without
+  `min-w-0`, and absolutely-positioned `sr-only` labels escaped a scroll
+  wrapper that was not a containing block. Fixed with `min-w-0` on the
+  shell's `main` — **proven to be required by `/timeline`**, which still
+  scrolled the page 408px sideways without it — and `relative` on
+  Timeline's own wrapper.
+
+### Discovered but deliberately NOT fixed here
+
+- The same defect exists on the **merged** `/projects` and `/technologies`
+  lists once populated. Repairing previously merged slices is outside this
+  feature's scope, so those pages were left at their `main` versions and
+  **remain affected** (`/projects` still scrolls 323px sideways at 375px).
+  Earlier mobile evidence for them measured empty states, which render no
+  table, and so overstated their coverage. A separate focused `fix/*` task
+  should address it.
+
+### Verification
+
+`pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`,
+`pnpm test` (**971 checks** — database 287, admin 684 — up from 780 with
+all 780 preserved), and `pnpm build` all **PASS**; `/timeline*` routes are
+`ƒ (Dynamic)`. Browser-verified via Playwright MCP against real local D1,
+including reorder persistence, per-row child validation, cascade-on-delete
+with an unrelated entry surviving, and a canary proving **zero timeline
+data** in unauthenticated plain/RSC/forged responses.
+
 ## 2026-08-06 — Phase 8: Profile CMS complete
 
 Documentation-only entry. No application, test, schema, repository,

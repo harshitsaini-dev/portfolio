@@ -16,8 +16,10 @@ something passed without running it.
   `f2ff5c3 feat: add profile CMS`, verified by **Pull Request #16 on
   GitHub Actions/Linux** and again by the **post-merge `main` CI run
   `31094360487`**.
-- **Timeline / professional experience: NEXT** — not started, and not to be
-  implemented until explicitly scoped and approved.
+- **Timeline / professional experience CMS: implemented, awaiting review.**
+  On `feat/remaining-cms-timeline`; not committed, not pushed, and **not
+  complete** — it is complete only after review, PR CI, merge, the
+  post-merge `main` run, and completion documentation.
 - **Later Phase 8 entities** — Education, Certifications, Skills, Tools,
   Socials, Sections: **not started**.
 - **Phase 7:** Complete (merged to `main`, CI green).
@@ -31,9 +33,133 @@ Phase 22** (fail-closed until then).
 
 ## Active task
 
-Profile CMS completion documentation (documentation-only; no application,
-test, schema, repository, package, migration, config, CI, or Cloudflare
-resource changes).
+**Phase 8 — Timeline / professional experience CMS.** Implemented; awaiting
+review.
+
+## Phase 8 — Timeline CMS (awaiting review)
+
+### Routes
+
+```
+apps/admin/src/app/(protected)/timeline/
+  page.tsx            list — every entry, with its highlight count
+  new/page.tsx        create
+  [id]/page.tsx       edit + delete
+```
+
+All three go through `withAdminPage`, so the Phase 6 recursive invariant
+discovered them automatically — the foundation suite grew 61 → 67 without
+the invariant being touched. All three use **static** metadata.
+
+The route path keeps the table's name (`timeline`), while the UI and
+navigation say **"Experience"**, matching how the public site and docs
+already describe this content.
+
+### Schema fields used — and deliberately not invented
+
+```
+timeline_entries
+  id | role NOT NULL | organization NOT NULL | summary | location
+  | period_label | started_on | ended_on | position | is_visible
+  | created_at | updated_at
+
+timeline_highlights
+  id | timeline_entry_id → entries ON DELETE CASCADE | content NOT NULL
+  | position | created_at
+```
+
+There is **no employer logo, URL, technology relationship, media, or extra
+date column**, so the CMS exposes none. `is_visible` and `position` *are*
+real columns here (unlike technologies), so both are exposed and validated.
+`migrations/0001_initial_schema.sql` was **not edited**, and no forward
+migration was needed.
+
+### Aggregate ownership — and one narrow repository extension
+
+`timeline_highlights` remains owned solely by the timeline aggregate. No
+highlights repository was created, no other repository touches the table,
+and no child SQL exists in a Server Action or page.
+
+**The repository gained two methods**, because the existing API could not
+offer the guarantee the CMS needs:
+
+```ts
+createWithHighlights(input, highlights): Promise<TimelineEntryWithHighlights>
+updateWithHighlights(id, patch, highlights): Promise<TimelineEntryWithHighlights>
+```
+
+`create()` followed by `setHighlights()` is two round-trips. If the second
+failed, the entry would be left persisted with no highlights — a half-saved
+aggregate. Both statements now go into **one `db.batch()`**, so parent and
+children commit or roll back together. This was not assumed: the repository
+suite forces a failing child (a `NULL` bullet against `content NOT NULL`)
+and asserts the parent update rolled back with it, `updatedAt` did not
+advance, the previous highlights survived intact, and no orphaned parent row
+was left behind by a failed create.
+
+Transaction logic stayed in the repository rather than moving into Server
+Actions.
+
+### Ordering
+
+Highlight order **is array order**. The form submits an explicit ordered
+list and never sends `position`; the repository assigns it from the index,
+renumbering contiguously from zero on every write. Nothing depends on DOM
+order, and `position` is rejected if a client tries to supply it.
+
+Entry order uses the existing `position` column, validated server-side as a
+non-negative integer.
+
+### Validation
+
+`@portfolio/schemas` gained `timeline.ts`. `.strict()` on both the entry and
+the highlight object, so `id`, `createdAt`, `updatedAt`, and unknown fields
+are rejected — including `position`, `timelineEntryId`, and `createdAt` on a
+child row. Dates are `YYYY-MM-DD`, with a cross-field rule that `endedOn`
+must not precede `startedOn`; a null `endedOn` is the documented "current
+role" case and is always allowed.
+
+Highlights are capped at **40**, an **application-level bound to keep one
+aggregate edit reasonably sized** — editorial and defensive, chosen by us. A
+role with more than forty bullets is a document rather than a timeline
+entry, and the cap stops a single submission from growing the aggregate's
+write into an arbitrarily long statement list. **No Cloudflare D1 platform
+limit is claimed or implied.**
+
+Child errors are keyed by index (`highlights.1.content`), so the form can
+place the message on the offending row.
+
+### Server mutations
+
+Three actions — create, update, delete — each following
+`requireAdminIdentity()` → Zod → repository → typed `ActionResult` /
+`redirect()`, reusing the existing result model verbatim. **There are no
+independent highlight actions**: highlights travel with the entry, which the
+test suite asserts by name.
+
+### Form UX
+
+Parent fields sit in labelled sections (Role, Dates and display) with the
+Highlights editor visually separated. Highlights support add, edit, remove,
+and **reorder via move-up/move-down buttons** — not drag-and-drop. The
+design system has no accessible drag implementation, and a pointer-only
+reorder would leave keyboard users unable to achieve the same result, so
+the accessible control is the only control. Each row's buttons name the
+bullet they move, and reorder/add/remove are announced through a polite
+`role="status"` region.
+
+### Delete semantics
+
+Two-step confirmation, POST-only, naming the entry **and its highlight
+count** before confirming. `ON DELETE CASCADE` removes the owned highlights;
+unrelated entries and their highlights are untouched — tested in both the
+repository suite and the CMS suite, and re-checked with an orphan query.
+
+### Public-site boundary — unchanged
+
+`apps/web` was **not touched**. It continues to render Phase 2 placeholder
+content. Nothing in the roadmap places public data integration in this
+subtask, and no admin-created content was hardcoded into React.
 
 ## Phase 8 — Profile CMS (COMPLETE)
 
@@ -306,9 +432,123 @@ fail-closed behaviour.
 
 ## Next suggested task
 
-**Timeline / professional experience** — the next Phase 8 entity. Not
-started, and not to be implemented until explicitly scoped and approved.
-Rationale at the end of this file.
+Review the Timeline CMS. After it merges, the next Phase 8 entity is
+suggested at the end of this file — **not to be implemented until
+explicitly scoped and approved**.
+
+## Phase 8 — Timeline CMS: verification actually performed
+
+| Command | Result |
+| --- | --- |
+| `pnpm install --frozen-lockfile` | **PASS** — lockfile unmodified |
+| `pnpm lint` | **PASS** (exit 0) |
+| `pnpm typecheck` | **PASS** (exit 0) |
+| `pnpm test` | **PASS** — **971 real checks** |
+| `pnpm build` | **PASS** — all `/timeline*` routes are `ƒ (Dynamic)` |
+
+### Test suites after the Timeline CMS
+
+| Suite | Checks | Change |
+| --- | --- | --- |
+| UUIDv7 | 26 | — |
+| D1 migration smoke | 59 | — |
+| Repository integration | **157** | **+31** — the aggregate write and its rollback |
+| D1 binding compatibility | 41 | — |
+| D1Like type compatibility | 4 | — |
+| **Database subtotal** | **287** | **+31 — the repository contract changed** |
+| Admin authentication | 42 | — |
+| Admin foundation / invariant | **67** | +6 — the invariant discovered the three new routes |
+| Admin D1 composition boundary | 34 | — |
+| Projects CMS | 96 | — |
+| Technologies CMS | 90 | — |
+| Profile CMS | 77 | — |
+| **Timeline CMS** | **110** | **new** |
+| **Server Action authorization** | **168** | +44 for timeline |
+| **Admin subtotal** | **684** | — |
+| **Total** | **971** | up from 780 |
+
+**All 780 previous checks still pass**, and none were weakened or removed.
+`apps/web` remains the only no-op suite.
+
+The database subtotal moved because the *repository contract* changed —
+consistent with the rule set after the technologies correction: repository
+tests grow when a repository contract grows, not once per CMS entity.
+
+### Browser verification (`playwright-local` MCP, real local D1)
+
+Manual MCP verification — **not** automated Playwright CI tests.
+
+- `/timeline` empty state, and Experience wired into navigation with
+  `aria-current`.
+- Created an entry with three highlights; reordered one via **Move up**
+  before saving, announced as "Highlight moved to position 2 of 4".
+- A blank highlight was rejected with the error scoped to **row 4 only**
+  (`aria-invalid="true"`, "Required"), focus moved to the `role="alert"`
+  summary, and the three valid rows left unflagged.
+- After removing the blank row the entry saved, redirected to
+  `/timeline?created=1`, and listed with a highlight count of 3.
+- Reopening showed the **exact stored order** (Alpha, Charlie, Bravo) —
+  the reorder had persisted.
+- Edited the parent and children together (renamed the role, edited one
+  bullet, removed another). Read back directly from D1: parent updated,
+  two highlights at contiguous positions 0 and 1, **zero orphan rows**.
+- Two-step delete named the entry *and* its highlight count, moved focus to
+  "Yes, delete", Cancel restored the initial state, and confirming deleted
+  it — **the unrelated entry survived**.
+- **Unauthenticated confidentiality:** with dev auth off and a seeded canary
+  entry, all nine combinations of `/timeline`, `/timeline/new`,
+  `/timeline/[id]` × plain / `RSC: 1` / forged header returned 307 to
+  `/denied`, with **zero-length RSC bodies** and the canary appearing **0
+  times**. The canary entry was verified **unchanged** afterwards.
+
+Local test data and the temporary dev-auth file were removed afterwards.
+
+### A pre-existing responsive defect was discovered — and deliberately NOT
+### repaired here
+
+Testing the populated timeline list at 375px exposed **page-level
+horizontal scrolling**: the whole document scrolled sideways instead of the
+table scrolling inside its own wrapper.
+
+Two independent causes, both predating this task:
+
+1. `main` in the admin shell is `flex-1` **without `min-w-0`**. A flex
+   item's automatic minimum size is its content, so a list table carrying a
+   `min-w-*` stretches `main` past the viewport.
+2. The `sr-only` labels inside those tables are absolutely positioned, and
+   a scroll wrapper that is not a containing block lets them resolve
+   against the viewport, widening the page's scroll area even after (1).
+
+**What this branch changes, and why it is scoped that way:**
+
+- `min-w-0` on the shell's `main` — kept, because it is a **necessary
+  dependency of `/timeline`'s own responsive correctness**, proven rather
+  than assumed. With the shell reverted to `main` and only Timeline's
+  wrapper fix in place, `/timeline` at 375px still scrolled the page
+  sideways by 408px, `main` measured 768px wide, and the table wrapper did
+  not scroll internally. With `min-w-0` restored: no page scroll, `main`
+  375px, wrapper scrolls internally.
+- `relative` on **Timeline's own** scroll wrapper — kept, local to this
+  feature.
+- **`/projects` and `/technologies` were reverted to their `main`
+  versions.** They are previously merged slices, and repairing them is not
+  Timeline's job.
+
+**The pre-existing defect therefore still exists on those two pages**, and
+this branch does not claim otherwise. Measured after the revert, with the
+shell fix in place: `/projects` at 375px still scrolls the page sideways by
+323px because its `sr-only` labels still escape its wrapper. The shell
+change does **not regress** it — `main` now fits the viewport (360px ≤ 375)
+and its table scrolls internally, both strictly better than before — but the
+residual `sr-only` containment issue remains.
+
+**My earlier Phase 7/8 reports said "no horizontal overflow at any width",
+which was overstated.** Those checks measured populated tables only at 1280
+and 768; at 375 they measured the *empty* state, which renders no table at
+all. The gap was in the evidence, not the claim's wording.
+
+A separate focused `fix/*` task should repair `/projects` and
+`/technologies` — see *Next suggested task*.
 
 ## Phase 8 — Profile CMS: verification actually performed
 
@@ -417,7 +657,7 @@ Local test data and the temporary dev-auth file were removed afterwards.
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
 | Phase 6 — Admin foundation | **Complete** (merged to `main`, CI green) |
 | Phase 7 — Projects CMS vertical slice | **Complete** (merged to `main`, CI green) |
-| Phase 8 — Remaining CMS | **In progress** — Technologies CMS **complete**; Profile CMS **complete** (both merged, CI green); Timeline next; other entities not started |
+| Phase 8 — Remaining CMS | **In progress** — Technologies and Profile CMS **complete** (merged, CI green); Timeline CMS implemented, awaiting review; other entities not started |
 
 Phases 9–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
@@ -2270,14 +2510,22 @@ Local development needs none of this: set `ADMIN_DEV_AUTH=enabled` in
 
 ## Next suggested task
 
-**Phase 8, next entity: Timeline / professional experience.** With the
-collection pattern (projects, technologies) and the singleton pattern
-(profile) both settled, timeline is the next meaningful shape: an ordered
-collection that **owns a child table** (`timeline_highlights` via
-`setHighlights`), which neither previous slice exercised — technologies
-were *referenced*, and project links were owned but never independently
-ordered by the user. It also unblocks education and certifications, which
-follow the same ordered-with-children shape.
+**Before the next entity: a focused `fix/*` branch for the pre-existing
+list-table overflow.** `/projects` and `/technologies` still scroll the page
+sideways at narrow widths once populated (measured: 323px on `/projects` at
+375px). The repair is small and known — `relative` on each list's
+`overflow-x-auto` wrapper, matching what `/timeline` already does — but it
+touches merged slices and belongs in its own branch with its own
+verification, not inside a feature. Suggested branch:
+`fix/admin-list-table-overflow`.
+
+**Phase 8, next entity: Education.** It is the closest sibling of the
+timeline entry — another ordered, visibility-toggleable content table using
+the same `createOrderedRepository` plumbing — but with **no owned child
+table**, so it should be the smallest remaining slice now that the
+aggregate pattern exists. Doing it next also settles whether the ordered
+collection form can be reused as-is before certifications, tools, socials,
+and sections follow the same shape.
 
 The pattern it reuses unchanged: `withAdminPage` routes, static metadata,
 shared `@portfolio/schemas` validation, the

@@ -3,6 +3,68 @@
 Notes on things learned while building this project that are worth
 remembering for future work.
 
+## Phase 8 — Timeline CMS
+
+### "Is this atomic?" deserves an answer, not an assumption
+
+`setHighlights()` is internally atomic, which made it tempting to call
+`create()` then `setHighlights()` and move on. But atomicity does not
+compose: two atomic calls are not one atomic operation, and the failure mode
+— an entry persisted with no bullets — is invisible until a user hits it.
+Writing the test that forces a failing child was what turned the question
+into a decision.
+
+The general shape: when a guarantee spans two calls, either it is expressed
+in a layer that can hold both, or it does not exist.
+
+### An empty result cannot report "not found"
+
+`meta.changes === 0` looked like a free existence check until the empty case
+appeared: an empty patch with no highlights legitimately changes zero rows.
+The signal and the error condition were indistinguishable, so the check had
+to be explicit. Worth asking of any "did it match anything?" inference what
+a legitimate zero looks like.
+
+### The empty state hid a real responsive bug for three phases
+
+I verified "no horizontal overflow at any width" for projects, technologies,
+and profile — but at 375px those pages rendered their *empty state*, which
+has no table. The populated table was only ever measured at 1280 and 768.
+The bug had been merged twice before a wider table made it obvious.
+
+Two lessons. Test the state that actually stresses the layout, not whichever
+one the fixture happens to produce. And measure the user-facing symptom —
+"can the page be scrolled sideways?" — rather than a proxy like
+`scrollWidth`, which reported overflow even after the container was
+correctly scrolling internally, and would have sent me chasing the wrong
+element.
+
+### Finding a bug and owning a bug are separate decisions
+
+Having found it, I fixed it everywhere — including two previously merged
+pages that had nothing to do with the feature I was building. That made the
+Timeline diff a feature change *and* a drive-by repair of merged slices,
+which is harder to review and harder to revert independently.
+
+The scope correction split them: the shell change stayed, because
+`/timeline` provably does not work without it, and the two merged pages went
+back to `main` for a dedicated fix. The useful test is not "is this fix
+correct?" but "does the feature I am shipping require it?" — and that is
+answerable by reverting the change and measuring, which is what settled it
+here (408px of page scroll without the shell fix).
+
+The corollary: a discovery you decline to act on still has to be *recorded*,
+including that the affected pages remain broken. Silently leaving it out
+would have been worse than the scope creep.
+
+### `flex-1` without `min-w-0` is a latent overflow
+
+A flex item's automatic minimum size is its content, so any wide child
+escapes the container. Paired with absolutely-positioned `sr-only` text
+escaping a non-`relative` scroll wrapper, it produced an overflow with two
+independent causes — fixing one left the symptom unchanged, which is exactly
+when it is tempting to conclude the first fix was wrong.
+
 ## Phase 8 — Profile CMS
 
 ### Let the constraint pick the route shape
