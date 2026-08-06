@@ -133,11 +133,32 @@ unreachable from the client. The Phase 5 repository was reused
 grew to **780 real checks** (256 data/repository + 524 admin). Merged to
 `main` as `f2ff5c3` with CI green on Linux.
 
-**Next: Timeline / professional experience.** Not started. The remaining
-entities — Education, Certifications, Skills, Tools, Socials, Sections —
-are also not started. The remote database schema remains **intentionally
-unapplied**, and **Cloudflare Access dashboard configuration is still
-pending**.
+**Timeline / professional experience CMS: complete.** The first entity that
+owns a child table the user edits directly (`timeline_highlights`).
+Delivered `/timeline`, `/timeline/new`, and `/timeline/[id]` behind
+`withAdminPage`, with strict shared Zod schemas validating the entry and its
+nested highlights as one aggregate input. `timeline_highlights` stays owned
+exclusively by the timeline aggregate — no highlights repository, and no
+child SQL in actions or pages. The repository gained
+`createWithHighlights()` and `updateWithHighlights()`, which write parent
+and children in a single D1 `batch()` so they persist as one logical
+operation; forced-failure tests prove the parent mutation rolls back with a
+failing child. Highlight order is the submitted array order, renumbered
+contiguously from zero, reorderable by accessible move-up/move-down controls
+rather than drag-and-drop. Test coverage grew to **971 real checks**
+(287 data/repository + 684 admin). Merged to `main` as `aae6d38` with CI
+green on Linux.
+
+**Immediate next engineering task: `fix/admin-list-table-overflow`.** A
+pre-existing responsive regression, found during Timeline verification and
+deliberately left out of that feature branch: once populated, the
+`/projects` and `/technologies` list pages still scroll the page sideways at
+narrow widths. Timeline is unaffected.
+
+**Next entity: Education.** Not started. The remaining entities —
+Certifications, Skills, Tools, Socials, Sections — are also not started. The
+remote database schema remains **intentionally unapplied**, and **Cloudflare
+Access dashboard configuration is still pending**.
 
 ## Phase 9 — R2/media
 

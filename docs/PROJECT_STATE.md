@@ -16,12 +16,18 @@ something passed without running it.
   `f2ff5c3 feat: add profile CMS`, verified by **Pull Request #16 on
   GitHub Actions/Linux** and again by the **post-merge `main` CI run
   `31094360487`**.
-- **Timeline / professional experience CMS: implemented, awaiting review.**
-  On `feat/remaining-cms-timeline`; not committed, not pushed, and **not
-  complete** — it is complete only after review, PR CI, merge, the
-  post-merge `main` run, and completion documentation.
-- **Later Phase 8 entities** — Education, Certifications, Skills, Tools,
-  Socials, Sections: **not started**.
+- **Timeline / professional experience CMS: COMPLETE.** Merged into `main`
+  as `aae6d38 feat: add timeline CMS`, verified by **Pull Request #18 on
+  GitHub Actions/Linux** and again by the **post-merge `main` CI run
+  `31100867892`**.
+- **Immediate next engineering task: the Admin populated-list responsive
+  overflow fix** — a known pre-existing regression on `/projects` and
+  `/technologies`, deliberately left out of the Timeline branch. See
+  *Next suggested task*.
+- **Education CMS: next entity** after that fix — **not started**, and not
+  to be implemented until explicitly scoped and approved.
+- **Later Phase 8 entities** — Certifications, Skills, Tools, Socials,
+  Sections: **not started**.
 - **Phase 7:** Complete (merged to `main`, CI green).
 - **Phase 8 is NOT complete.** It is complete only when every entity it
   covers is delivered and verified.
@@ -33,10 +39,11 @@ Phase 22** (fail-closed until then).
 
 ## Active task
 
-**Phase 8 — Timeline / professional experience CMS.** Implemented; awaiting
-review.
+Timeline CMS completion documentation (documentation-only; no application,
+test, schema, repository, package, migration, config, CI, or Cloudflare
+resource changes).
 
-## Phase 8 — Timeline CMS (awaiting review)
+## Phase 8 — Timeline CMS (COMPLETE)
 
 ### Routes
 
@@ -155,11 +162,32 @@ count** before confirming. `ON DELETE CASCADE` removes the owned highlights;
 unrelated entries and their highlights are untouched — tested in both the
 repository suite and the CMS suite, and re-checked with an orphan query.
 
+### Accessibility
+
+Verified in-browser: every parent control and every highlight control has an
+explicit label; field-level and per-child errors render with `aria-invalid`
+and `aria-describedby`; a `role="alert"` error summary takes focus on a
+failed submission; buttons show a pending state; add / remove / reorder are
+fully keyboard operable (a focused **Move up** activated with Enter swapped
+the rows and updated the submitted payload); reorder, add, and remove are
+announced through a polite `role="status"` region; and the highlight
+controls measured **≥ 44px** with none undersized. The form has no page
+overflow at 375px.
+
 ### Public-site boundary — unchanged
 
 `apps/web` was **not touched**. It continues to render Phase 2 placeholder
 content. Nothing in the roadmap places public data integration in this
 subtask, and no admin-created content was hardcoded into React.
+
+### Phase 8 — Timeline CMS — CI
+
+- **Pull Request #18 CI passed** on GitHub Actions/Linux.
+- PR #18 was **rebase-merged** into `main` as
+  `aae6d38 feat: add timeline CMS`.
+- The **post-merge `main` CI run `31100867892` passed.**
+- Linux therefore verified install, lint, typecheck, tests, and build for
+  the merged Timeline CMS state.
 
 ## Phase 8 — Profile CMS (COMPLETE)
 
@@ -432,11 +460,19 @@ fail-closed behaviour.
 
 ## Next suggested task
 
-Review the Timeline CMS. After it merges, the next Phase 8 entity is
-suggested at the end of this file — **not to be implemented until
-explicitly scoped and approved**.
+**1. `fix/admin-list-table-overflow`** — the known pre-existing responsive
+regression on the populated `/projects` and `/technologies` lists. This is
+the immediate next *engineering* task, ahead of the next entity.
+
+**2. Education CMS** — the next Phase 8 entity, after that fix. Not started.
+
+Neither is to be implemented until explicitly scoped and approved. Rationale
+for both is at the end of this file.
 
 ## Phase 8 — Timeline CMS: verification actually performed
+
+Locally on Windows, and again on **GitHub Actions/Linux** for both PR #18
+and the post-merge `main` run:
 
 | Command | Result |
 | --- | --- |
@@ -519,7 +555,7 @@ Two independent causes, both predating this task:
    a scroll wrapper that is not a containing block lets them resolve
    against the viewport, widening the page's scroll area even after (1).
 
-**What this branch changes, and why it is scoped that way:**
+**What the Timeline commit changed, and why it is scoped that way:**
 
 - `min-w-0` on the shell's `main` — kept, because it is a **necessary
   dependency of `/timeline`'s own responsive correctness**, proven rather
@@ -527,20 +563,21 @@ Two independent causes, both predating this task:
   wrapper fix in place, `/timeline` at 375px still scrolled the page
   sideways by 408px, `main` measured 768px wide, and the table wrapper did
   not scroll internally. With `min-w-0` restored: no page scroll, `main`
-  375px, wrapper scrolls internally.
+  375px, wrapper scrolls internally. This is a shared-shell dependency
+  introduced by Timeline.
 - `relative` on **Timeline's own** scroll wrapper — kept, local to this
   feature.
-- **`/projects` and `/technologies` were reverted to their `main`
-  versions.** They are previously merged slices, and repairing them is not
-  Timeline's job.
+- **`/projects` and `/technologies` were restored to their `main` versions
+  before the commit.** They are previously merged slices, and repairing them
+  was not Timeline's job.
 
 **The pre-existing defect therefore still exists on those two pages**, and
-this branch does not claim otherwise. Measured after the revert, with the
-shell fix in place: `/projects` at 375px still scrolls the page sideways by
-323px because its `sr-only` labels still escape its wrapper. The shell
-change does **not regress** it — `main` now fits the viewport (360px ≤ 375)
-and its table scrolls internally, both strictly better than before — but the
-residual `sr-only` containment issue remains.
+nothing here claims otherwise. Measured after the revert, with the shell fix
+in place: `/projects` at 375px still scrolls the page sideways by 323px
+because its `sr-only` labels still escape its wrapper. The shell change does
+**not regress** it — `main` now fits the viewport (360px ≤ 375) and its table
+scrolls internally, both strictly better than before — but the residual
+`sr-only` containment issue remains, and Timeline itself is unaffected.
 
 **My earlier Phase 7/8 reports said "no horizontal overflow at any width",
 which was overstated.** Those checks measured populated tables only at 1280
@@ -657,7 +694,7 @@ Local test data and the temporary dev-auth file were removed afterwards.
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
 | Phase 6 — Admin foundation | **Complete** (merged to `main`, CI green) |
 | Phase 7 — Projects CMS vertical slice | **Complete** (merged to `main`, CI green) |
-| Phase 8 — Remaining CMS | **In progress** — Technologies and Profile CMS **complete** (merged, CI green); Timeline CMS implemented, awaiting review; other entities not started |
+| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, and Timeline CMS **complete** (all merged, CI green); Education and later entities not started |
 
 Phases 9–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
@@ -797,12 +834,18 @@ than changed here.
 
 ## Phase 8 — known limitations (not blockers)
 
-- **Phase 8 is not complete.** Technologies and Profile are two entities of
-  several.
-- **The remaining CMS entities are not implemented** — Timeline/Experience
-  (next), Education, Certifications, Skills, Tools, Socials, Sections.
-- **The public site is still placeholder-driven.** Profile data exists in
-  D1, but `apps/web` has not been converted to read it.
+- **Phase 8 is not complete.** Technologies, Profile, and Timeline are three
+  entities of several.
+- **The remaining CMS entities are not implemented** — Education (next
+  entity), Certifications, Skills, Tools, Socials, Sections.
+- **A known responsive regression is outstanding on `/projects` and
+  `/technologies`.** Once populated, their absolutely-positioned `sr-only`
+  content escapes the table scroll container and the page still scrolls
+  sideways at 375px. Timeline is unaffected. Deliberately not repaired in
+  the Timeline branch; queued as `fix/admin-list-table-overflow`, which
+  should be the immediate next engineering task.
+- **The public site is still placeholder-driven.** Profile and timeline data
+  exist in D1, but `apps/web` has not been converted to read them.
 - **`apps/web` automated tests remain a no-op** — still the only
   fake-green script in the repository.
 - **Browser tests remain manual MCP verification**, not automated

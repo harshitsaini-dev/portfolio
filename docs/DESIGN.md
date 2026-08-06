@@ -37,10 +37,10 @@ is otherwise its content), and the `overflow-x-auto` wrapper is `relative`
 against the viewport).
 
 The shell half is in place for every page. **The wrapper half is currently
-only on `/timeline`** — `/projects` and `/technologies` are merged slices
-that this feature branch deliberately did not touch, so they still overflow
-once populated. A separate focused fix should apply the same `relative` to
-their wrappers.
+only on `/timeline`** — `/projects` and `/technologies` were already merged
+when the defect was found, so the Timeline branch deliberately left them
+alone, and they still overflow once populated. `fix/admin-list-table-overflow`
+should apply the same `relative` to their wrappers.
 
 The check that matters is whether the *page* can be scrolled sideways
 (`window.scrollTo(500, 0)` then reading `scrollX`), not whether an element
