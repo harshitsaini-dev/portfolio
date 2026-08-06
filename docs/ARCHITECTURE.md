@@ -188,6 +188,39 @@ UI components never talk to the database directly; they go through the
 service layer once it exists. Types shared between layers live in
 `packages/types` to avoid duplication and drift.
 
+## Second CMS entity: technologies (Phase 8)
+
+Technologies was the first entity built *on* the projects pattern rather
+than alongside it, and it changed nothing structural. The same
+`withAdminPage` routes, the same static metadata rule, the same
+`requireAdminIdentity()` → Zod → repository → `ActionResult` order, the
+same field primitives, the same database composition boundary. The
+`ActionResult` model was reused verbatim; no second result abstraction was
+introduced.
+
+Two things were genuinely new, both driven by the schema rather than by
+preference:
+
+- **A referenced-entity delete.** Projects own their relationships and
+  cascade them. Technologies are *referenced* by
+  `project_technologies` under `ON DELETE RESTRICT`, so deletion can be
+  legitimately refused. The **projects** repository gained one method,
+  `countByTechnology()`, so the UI can say so before offering the action —
+  while the database remains the actual enforcement.
+
+  It lives on the projects aggregate because that aggregate owns
+  `project_technologies`. Putting it on the technology repository — as an
+  earlier revision did — would have created a second ownership path over
+  the same join table. The admin list **composes** the two repositories at
+  the page layer instead, which is the right seam for a read that spans two
+  aggregates.
+- **Cross-entity revalidation.** Technology mutations call
+  `revalidatePath("/projects")`, because the projects form renders its
+  picker from this table and would otherwise serve a stale list.
+
+The projects slice needed no modification to interoperate: its picker
+already read `repos.technologies.list()`.
+
 ## CMS vertical slice (Phase 7)
 
 Projects is the first entity wired end to end, and its shape is the

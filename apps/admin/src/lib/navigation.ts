@@ -34,6 +34,12 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
     heading: "Content",
     items: [
       { label: "Projects", href: "/projects" },
+      // Technologies is its own table, and is what the projects picker reads.
+      // It is deliberately NOT merged into "Skills & tools": `skills`,
+      // `skill_categories`, and `tools` are separate tables that no route
+      // manages yet, and linking this one entry under that label would imply
+      // the rest of that CMS exists.
+      { label: "Technologies", href: "/technologies" },
       { label: "Profile", availableIn: "Phase 8" },
       { label: "Experience", availableIn: "Phase 8" },
       { label: "Education", availableIn: "Phase 8" },

@@ -5,6 +5,22 @@
 `@portfolio/ui/tokens.css`, which closes the Phase 3 limitation that the
 admin app had not adopted the shared tokens.
 
+## Admin forms — reuse check (Phase 8)
+
+The technologies CMS was built entirely from the Phase 7 vocabulary below
+with **no new primitives**: same `TextField`, same labelling and ARIA
+wiring, same error summary taking focus, same slug auto-suggest, same
+two-step destructive confirmation, same 44px minimum on buttons and
+actions. That the second entity needed nothing new is the useful signal
+about the Phase 7 primitives.
+
+One pattern was added, for referenced entities: when a record cannot be
+deleted because something still references it, the destructive control is
+**replaced by a plain explanation of what to do** ("used by 2 projects —
+remove it from those projects first") rather than rendered disabled or left
+to fail. Disabled controls give no reason; a failing control wastes the
+action.
+
 ## Admin forms (Phase 7)
 
 The Projects CMS introduced the form vocabulary the rest of the admin will

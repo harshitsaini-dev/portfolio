@@ -142,6 +142,24 @@ export interface ProjectRepository {
     technologyIds: readonly string[],
   ): Promise<void>;
   listTechnologies(projectId: string): Promise<Technology[]>;
+
+  /**
+   * How many projects reference each technology, keyed by technology id.
+   *
+   * Lives here, not on the technology repository, because
+   * `project_technologies` is owned by this aggregate — a second repository
+   * querying it would be a second ownership path over the same join table.
+   *
+   * Exists because that join is `ON DELETE RESTRICT`, which makes "can this
+   * technology be deleted?" a question a caller must answer *before*
+   * offering the action; otherwise the only way to find out is to try and
+   * fail. Technologies with no references are simply absent from the map,
+   * so a missing key means zero.
+   *
+   * One grouped query rather than a count per technology: callers need every
+   * count at once, and per-row calls would be N+1.
+   */
+  countByTechnology(): Promise<Record<string, number>>;
 }
 
 export function createProjectRepository(
@@ -503,6 +521,30 @@ export function createProjectRepository(
         return result.results.map(toTechnology);
       } catch (cause) {
         throw toDatabaseError(ENTITY, "list technologies", cause);
+      }
+    },
+
+    async countByTechnology() {
+      try {
+        const result = await db
+          .prepare(
+            `SELECT technology_id, COUNT(*) AS project_count
+               FROM project_technologies
+              GROUP BY technology_id`,
+          )
+          .all<Row>();
+        const counts: Record<string, number> = {};
+        for (const row of result.results) {
+          const id = requireString(ENTITY, row, "technology_id");
+          const raw = row.project_count;
+          // D1 returns COUNT(*) as a number, but the aggregate column is not
+          // a schema column, so it is coerced rather than trusted blindly
+          // across driver implementations.
+          counts[id] = typeof raw === "number" ? raw : Number(raw ?? 0);
+        }
+        return counts;
+      } catch (cause) {
+        throw toDatabaseError(ENTITY, "count by technology", cause);
       }
     },
   };

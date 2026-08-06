@@ -3,6 +3,75 @@
 Notes on things learned while building this project that are worth
 remembering for future work.
 
+## Phase 8 — Technologies CMS
+
+### A structural invariant pays out when you forget about it
+
+Three new protected routes were added and the foundation suite went 53 → 59
+on its own, because the Phase 6 invariant walks `(protected)/**` rather
+than checking a hand-maintained list. Nothing had to be remembered, and if
+a route had been added without `withAdminPage`, the suite would have failed
+without anyone thinking about authorization that day. That is the return on
+building the check recursively instead of enumerating routes.
+
+### Let the schema tell you what the CMS is
+
+The temptation with a three-column table is to add an icon field, a
+visibility toggle, an ordering control — all plausible, all things a
+technologies CMS "should" have. None exist in the committed schema, so all
+of them would have been either silently discarded or a lie about what the
+system stores. Reading the migration first turned a design question into a
+non-question.
+
+### Ownership is decided by the table, not by the feature you are building
+
+The usage count was for the technologies screen, so it went onto the
+technology repository — which then had to query `project_technologies`, a
+table Phase 5 explicitly assigned to the projects aggregate. The reasoning
+felt local and correct and was structurally wrong: one join table now had
+two repositories reading it, which is precisely the drift the ownership
+rule exists to stop.
+
+The test that would have caught it did not exist either, because the change
+felt like "a method for the technologies feature" rather than "an extension
+to a repository contract" — so it got admin-suite coverage instead of
+canonical repository-package coverage, and the reported database subtotal
+was wrong as a result.
+
+Two habits worth keeping: when adding a query, ask which table it touches
+and who owns that table — not which screen wants it. And when a repository
+*contract* changes, the repository package's tests are the ones that must
+grow, whatever else consumes it.
+
+### Cross-aggregate reads compose at the application layer
+
+The fix was not a join-table repository or a reporting abstraction, both of
+which would have added a layer to avoid a two-line `Promise.all`. The page
+calls `technologies.list()` and `projects.countByTechnology()` and joins
+them itself. Each repository stays inside what it owns, and the place that
+needs both is the place that knows why.
+
+### `ON DELETE RESTRICT` is a UI requirement, not just a database setting
+
+A constraint that can legitimately refuse an action changes what the
+interface owes the user. Knowing only "delete failed" after the fact is a
+worse product than knowing "used by 2 projects" beforehand — and that
+information has to come from a query someone deliberately wrote. The
+constraint quietly specified a repository method.
+
+The discipline that goes with it: the count must never become the
+enforcement. It decides what the UI *says*; the database decides what
+*happens*, and the test invokes the real action to prove bypassing the UI
+changes nothing.
+
+### Interoperability is worth testing even when no code connects the two
+
+The projects picker already read the technologies table, so integrating the
+new entity required no code at all — which is exactly the kind of claim
+that deserves checking rather than assuming. Creating a technology,
+tagging a project, reopening it, and watching the usage count go to 1
+confirmed a wiring that no diff would have shown.
+
 ## Phase 7 — CI fix
 
 ### A source-policy test that reads the git index tests the wrong thing

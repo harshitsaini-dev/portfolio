@@ -6,7 +6,137 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 7 — Projects CMS vertical slice: COMPLETE.**
+**Phase 8 — Remaining CMS. In progress.**
+
+- **Active task:** **Technologies CMS** — the first focused task inside
+  Phase 8. Implemented on `feat/remaining-cms-technologies`; **awaiting
+  review**, not committed, not pushed, and **not complete**.
+- **Phase 7:** Complete (merged to `main`, CI green).
+- **Later Phase 8 entities** — Profile, Timeline/Experience, Education,
+  Certifications, Skills, Tools, Socials, Sections: **not started**.
+- **Phase 8 is NOT complete.** It is complete only when every entity it
+  covers is delivered and verified.
+
+Unchanged and still outstanding: the **remote `portfolio-cms` schema
+remains unapplied**, and **Cloudflare Access dashboard configuration
+remains pending**.
+
+## Phase 8 — Technologies CMS (active task)
+
+### Routes
+
+```
+apps/admin/src/app/(protected)/technologies/
+  page.tsx            list — every technology, with project usage
+  new/page.tsx        create
+  [id]/page.tsx       edit + delete
+```
+
+All three go through `withAdminPage`, so the Phase 6 recursive invariant
+discovered them automatically — the foundation suite grew 53 → 59 checks
+without the invariant being touched, weakened, or special-cased. All three
+use **static** metadata, never `generateMetadata`, for the Phase 6 reason:
+route metadata evaluates independently of the component, so a metadata
+function that read a record would leak it to unauthenticated requests.
+
+### Schema fields used — and deliberately not invented
+
+The committed `technologies` table is:
+
+```
+id | name | slug (UNIQUE) | category (nullable) | created_at | updated_at
+```
+
+There is **no icon, logo, visibility, or position column**, so the CMS
+exposes none. Adding such a control would either silently drop the value or
+imply storage that does not exist. `migrations/0001_initial_schema.sql` was
+**not edited**, and no forward migration was needed.
+
+### Validation
+
+`@portfolio/schemas` gained `technologies.ts`, mirroring the projects
+module: `.strict()` so `id`/`createdAt`/`updatedAt` and unknown fields are
+**rejected** rather than dropped; the same slug shape
+(`^[a-z0-9]+(?:-[a-z0-9]+)*$`) with **uniqueness left to the database**;
+blank `category` normalised to `null` rather than `""`. Types are inferred
+with `z.infer`. Persisted-row decoding remains the repository's job.
+
+### Server mutations
+
+Three Server Actions reusing the Phase 7 architecture unchanged —
+`requireAdminIdentity()` → Zod → repository → typed `ActionResult` /
+`redirect()`. The **existing `ActionResult` model was reused verbatim**; no
+second result abstraction was introduced. Every mutation re-authenticates
+independently, authorization is never read from a hidden form field, and
+`redirect()` is called outside the try/catch.
+
+### Repository
+
+The Phase 5 repositories are used as-is — no parallel data layer, and **no
+raw SQL anywhere in admin application code**. The technology repository was
+**not extended**; it still owns only the `technologies` table.
+
+One minimal extension was added to the **projects** repository:
+`countByTechnology()`, a single grouped query returning technology id →
+project count. It lives there because `project_technologies` is owned by
+the projects aggregate — see *Repository ↔ table ownership* in
+`docs/DATABASE.md`. The admin technologies list **composes** the two
+repositories at the page layer:
+
+```ts
+const [technologies, usage] = await Promise.all([
+  repos.technologies.list(),
+  repos.projects.countByTechnology(),
+]);
+```
+
+It earns its place because `project_technologies.technology_id` is
+**`ON DELETE RESTRICT`**: without a usage count, the only way to learn
+whether a technology can be deleted is to try and fail. The list shows
+"Unused" or "N projects", and the edit page replaces the delete control
+with an explanation when the technology is still referenced.
+
+**Corrected before commit.** The first implementation put this method on
+the technology repository, which gave `project_technologies` a second
+owner and contradicted the Phase 5 boundary. See `docs/DECISIONS.md`.
+
+**The UI is not the enforcement.** The schema is. The server rejects an
+in-use delete regardless of what the UI offered, and that rejection is
+tested through the real action, not just the repository.
+
+### Delete semantics
+
+- An unused technology deletes normally, behind a two-step confirmation
+  (POST only — never a GET or a link).
+- An in-use technology produces a **safe conflict**: "This technology is
+  still used by one or more projects. Remove it from them first."
+- **Referencing projects are never touched**, and no raw constraint text
+  (`FOREIGN KEY constraint failed`, `SQLITE_*`) ever reaches the browser.
+- Deleting a *project* still cascades its join rows and leaves the
+  technologies themselves alive — the reverse direction, also tested.
+
+### Projects interoperability
+
+The Phase 7 projects form already rendered its picker from
+`repos.technologies.list()`, so **no Projects CMS redesign was needed**.
+Creating technologies simply populates it. Technology mutations
+`revalidatePath("/projects")` so the picker cannot serve a stale list.
+
+### Media / icon boundary
+
+None. Phase 9 owns R2. No binary upload, no fake upload control, and no
+hardcoded image URLs as CMS content.
+
+### Navigation
+
+Technologies became a real linked destination. It is deliberately **not**
+folded into the existing "Skills & tools" placeholder: `skills`,
+`skill_categories`, and `tools` are separate tables that no route manages
+yet, and linking this entry under that label would imply a CMS that does
+not exist. Every other Phase 8 entry stays an unlinked, phase-labelled
+placeholder — no dead links.
+
+## Phase 7 — Projects CMS vertical slice: COMPLETE.
 
 Implemented on `feat/projects-cms`, corrected before merge, verified by
 **Pull Request #12 on GitHub Actions/Linux** (after one initial
@@ -19,20 +149,19 @@ source-policy failure and a focused follow-up fix), rebase-merged into
 and verified again by the **post-merge `main` CI run `31077681211`**.
 
 - **Phases 0–7:** Complete.
-- **Phase 8 — Remaining CMS:** not started (next).
 
 ## Active task
 
-Phase 7 completion documentation (documentation-only; no application,
-test, schema, package manifest, lockfile, migration, Wrangler, Next
-config, CI, or Cloudflare resource changes).
+**Phase 8 — Technologies CMS** (see the Phase 8 section above). Awaiting
+review; not committed.
 
 ## Blockers
 
-**None for Phase 7.**
+**None.** Phase 7 has none, and the Technologies CMS task has no
+implementation blocker.
 
 Two items remain outstanding but are **deployment prerequisites, not
-Phase 7 blockers** — see *Known limitations* and *Manual actions*: the
+blockers** — see *Known limitations* and *Manual actions*: the
 **Cloudflare Zero Trust dashboard configuration**, and the **remote
 `portfolio-cms` schema**, which is still intentionally unapplied. Until
 Access exists the admin app denies every request, which is the intended
@@ -40,8 +169,9 @@ fail-closed behaviour.
 
 ## Next suggested task
 
-**Phase 8 — Remaining CMS.** Not started, and not to be implemented until
-explicitly scoped and approved.
+Review the Technologies CMS. After it merges, the next Phase 8 entity —
+**not to be implemented until explicitly scoped and approved** — is
+suggested at the end of this file.
 
 ## Phase status summary
 
@@ -55,10 +185,120 @@ explicitly scoped and approved.
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
 | Phase 6 — Admin foundation | **Complete** (merged to `main`, CI green) |
 | Phase 7 — Projects CMS vertical slice | **Complete** (merged to `main`, CI green) |
-| Phase 8 — Remaining CMS | Not started (**next**) |
+| Phase 8 — Remaining CMS | **In progress** — Technologies CMS awaiting review; other entities not started |
 
-Phases 8–22 are not started. See `docs/ROADMAP.md` for the authoritative
+Phases 9–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
+
+## Phase 8 — Technologies CMS: verification actually performed
+
+| Command | Result |
+| --- | --- |
+| `pnpm install --frozen-lockfile` | **PASS** — lockfile unmodified |
+| `pnpm lint` | **PASS** (exit 0) |
+| `pnpm typecheck` | **PASS** (exit 0) |
+| `pnpm test` | **PASS** — **670 real checks** |
+| `pnpm build` | **PASS** — all `/technologies*` routes are `ƒ (Dynamic)` |
+
+### Test suites after the Technologies CMS
+
+| Suite | Checks | Change |
+| --- | --- | --- |
+| UUIDv7 | 26 | — |
+| D1 migration smoke | 59 | — |
+| Repository integration | **126** | **+15** — canonical `countByTechnology()` semantics |
+| D1 binding compatibility | **41** | **+3** — the aggregate column's real-D1 result shape |
+| D1Like type compatibility | 4 | — |
+| **Database subtotal** | **256** | **+18 — no longer 238** |
+| Admin authentication | 42 | — |
+| Admin foundation / invariant | **59** | +6 — the recursive invariant discovered the three new routes on its own |
+| Admin D1 composition boundary | 34 | — |
+| Projects CMS | 96 | — |
+| **Technologies CMS** | **90** | **new** |
+| **Server Action authorization** | **93** | +45 for technologies |
+| **Admin subtotal** | **414** | — |
+| **Total** | **670** | up from 511 |
+
+The database subtotal changed because extending a **repository contract**
+requires canonical tests in the repository package, not only in the admin
+suite that consumes it. Raw query semantics are owned by
+`packages/database`; the admin suite owns the page-level composition.
+
+**All 511 previous checks still pass**, and none were weakened or removed.
+`apps/web` remains the only no-op suite; coverage is representative, not
+exhaustive.
+
+The 15 new repository-package checks own the raw semantics of
+`countByTechnology()`: zero usage when nothing references a technology, a
+correct count for one project, aggregation across multiple projects,
+independent counts per technology, the count dropping when an association
+is removed, a project delete cascading its join rows and removing its
+usage, and unknown or unreferenced ids producing no phantom count. The 3
+new real-D1 checks cover what only a real binding can settle — the
+`COUNT(*)` aggregate column decoding as a number through workerd rather
+than the Node adapter.
+
+The 90 Technologies checks are validation (accepted input, 18 rejection
+cases, database-managed-field rejection, update-patch semantics) plus a
+real local D1 pass: create/read/list ordering, duplicate-slug
+`ConflictError`, update semantics (`undefined` ignored, `null` clears, id
+and `createdAt` immutable), rename-onto-taken-slug conflict, the **page
+composition** of `technologies.list()` with `projects.countByTechnology()`
+(including an assertion that the technology repository exposes no
+project-usage read), **in-use delete rejected with the projects and their
+tags intact**, delete succeeding once detached, project deletion cascading
+join rows while leaving technologies alive, and
+`PRAGMA foreign_key_check`.
+
+The 45 added authorization checks invoke the **real exported**
+`createTechnologyAction` / `updateTechnologyAction` /
+`deleteTechnologyAction` unauthenticated and read the database back:
+nothing inserted, the record byte-identical, the record still present.
+Auth is proven to run **before** validation and before the database is
+touched. Authenticated positive controls then cover duplicate-slug
+conflict, malformed input, a client-supplied `id`, not-found, the in-use
+delete conflict, and delete succeeding after detachment — each asserting
+the message carries no SQL or constraint text.
+
+### Browser verification (`playwright-local` MCP, real local D1)
+
+Manual MCP verification — **not** automated Playwright CI tests.
+
+- Empty state → create (slug auto-suggested `TypeScript` → `typescript`) →
+  redirect to `/technologies?created=typescript` → row appears as "Unused".
+- Edit → category updated → redirect to `/technologies?updated=typescript`
+  → change persisted.
+- Required-field validation kept the user on the page, moved focus to a
+  `role="alert"` summary, set `aria-invalid="true"`, and wired "Required"
+  through `aria-describedby`.
+- Duplicate slug → "That slug is already used by another technology", with
+  **no SQL or constraint string** anywhere in the HTML.
+- **Interoperability:** the technology appeared in the Projects picker;
+  a project was created with it; the list then showed "1 project"; the
+  association persisted on reopening the project.
+- **In-use delete** offered no delete control and explained why.
+- Unchecking the association, saving, then returning: the delete control
+  reappeared, two-step confirmation moved focus to "Yes, delete", Cancel
+  restored the initial state, and confirming deleted it and returned to the
+  empty-state list. **The project survived.**
+- No horizontal overflow at 1280×900, 768×1024, or 375×812; all three form
+  controls have real `<label for>` elements with no placeholder-as-label.
+- **Unauthenticated confidentiality:** with dev auth off and a seeded
+  canary technology, all nine combinations of `/technologies`,
+  `/technologies/new`, `/technologies/[id]` × plain / `RSC: 1` / forged
+  header returned 307 to `/denied`, with **zero-length RSC bodies** and the
+  canary appearing **0 times**.
+- Console errors relevant to the feature: **none**. The session log
+  contains only HMR WebSocket reconnects from dev-server restarts and 404s
+  for records deleted during the flows.
+
+### Sub-44px touch targets — checked, and pre-existing
+
+Two links measure under 44px at 375px width: the visually-hidden "Skip to
+main content" link, and the inline breadcrumb. Both are **identical to the
+existing Projects pages** (verified side by side), so this is the
+established breadcrumb pattern rather than a regression introduced here.
+Every button and primary action meets the 44px minimum.
 
 ## Phase 7 — completed work
 
@@ -1754,15 +1994,18 @@ Local development needs none of this: set `ADMIN_DEV_AUTH=enabled` in
 
 ## Next suggested task
 
-**Phase 8 — Remaining CMS.** The rest of the content entities, following
-the pattern the projects slice established: `withAdminPage` routes, shared
-`@portfolio/schemas` validation, the
+**Phase 8, next entity: Profile.** It is the singleton-key table the Phase 4
+work already characterised (*at most* one row), so it exercises a shape the
+projects and technologies slices did not: a form that creates-or-updates
+rather than listing, with no delete and no `/new` route. Doing it next
+settles the singleton editing pattern before the repeating entities
+(experience, education, certifications) arrive and multiply any mistake.
+
+The pattern it reuses unchanged: `withAdminPage` routes, static metadata,
+shared `@portfolio/schemas` validation, the
 `requireAdminIdentity()` → Zod → repository → `ActionResult` mutation
 order, the shared field primitives, and the existing database composition
-boundary — all reusable unchanged.
-
-Technologies are the natural first entity, because the Projects technology
-picker stays empty until technology management exists.
+boundary.
 
 Not implemented as part of this task, and not to be started until
 explicitly scoped and approved.

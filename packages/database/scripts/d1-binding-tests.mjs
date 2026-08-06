@@ -217,6 +217,28 @@ try {
     1,
   );
 
+  // `countByTechnology()` reads a computed aggregate column (`COUNT(*) AS
+  // project_count`) rather than a schema column — a result shape no other
+  // repository method produces. The Node adapter and workerd could
+  // plausibly differ on the JS type of a SQLite aggregate, so the real
+  // binding is where that assumption is worth checking.
+  const technologyCounts = await repos.projects.countByTechnology();
+  equal(
+    "countByTechnology() aggregates through real D1",
+    technologyCounts[technology.id],
+    1,
+  );
+  equal(
+    "the real D1 aggregate column decodes as a number",
+    typeof technologyCounts[technology.id],
+    "number",
+  );
+  equal(
+    "an unreferenced technology is absent from the real D1 aggregate",
+    technologyCounts["no-such-technology"],
+    undefined,
+  );
+
   await repos.projects.setLinks(project.id, [
     { label: "Repo", url: "https://example.test/repo", kind: "repository" },
   ]);

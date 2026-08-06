@@ -458,6 +458,79 @@ try {
     );
   }
 
+  // -- Technology usage counts ---------------------------------------------
+  {
+    group("Project counts by technology");
+    const { repos } = freshFixture();
+
+    const [alpha, beta, gamma] = [
+      await repos.technologies.create({ name: "Alpha", slug: "alpha" }),
+      await repos.technologies.create({ name: "Beta", slug: "beta" }),
+      await repos.technologies.create({ name: "Gamma", slug: "gamma" }),
+    ];
+
+    // The aggregate lives on the projects repository because it owns
+    // `project_technologies`; the technology repository must not reach into
+    // that join table. See docs/DATABASE.md — repository ↔ table ownership.
+    equal(
+      "an unused technology has no entry, so a missing key means zero",
+      (await repos.projects.countByTechnology())[alpha.id],
+      undefined,
+    );
+    equal(
+      "with no associations at all the map is empty",
+      Object.keys(await repos.projects.countByTechnology()).length,
+      0,
+    );
+
+    const first = await repos.projects.create({
+      slug: "first",
+      title: "First",
+      summary: "x",
+    });
+    await repos.projects.setTechnologies(first.id, [alpha.id, beta.id]);
+
+    const afterOne = await repos.projects.countByTechnology();
+    equal("one project counts once", afterOne[alpha.id], 1);
+    equal("a second technology on the same project counts independently", afterOne[beta.id], 1);
+    equal("an untagged technology stays absent", afterOne[gamma.id], undefined);
+
+    const second = await repos.projects.create({
+      slug: "second",
+      title: "Second",
+      summary: "x",
+    });
+    await repos.projects.setTechnologies(second.id, [alpha.id]);
+
+    const afterTwo = await repos.projects.countByTechnology();
+    equal("counts aggregate across multiple projects", afterTwo[alpha.id], 2);
+    equal("other technologies keep their own count", afterTwo[beta.id], 1);
+    equal("counts are numbers, not strings", typeof afterTwo[alpha.id], "number");
+
+    // Removing one association must decrement only that technology.
+    await repos.projects.setTechnologies(second.id, []);
+    const afterDetach = await repos.projects.countByTechnology();
+    equal("removing an association decrements the count", afterDetach[alpha.id], 1);
+    equal("an unrelated technology is unaffected", afterDetach[beta.id], 1);
+
+    // Deleting a project cascades its join rows, so its usage disappears.
+    await repos.projects.delete(first.id);
+    const afterDelete = await repos.projects.countByTechnology();
+    equal("deleting a project removes its usage", afterDelete[alpha.id], undefined);
+    equal("and the other technology's usage too", afterDelete[beta.id], undefined);
+    equal(
+      "the technologies themselves survive the project deletion",
+      (await repos.technologies.list()).length,
+      3,
+    );
+
+    // An id that was never referenced must not appear, and an unknown id
+    // must not produce a phantom count.
+    const finalCounts = await repos.projects.countByTechnology();
+    equal("an unknown technology id yields no count", finalCounts["id-does-not-exist"], undefined);
+    equal("the map is empty once nothing references anything", Object.keys(finalCounts).length, 0);
+  }
+
   // -- Ordered content -----------------------------------------------------
   {
     group("Ordered content (sections, skills)");
