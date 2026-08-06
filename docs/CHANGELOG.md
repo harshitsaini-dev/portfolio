@@ -1,5 +1,68 @@
 # Changelog
 
+## 2026-08-06 — Phase 8: Technologies CMS (branch `feat/remaining-cms-technologies`)
+
+**Status: implemented, awaiting review. Not committed. Phase 8 is NOT
+complete — this is its first entity.**
+
+### Added
+
+- `packages/schemas/src/technologies.ts` — the untrusted-input boundary for
+  technologies: `technologyCreateSchema` (`.strict()`),
+  `technologyUpdateSchema`, `technologyIdSchema`, and the shared slug shape.
+  Only the fields the committed table actually has.
+- `apps/admin/src/lib/actions/technologies.ts` — create/update/delete
+  Server Actions reusing the Phase 7 order
+  (`requireAdminIdentity()` → Zod → repository → typed result) and the
+  **existing `ActionResult` model verbatim**.
+- `apps/admin/src/app/(protected)/technologies/{page,new/page,[id]/page}.tsx`
+  — all via `withAdminPage`, all static metadata.
+- `apps/admin/src/components/technologies/{technology-form,delete-technology-form}.tsx`
+  — `useActionState` form on the shared field primitives, with slug
+  auto-suggest, error-summary focus, and a two-step delete confirmation
+  that is replaced by an explanation when the technology is in use.
+- `apps/admin/scripts/technologies-tests.mjs` — **90 checks** (validation +
+  real local D1 CRUD, the page-level usage composition, and
+  `ON DELETE RESTRICT` behaviour).
+
+### Changed
+
+- `packages/database/src/repositories/projects.ts` — one minimal extension,
+  `countByTechnology()`: a single grouped query returning technology id →
+  project count. Needed because `project_technologies.technology_id` is
+  `ON DELETE RESTRICT`, so "can this be deleted?" must be answerable before
+  offering the action. It lives on the **projects** aggregate because that
+  aggregate owns `project_technologies`; the technology repository is
+  unchanged, and the admin list composes the two at the page layer.
+- `packages/database/scripts/repository-tests.mjs` — 111 → **126 checks**,
+  the canonical semantics for the new method.
+- `packages/database/scripts/d1-binding-tests.mjs` — 38 → **41 checks**,
+  because the method reads a computed `COUNT(*)` column rather than a
+  schema column.
+- `apps/admin/scripts/action-auth-tests.mjs` — 48 → **93 checks**, covering
+  the real technology mutations unauthenticated plus authenticated
+  conflict/validation/not-found controls.
+- `apps/admin/src/lib/navigation.ts` — Technologies is a real destination.
+  Deliberately **not** merged into the "Skills & tools" placeholder, since
+  `skills`, `skill_categories`, and `tools` are separate tables no route
+  manages yet.
+
+### Not changed
+
+`migrations/0001_initial_schema.sql` (no defect found, no forward migration
+needed), the Projects CMS (its picker already read the technologies table),
+`apps/web`, remote D1, and Cloudflare resources.
+
+### Verification
+
+`pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`,
+`pnpm test` (**670 checks** — database **256**, admin **414** — up from 511
+with all 511 preserved), and `pnpm build` all **PASS**; `/technologies*`
+routes are `ƒ (Dynamic)`.
+Browser-verified via Playwright MCP against real local D1, including the
+full Project ↔ Technology interoperability flow and a canary proving **zero
+technology data** in unauthenticated plain/RSC/forged responses.
+
 ## 2026-08-06 — Phase 7 complete
 
 Documentation-only entry. No application, test, schema, package manifest,

@@ -400,6 +400,119 @@ try {
   );
 
   // =========================================================================
+  // Technologies (Phase 8) — the same boundary, the same proof.
+  // =========================================================================
+  const technologyActions = await import("../src/lib/actions/technologies.ts");
+  check(
+    "the real technology action module exports all three mutations",
+    typeof technologyActions.createTechnologyAction === "function" &&
+      typeof technologyActions.updateTechnologyAction === "function" &&
+      typeof technologyActions.deleteTechnologyAction === "function",
+  );
+
+  // A technology the unauthenticated update/delete attempts will target.
+  const techVictim = await repos.technologies.create({
+    name: "Existing Technology",
+    slug: "existing-technology",
+    category: "Language",
+  });
+  const techBefore = await repos.technologies.getById(techVictim.id);
+  const techCountBefore = (await repos.technologies.list()).length;
+  const consultedBeforeTech = providerConsulted;
+
+  startGroup("Unauthenticated technology CREATE cannot insert");
+
+  clearAuthEnvironment();
+
+  const techCreate = await invoke(
+    technologyActions.createTechnologyAction,
+    payloadForm({ name: "Injected", slug: "injected", category: null }),
+  );
+  equal("the action does not return a result", techCreate.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    techCreate.error?.name,
+    "AdminUnauthorizedError",
+  );
+  equal(
+    "no technology was inserted",
+    (await repos.technologies.list()).length,
+    techCountBefore,
+  );
+  equal(
+    "the attempted slug does not exist",
+    await repos.technologies.getBySlug("injected"),
+    null,
+  );
+
+  startGroup("Technology auth wins before validation and the database");
+
+  const techOrder = await invoke(
+    technologyActions.createTechnologyAction,
+    payloadForm({ name: "", slug: "NOT A SLUG", bogusField: true }),
+  );
+  equal("an invalid unauthenticated payload still throws", techOrder.kind, "threw");
+  equal(
+    "it is an authorization failure, not a validation result",
+    techOrder.error?.name,
+    "AdminUnauthorizedError",
+  );
+  equal(
+    "the database was never consulted during any denied technology call",
+    providerConsulted,
+    consultedBeforeTech,
+  );
+
+  startGroup("Unauthenticated technology UPDATE cannot modify");
+
+  const techUpdate = await invoke(
+    technologyActions.updateTechnologyAction,
+    payloadForm({ name: "Hijacked", slug: "hijacked" }, techVictim.id),
+  );
+  equal("the action does not return a result", techUpdate.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    techUpdate.error?.name,
+    "AdminUnauthorizedError",
+  );
+  const techAfterUpdate = await repos.technologies.getById(techVictim.id);
+  equal("name is unchanged", techAfterUpdate?.name, techBefore?.name);
+  equal("slug is unchanged", techAfterUpdate?.slug, techBefore?.slug);
+  equal("category is unchanged", techAfterUpdate?.category, techBefore?.category);
+  equal("updatedAt is unchanged", techAfterUpdate?.updatedAt, techBefore?.updatedAt);
+  check(
+    "the whole record is logically identical",
+    JSON.stringify(techAfterUpdate) === JSON.stringify(techBefore),
+  );
+  equal(
+    "the attacker's slug was never taken",
+    await repos.technologies.getBySlug("hijacked"),
+    null,
+  );
+
+  startGroup("Unauthenticated technology DELETE cannot remove");
+
+  const techDelete = await invoke(
+    technologyActions.deleteTechnologyAction,
+    payloadForm({}, techVictim.id),
+  );
+  equal("the action does not return a result", techDelete.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    techDelete.error?.name,
+    "AdminUnauthorizedError",
+  );
+  check(
+    "the technology still exists afterwards",
+    (await repos.technologies.getById(techVictim.id)) !== null,
+  );
+  equal(
+    "the technology count is unchanged",
+    (await repos.technologies.list()).length,
+    techCountBefore,
+  );
+
+  // =========================================================================
   startGroup("A forged Access assertion is also rejected");
 
   // With Access configured, a caller supplying a self-signed or junk
@@ -479,6 +592,136 @@ try {
     "the untouched target project is still there",
     (await repos.projects.getById(victim.id))?.slug,
     "existing-project",
+  );
+
+  // =========================================================================
+  startGroup("Positive control — technology actions work when authenticated");
+
+  const authedTechCreate = await invoke(
+    technologyActions.createTechnologyAction,
+    payloadForm({ name: "Guarded Tech", slug: "guarded-tech", category: "Language" }),
+  );
+  equal("an authenticated create redirects on success", authedTechCreate.kind, "redirect");
+  equal(
+    "it redirects to the list with the new slug",
+    authedTechCreate.to,
+    "/technologies?created=guarded-tech",
+  );
+  const createdTech = await repos.technologies.getBySlug("guarded-tech");
+  check("the technology really was inserted", createdTech !== null);
+
+  // Duplicate slug through the real action must come back as a safe typed
+  // conflict, not a thrown driver error and not raw constraint text.
+  const dupe = await invoke(
+    technologyActions.createTechnologyAction,
+    payloadForm({ name: "Duplicate", slug: "guarded-tech" }),
+  );
+  equal("a duplicate slug returns a result rather than throwing", dupe.kind, "returned");
+  equal("it is reported as a conflict", dupe.result?.status, "conflict");
+  check(
+    "the conflict message leaks no SQL or constraint text",
+    typeof dupe.result?.message === "string" &&
+      !/SQLITE|UNIQUE|constraint|technologies\./i.test(dupe.result.message),
+    dupe.result?.message,
+  );
+
+  // Malformed input through the real action must come back as validation.
+  const badInput = await invoke(
+    technologyActions.createTechnologyAction,
+    payloadForm({ name: "", slug: "NOT A SLUG" }),
+  );
+  equal("malformed input returns a result", badInput.kind, "returned");
+  equal("it is reported as validation", badInput.result?.status, "validation");
+  check(
+    "field errors are keyed by field name",
+    Boolean(badInput.result?.fieldErrors?.name && badInput.result?.fieldErrors?.slug),
+  );
+
+  // A database-managed field must be rejected through the real action too.
+  const managedField = await invoke(
+    technologyActions.createTechnologyAction,
+    payloadForm({ name: "X", slug: "x-tech", id: "forced-id" }),
+  );
+  equal("a client-supplied id is rejected", managedField.result?.status, "validation");
+  equal(
+    "and nothing was inserted for it",
+    await repos.technologies.getBySlug("x-tech"),
+    null,
+  );
+
+  const authedTechUpdate = await invoke(
+    technologyActions.updateTechnologyAction,
+    payloadForm({ name: "Guarded Tech v2" }, createdTech.id),
+  );
+  equal("an authenticated update redirects on success", authedTechUpdate.kind, "redirect");
+  equal(
+    "the name really changed",
+    (await repos.technologies.getById(createdTech.id))?.name,
+    "Guarded Tech v2",
+  );
+
+  const missingTech = await invoke(
+    technologyActions.updateTechnologyAction,
+    payloadForm({ name: "Ghost" }, "does-not-exist"),
+  );
+  equal("updating a missing technology returns not_found", missingTech.result?.status, "not_found");
+
+  // In-use delete through the real action: a safe conflict, projects intact.
+  const holder = await repos.projects.create({
+    slug: "tech-holder",
+    title: "Tech Holder",
+    summary: "References the technology under test.",
+    status: "draft",
+    position: 0,
+  });
+  await repos.projects.setTechnologies(holder.id, [createdTech.id]);
+
+  const inUseDelete = await invoke(
+    technologyActions.deleteTechnologyAction,
+    payloadForm({}, createdTech.id),
+  );
+  equal("an in-use delete returns a result rather than throwing", inUseDelete.kind, "returned");
+  equal("it is reported as a conflict", inUseDelete.result?.status, "conflict");
+  check(
+    "the conflict message leaks no raw constraint text",
+    typeof inUseDelete.result?.message === "string" &&
+      !/FOREIGN KEY|SQLITE|constraint failed/i.test(inUseDelete.result.message),
+    inUseDelete.result?.message,
+  );
+  check(
+    "the technology survived the rejected delete",
+    (await repos.technologies.getById(createdTech.id)) !== null,
+  );
+  check(
+    "the referencing project was not touched",
+    (await repos.projects.getById(holder.id)) !== null,
+  );
+  equal(
+    "the project kept its tag",
+    (await repos.projects.listTechnologies(holder.id)).length,
+    1,
+  );
+
+  // Detach, then the same delete must succeed.
+  await repos.projects.setTechnologies(holder.id, []);
+  const freedDelete = await invoke(
+    technologyActions.deleteTechnologyAction,
+    payloadForm({}, createdTech.id),
+  );
+  equal("delete succeeds once detached", freedDelete.kind, "redirect");
+  equal("it redirects to the list", freedDelete.to, "/technologies");
+  equal(
+    "the technology really was removed",
+    await repos.technologies.getById(createdTech.id),
+    null,
+  );
+  check(
+    "the project still exists after the technology was deleted",
+    (await repos.projects.getById(holder.id)) !== null,
+  );
+  check(
+    "the untouched target technology is still there",
+    (await repos.technologies.getById(techVictim.id)) !== null,
   );
 
   // =========================================================================

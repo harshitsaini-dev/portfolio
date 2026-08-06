@@ -1,21 +1,35 @@
 # Testing
 
-## Current state (Phase 7 complete)
+## Current state (Phase 8 — Technologies CMS in review)
 
-`pnpm test` runs **ten real suites and one no-op** — **511 checks**,
-verified on Windows and on GitHub Actions/Linux. What each one actually
-proves matters, so be precise:
+`pnpm test` runs **eleven real suites and one no-op** — **670 checks**.
+The 511 verified at the end of Phase 7 all still pass, on Windows and on
+GitHub Actions/Linux; the Technologies CMS added the rest and is not yet
+CI-verified. What each one actually proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
 | Admin authentication | **42** | real `jose` verification, locally minted tokens | The Access JWT boundary and the development-auth guard |
-| Admin foundation | **53** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, and the protected-page invariant |
+| Admin foundation | **59** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, and the protected-page invariant |
 | **D1 composition boundary** | **34** | the real `binding.ts`, the **working tree**, plus `tsc` over Wrangler-generated Cloudflare types | Production fails closed, the provider seam composes, and Phase 22's provider already type-checks |
 | **Projects CMS** | **96** | the real schemas, and **real local D1** via `getPlatformProxy()` | The validation boundary and the full CRUD + relationship path |
-| **Server Action authorization** | **48** | the **real exported action functions**, against real local D1 | Unauthenticated create/update/delete are denied and change nothing |
+| **Technologies CMS** | **90** | the real schemas, and **real local D1** | The validation boundary, CRUD, the page-level usage composition, and `ON DELETE RESTRICT` |
+| **Server Action authorization** | **93** | the **real exported action functions** for both entities, against real local D1 | Unauthenticated create/update/delete are denied and change nothing |
 
-Subtotals: **admin 273** (42 + 53 + 34 + 96 + 48) and **database 238**
-(26 + 59 + 111 + 38 + 4, detailed below) — **511 total**.
+Subtotals: **admin 414** (42 + 59 + 34 + 96 + 90 + 93) and **database 256**
+(26 + 59 + 126 + 41 + 4, detailed below) — **670 total**.
+
+**The database subtotal is no longer 238.** Extending the `ProjectRepository`
+contract with `countByTechnology()` required canonical tests in the
+repository package — 15 in the integration suite for the query semantics,
+and 3 in the real-D1 suite because the method reads a computed `COUNT(*)`
+column rather than a schema column. Raw query semantics belong to
+`packages/database`; the admin suite owns only the page-level composition.
+
+The admin foundation suite grew 53 → 59 **without being edited**: its
+recursive invariant discovered the three new `(protected)/technologies`
+routes on its own, which is the point of enforcing that boundary
+structurally rather than by convention.
 
 `apps/admin` is **no longer a no-op**. `apps/web` is now the only fake-green
 script. Coverage is **representative, not exhaustive**.
@@ -124,6 +138,50 @@ covers the *application* boundary:
   `AdminDatabaseProvider`, with **no `as unknown as`, `any`, or
   `@ts-expect-error`**. A negative control confirms a wrongly-typed
   provider is rejected.
+
+## Technologies CMS tests (Phase 8)
+
+`apps/admin/scripts/technologies-tests.mjs` — **90 checks**, in the same
+two halves as the projects suite.
+
+Scope note: this suite deliberately does **not** own the semantics of
+`countByTechnology()`. Those are canonical repository behaviour and live in
+`packages/database/scripts/repository-tests.mjs` ("Project counts by
+technology", 15 checks) plus 3 real-D1 checks. What this suite owns is the
+**admin composition** — that the list page joins `technologies.list()` with
+`projects.countByTechnology()` into the value each row renders, and that
+the technology repository exposes no project-usage read of its own.
+
+**Validation (no database).** The real `@portfolio/schemas` technology
+schemas: accepted input with trimming, lowercasing, and blank-category →
+`null`; 18 rejection cases (empty/over-long name, malformed slugs
+including spaces, underscores, dots, leading/trailing/double hyphens,
+non-object payloads); proof that `id`, `createdAt`, and `updatedAt` are
+**unreachable** through create *and* update thanks to `.strict()`; and
+update-patch semantics.
+
+**CRUD against real local D1.** The real repository against a disposable
+`--persist-to` database with the committed migration applied:
+
+- create, read by id and slug, list ordering
+- duplicate slug → `ConflictError`, with nothing inserted
+- update semantics: `undefined` ignored, `null` clears, `id` and
+  `createdAt` immutable; rename-onto-taken-slug → `ConflictError`;
+  updating a missing row → `NotFoundError`
+- the page-level composition of `technologies.list()` with
+  `projects.countByTechnology()`, including that unused technologies
+  compose to `0` rather than `undefined`
+- **the constraint that matters**: deleting an in-use technology raises
+  `ConflictError`, the technology survives, **the referencing projects are
+  untouched**, their tags are intact, and the message contains no raw
+  constraint text
+- delete succeeding once detached, and deleting a *project* cascading its
+  join rows while leaving the technologies themselves alive
+- `PRAGMA foreign_key_check` clean afterwards
+
+This half carries most of the weight for this entity, because
+`ON DELETE RESTRICT` is a property of the committed schema rather than of
+our code — a mock would happily agree with a wrong assumption about it.
 
 ## Projects CMS tests (Phase 7)
 

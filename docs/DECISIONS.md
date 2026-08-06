@@ -3,6 +3,72 @@
 Notable architectural/tooling decisions and their rationale. Append new
 entries; do not delete history.
 
+## 2026-08-06 — Phase 8 Technologies CMS
+
+### The CMS exposes only the columns that exist
+
+The `technologies` table has `name`, `slug`, `category`, and timestamps —
+no icon, logo, visibility, or ordering column. Those would all have been
+useful, and adding fields for them would have meant either dropping the
+values silently or implying storage the schema does not have. The schema is
+committed history and was not edited; no forward migration was needed
+either, because nothing here was actually blocked.
+
+### Technologies is its own nav entry, not folded into "Skills & tools"
+
+`skills`, `skill_categories`, and `tools` are separate tables that no route
+manages yet. Linking this one entity under that label would have implied a
+CMS that does not exist. A truthful extra entry beats a convenient
+mislabelled one — the remaining Phase 8 items stay unlinked and
+phase-labelled.
+
+### A usage count in the repository, because RESTRICT is real
+
+`project_technologies.technology_id` is `ON DELETE RESTRICT`, so some
+deletes are legitimately refused. Without knowing usage, the UI can only
+offer a button that may be guaranteed to fail. `countByTechnology()` is the
+smallest thing that fixes it: one grouped query, no N+1, no new data layer,
+and no logic duplicated into a Server Action.
+
+The count decides only what the UI *says*. The database still enforces the
+rule, and the rejection is tested through the real action — not merely
+through the repository — so bypassing the UI changes nothing, and a tag
+added between the read and the delete is still caught.
+
+### The usage count belongs to ProjectsRepository, not TechnologiesRepository
+
+Corrected before commit. The first implementation added
+`projectUsageCounts()` to `TechnologiesRepository`, where it queried
+`project_technologies` — a table Phase 5 explicitly assigned to the
+projects aggregate. That gave one join table two owners, which is exactly
+the drift the Phase 5 ownership rule exists to prevent: once two
+repositories can read it, two can eventually write it, and the aggregate
+that understands the relationship stops being the only way in.
+
+The rule is not "the entity you are building the UI for owns the query" but
+"the aggregate that owns the table owns the query". So the method moved to
+`ProjectsRepository.countByTechnology()`, `TechnologiesRepository` went back
+to owning only its own table, and the admin page **composes** the two.
+
+Cross-aggregate composition at the application layer is the intended
+alternative — it is cheap, explicit, and does not require either repository
+to know about the other. Neither a join-table repository nor a generic
+reporting repository was introduced.
+
+### An in-use technology shows an explanation, not a disabled button
+
+Offering a delete control whose only possible outcome is an error teaches
+users to expect failure. The edit page replaces it with the count and what
+to do about it. The server-side rejection still exists and is still tested;
+this is about not wasting the user's action.
+
+### Cross-entity revalidation is part of the mutation
+
+`revalidatePath("/projects")` on every technology mutation. The projects
+form renders its picker from this table, so a new technology that does not
+appear there is a bug the user experiences as "the CMS is broken", even
+though both pages are individually correct.
+
 ## 2026-08-06 — Phase 7 Projects CMS vertical slice
 
 ### Public portfolio data conversion is deferred, not pulled forward

@@ -271,6 +271,46 @@ Note that `skills` also has `UNIQUE (category_id, name)`, whose leading
 column already serves "skills in this category"; the additional index
 exists only for the ordered read.
 
+## Technologies in the admin (Phase 8)
+
+The technologies CMS uses the Phase 5 technology repository **unchanged**.
+The usage count it needs is a read over `project_technologies`, and that
+join table is owned by the projects aggregate (see *Repository ↔ table
+ownership*), so the method lives there:
+
+```ts
+repos.projects.countByTechnology(): Promise<Record<string, number>>
+```
+
+A single `GROUP BY` returning technology id → project count; technologies
+with no references are absent, so a missing key means zero.
+
+It exists because `project_technologies.technology_id` is **`ON DELETE
+RESTRICT`**, deliberately, so that deleting a technology cannot silently
+strip tags from published work. That makes "can this be deleted?" a
+question the UI must answer *before* offering the action; without a count
+the only way to find out is to attempt the delete and fail. One grouped
+query answers it for every row at once rather than N+1 per-row counts.
+
+**`project_technologies` remains owned by `ProjectsRepository`.** An
+earlier revision of this phase put the count on `TechnologiesRepository`,
+which gave the join table a second ownership path and contradicted the
+Phase 5 boundary. The admin technologies list instead **composes** the two
+repositories at the page layer — `repos.technologies.list()` with
+`repos.projects.countByTechnology()` — which is the correct place for a
+cross-aggregate read.
+
+The count is presentation only. **The schema is the enforcement**: an
+in-use delete is rejected by the database regardless of what the UI
+offered, surfaces as a foreign-key `ConflictError`, and is reported as a
+safe conflict with no constraint text. Both directions are tested — an
+in-use technology cannot be deleted, and deleting a *project* cascades its
+join rows while leaving the technologies alive.
+
+`migrations/0001_initial_schema.sql` needed no change for this entity: the
+`technologies` table already carries everything the CMS exposes, and it has
+no icon, logo, visibility, or position column — so the CMS exposes none.
+
 ## Application wiring (Phase 7)
 
 The admin app reaches D1 through exactly one module,
