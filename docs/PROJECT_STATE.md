@@ -6,30 +6,25 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 6 — Admin foundation.**
-
-- **Implementation:** complete / ready for review on branch
-  `feat/admin-foundation`.
-- **Status:** **awaiting review and Git/CI verification.** Not committed,
-  not pushed, and **not formally complete.**
-- **Phase 5:** Complete (merged to `main`, CI green).
-- **Phase 7:** not started.
-
-Phase 6 is not marked COMPLETE until review, PR CI, merge, and the
-post-merge `main` run all succeed.
+**Phase 6 — Admin foundation: COMPLETE.** Committed as
+`1b1e3a3 feat: build secure admin foundation`, verified by **Pull Request
+#10 on GitHub Actions/Linux**, rebase-merged into `main`, and verified
+again by the **post-merge `main` CI run**.
 
 ## Active task
 
-Phase 6 — admin application shell, protected route architecture, and the
-Cloudflare Access authentication boundary.
+Phase 6 completion documentation (documentation-only; no application,
+auth, component, test, package manifest, lockfile, migration, Wrangler,
+CI, or Cloudflare resource changes).
 
 ## Blockers
 
-**No implementation blocker.** Two items remain outside the repository:
-Linux/CI execution of the new admin test suites, and the **manual
-Cloudflare Zero Trust dashboard configuration** described under *Manual
-actions* below. The admin app fails closed until that configuration
-exists, which is the intended behaviour rather than a defect.
+**None for Phase 6.**
+
+The **Cloudflare Zero Trust dashboard configuration remains outstanding**,
+but it is a manual deployment prerequisite rather than a Phase 6 blocker —
+see *Manual actions*. Until it exists the admin app denies every request,
+which is the intended fail-closed behaviour.
 
 ## Phase status summary
 
@@ -41,11 +36,19 @@ exists, which is the intended behaviour rather than a defect.
 | Phase 3 — Design system | **Complete** (merged to `main`, CI green) |
 | Phase 4 — D1 schema/migrations | **Complete** (merged to `main`, CI green) |
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
-| Phase 6 — Admin foundation | Implemented; **awaiting review and CI** |
-| Phase 7 — Projects CMS vertical slice | Not started |
+| Phase 6 — Admin foundation | **Complete** (merged to `main`, CI green) |
+| Phase 7 — Projects CMS vertical slice | Not started (next) |
 
 Phases 7–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
+
+### Phase 6 — CI
+
+- **Pull Request #10 CI passed** on GitHub Actions/Linux.
+- PR #10 was **rebase-merged** into `main`.
+- The **post-merge `main` CI run passed.**
+- Linux therefore verified lint, typecheck, tests, and build for Phase 6,
+  including the two new admin suites.
 
 ## Phase 6 — completed work
 
@@ -177,14 +180,18 @@ Proxy adds nothing the server guard does not already do.
 | Repository integration | 111 | Yes — `node:sqlite` D1 adapter |
 | D1 binding compatibility | 38 | Yes — real workerd D1 binding |
 | D1Like type compatibility | 4 | Yes |
-| **Admin authentication** | **42** | **Yes — new** |
-| **Admin foundation** | **47** | **Yes — new, includes the protected-page invariant** |
+| **Data/repository subtotal** | **238** | |
+| **Admin authentication** | **42** | **Yes — new in Phase 6** |
+| **Admin foundation / security invariant** | **47** | **Yes — new in Phase 6** |
+| **Admin subtotal** | **89** | |
+| **Total** | **327 real checks** | |
 | `apps/web` | — | **No — still a no-op** |
-| `apps/admin` | — | **Replaced: no longer a no-op** |
+| `apps/admin` | — | **No longer a no-op** |
 
-`apps/web` remains the only no-op script. There is still **no UI component
-or end-to-end test coverage**, and admin coverage is focused on the
-authentication boundary rather than exhaustive.
+**`apps/admin` no longer has a no-op test script**, and `apps/web` is now
+the only no-op suite in the repository. Coverage remains **representative,
+not exhaustive**: there is still no UI component or end-to-end testing, and
+admin coverage is focused on the authentication boundary.
 
 Auth tests generate a throwaway RSA key pair locally and inject the public
 key through the verifier's `keyResolver` seam — **no network, no Cloudflare
@@ -234,22 +241,41 @@ Viewports: **1440×900**, **1280×800**, **768×1024**, **375×812**.
 - Colour schemes: light `rgb(251,251,252)` / dark `rgb(11,12,16)` from the
   shared tokens. **No theme controls were added** — that is Phase 10.
 
-## Phase 6 — known limitations
+## Phase 6 — Cloudflare and remote state
 
-- **Not yet reviewed, committed, or run on Linux/CI.**
-- **Cloudflare Zero Trust configuration is not done** — no Access
-  application exists, so no real Access token has ever been verified
-  end to end. The verifier is proven against locally minted tokens only.
+- **No Cloudflare Access application was created during Phase 6**, and no
+  dashboard configuration was performed. Creating one would have meant
+  mutating Cloudflare resources.
+- **Dashboard configuration is still pending** — see *Manual actions*.
+- **No production Access AUD or team-domain values are committed.**
+  `.env.example` documents the variable *names* with commented
+  placeholders only; neither value is a secret, but neither is present.
+- **The remote `portfolio-cms` schema remains unapplied** (`num_tables: 0`)
+  and **remote D1 was not mutated** — Phase 6 touched no database at all.
+- **Tests and CI remain local-only** where local execution is appropriate:
+  no Cloudflare credentials are required, and no `--remote` path exists in
+  any script or workflow.
+
+## Phase 6 — known limitations (not blockers)
+
+Phase 6 is complete. These are carried forward:
+
+- **Production Cloudflare Access dashboard/application configuration is
+  still pending.**
+- **No real Cloudflare Access session has been tested end to end.** The
+  verifier is proven against locally minted tokens only.
 - **No CSP.** Deferred to the security/deployment phases; a guessed CSP
-  that breaks Next silently is worse than none. Other headers are set.
-- **No CRUD, no repository wiring.** The admin app does not touch D1 yet.
-- **Admin test coverage is focused, not exhaustive** — the auth boundary is
-  covered thoroughly; the shell is covered structurally.
-- **`generateMetadata` is not covered by `withAdminPage`.** Route metadata
-  is evaluated independently of the component, so a Phase 7 page whose
-  metadata reads a record must guard inside `generateMetadata` as well. No
-  current page does this (all metadata is static), and the invariant test
-  does not yet check for it.
+  that breaks Next silently is worse than none. The other headers are set.
+- **No CRUD implemented**, and **repositories are not yet wired into the
+  admin app** — it does not touch D1.
+- **`generateMetadata()` is not covered by `withAdminPage`.** Route
+  metadata is evaluated independently of the component, so a future page
+  whose metadata reads sensitive CMS data **must perform its own
+  authorization**. All current metadata is static and contains no record
+  data, and the invariant test does not yet check for this.
+- **`apps/web` automated tests remain a no-op.**
+- **Admin tests are focused and representative, not exhaustive.**
+- **Remote D1 remains intentionally unmigrated.**
 - `next dev` prints a `MODULE_TYPELESS_PACKAGE_JSON` warning when Node
   runs the `.mjs` test scripts against `.ts` sources. Cosmetic; adding
   `"type": "module"` to a Next app's manifest is a riskier change than the
@@ -1339,15 +1365,15 @@ pre-existing local artifacts.
 
 ## Manual actions still required from the user
 
-- Review the Phase 6 changes on `feat/admin-foundation` and commit them
-  (nothing has been committed).
+- Merge this documentation branch (`docs/phase-6-completion`) once
+  reviewed.
 
 ### Cloudflare Zero Trust — required before the admin app is usable in any deployed environment
 
-**Not done in this task, and not doable from here** — it is dashboard
-configuration, and creating it would have meant mutating Cloudflare
-resources. Until it exists, the deployed admin app denies every request,
-which is the intended fail-closed behaviour.
+**Still pending.** It is dashboard configuration, so it was deliberately
+not performed during Phase 6 or this documentation pass — doing so would
+mean mutating Cloudflare resources. Until it exists, the deployed admin app
+denies every request, which is the intended fail-closed behaviour.
 
 1. In Cloudflare Zero Trust, create a **self-hosted Access application**
    covering the admin hostname.

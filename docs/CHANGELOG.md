@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-08-06 — Phase 6 complete
+
+Documentation-only entry. No application, auth, component, test, package
+manifest, lockfile, migration, Wrangler, CI, or Cloudflare resource
+changes.
+
+- **Phase 6 — Admin foundation is complete.** Committed as
+  `1b1e3a3 feat: build secure admin foundation`, verified by **Pull
+  Request #10 on GitHub Actions/Linux**, rebase-merged into `main`, and
+  verified again by the **post-merge `main` CI run**.
+- Linux CI verified lint, typecheck, tests, and build, including the two
+  new admin suites. Total: **327 real checks** (238 data/repository + 89
+  admin).
+- Phases 0–6 complete; **Phase 7 — Projects CMS vertical slice** is next
+  and not started.
+- `apps/admin` no longer has a no-op test script; **`apps/web` is now the
+  only no-op suite**. Coverage remains representative, not exhaustive.
+- **Cloudflare Access dashboard configuration remains pending** — no Access
+  application was created, and no AUD or team-domain values are committed.
+  The remote `portfolio-cms` schema is **still unapplied** and remote D1
+  was not mutated.
+
 ## 2026-08-06 — Phase 6: admin foundation (branch `feat/admin-foundation`)
 
 - Built the `apps/admin` shell: skip link, sticky header, desktop sidebar,
