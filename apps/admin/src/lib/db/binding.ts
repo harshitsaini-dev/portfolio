@@ -6,8 +6,10 @@
  *
  * ## Production is deferred, and says so
  *
- * An earlier revision claimed that a future OpenNext adapter would populate
- * a `globalThis.__ADMIN_DB__` global. **That was an invented contract.** The
+ * An earlier revision of this module resolved the production binding from a
+ * bespoke `globalThis` property, described as something a future OpenNext
+ * adapter would populate. **That was an invented contract** — see
+ * `docs/DECISIONS.md` for the identifier and the full history. The
  * documented `@opennextjs/cloudflare` API for reaching a Worker binding is:
  *
  * ```ts
