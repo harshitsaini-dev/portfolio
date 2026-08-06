@@ -20,11 +20,13 @@ something passed without running it.
   as `aae6d38 feat: add timeline CMS`, verified by **Pull Request #18 on
   GitHub Actions/Linux** and again by the **post-merge `main` CI run
   `31100867892`**.
-- **Admin populated-list responsive overflow regression: FIXED, awaiting
-  review.** On `fix/admin-list-table-overflow`; not committed. See
-  *Responsive overflow regression* below.
-- **Education CMS: next entity** after that fix — **not started**, and not
-  to be implemented until explicitly scoped and approved.
+- **Admin populated-list horizontal-overflow regression: COMPLETE.** Merged
+  into `main` as `6d65504 fix: contain admin table overflow`, verified by
+  **Pull Request #20 on GitHub Actions/Linux** and again by the
+  **post-merge `main` CI run `31104352259`**. See *Responsive overflow
+  regression* below.
+- **Education CMS: NEXT** — **not started**, and not to be implemented
+  until explicitly scoped and approved.
 - **Later Phase 8 entities** — Certifications, Skills, Tools, Socials,
   Sections: **not started**.
 - **Phase 7:** Complete (merged to `main`, CI green).
@@ -38,10 +40,15 @@ Phase 22** (fail-closed until then).
 
 ## Active task
 
-**Admin populated-list responsive overflow fix.** Implemented; awaiting
-review.
+Admin table overflow fix completion documentation (documentation-only; no
+application, test, schema, repository, package, migration, config, CI, or
+Cloudflare resource changes).
 
-## Responsive overflow regression — FIXED (awaiting review)
+## Next engineering task
+
+**Education CMS** — the next Phase 8 entity. Not started.
+
+## Responsive overflow regression — COMPLETE
 
 ### Root cause
 
@@ -116,6 +123,45 @@ the `withAdminPage` invariant and the removed-global scan. It earns its
 place here because the defect regressed twice and is invisible to any check
 that does not seed rows — a new list page that forgets `relative` now fails
 in CI rather than shipping.
+
+**It does not replace real browser verification.** It asserts the structure,
+not the rendering; the populated-state MCP checks above remain the evidence
+that the pages actually behave correctly.
+
+### Scope — what the fix did not touch
+
+Migrations, `packages/database`, `packages/schemas`, Server Actions,
+navigation, `apps/web`, and the GitHub Actions configuration were all
+unchanged, as were Cloudflare resources. No remote D1 mutation, no
+`--remote`, no Access dashboard change, no OpenNext work, no R2, and no
+Education implementation.
+
+### Verification actually performed
+
+Locally on Windows, and again on **GitHub Actions/Linux** for both PR #20
+and the post-merge `main` run:
+
+| Command | Result |
+| --- | --- |
+| `pnpm install --frozen-lockfile` | **PASS** — lockfile unmodified |
+| `pnpm lint` | **PASS** (exit 0) |
+| `pnpm typecheck` | **PASS** (exit 0) |
+| `pnpm test` | **PASS** — **980 real checks** |
+| `pnpm build` | **PASS** — all admin routes still `ƒ (Dynamic)` |
+
+Suite totals after the fix: database **287** (26 + 59 + 157 + 41 + 4,
+unchanged) and admin **693** (42 + **76** + 34 + 96 + 90 + 77 + 110 + 168)
+— **980 total**. All 971 previous checks pass; `apps/web` remains the only
+no-op suite.
+
+### Responsive overflow regression — CI
+
+- **Pull Request #20 CI passed** on GitHub Actions/Linux.
+- PR #20 was **rebase-merged** into `main` as
+  `6d65504 fix: contain admin table overflow`.
+- The **post-merge `main` CI run `31104352259` passed.**
+- Linux therefore verified install, lint, typecheck, tests, and build for
+  the merged fix.
 
 ## Phase 8 — Timeline CMS (COMPLETE)
 
@@ -538,8 +584,9 @@ fail-closed behaviour.
 implemented until explicitly scoped and approved. Rationale at the end of
 this file.
 
-The responsive overflow regression that previously sat ahead of it is now
-**fixed and awaiting review** — see *Responsive overflow regression* above.
+The responsive overflow regression that previously sat ahead of it is
+**complete and merged** (`6d65504`) — see *Responsive overflow regression*
+above.
 
 ## Phase 8 — Timeline CMS: verification actually performed
 
@@ -766,7 +813,7 @@ Local test data and the temporary dev-auth file were removed afterwards.
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
 | Phase 6 — Admin foundation | **Complete** (merged to `main`, CI green) |
 | Phase 7 — Projects CMS vertical slice | **Complete** (merged to `main`, CI green) |
-| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, and Timeline CMS **complete** (all merged, CI green); Education and later entities not started |
+| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, and Timeline CMS **complete**, plus the admin list overflow regression fix (all merged, CI green); Education next, later entities not started |
 
 Phases 9–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
@@ -911,9 +958,8 @@ than changed here.
 - **The remaining CMS entities are not implemented** — Education (next
   entity), Certifications, Skills, Tools, Socials, Sections.
 - ~~A known responsive regression is outstanding on `/projects` and
-  `/technologies`.~~ **Fixed** on `fix/admin-list-table-overflow` and
-  awaiting review — see *Responsive overflow regression* near the top of
-  this file.
+  `/technologies`.~~ **Fixed and merged** as `6d65504` — see *Responsive
+  overflow regression* near the top of this file.
 - **The public site is still placeholder-driven.** Profile and timeline data
   exist in D1, but `apps/web` has not been converted to read them.
 - **`apps/web` automated tests remain a no-op** — still the only
@@ -2623,10 +2669,10 @@ Local development needs none of this: set `ADMIN_DEV_AUTH=enabled` in
 
 ## Next suggested task
 
-**Done: the focused `fix/admin-list-table-overflow` branch.** `/projects`
-and `/technologies` no longer scroll the page sideways once populated —
-`relative` on each list's `overflow-x-auto` wrapper, matching `/timeline`,
-plus a containment assertion in the foundation suite. Awaiting review.
+**Done and merged: `6d65504 fix: contain admin table overflow`.**
+`/projects` and `/technologies` no longer scroll the page sideways once
+populated — `relative` on each list's `overflow-x-auto` wrapper, matching
+`/timeline`, plus a containment assertion in the foundation suite.
 
 **Phase 8, next entity: Education.** It is the closest sibling of the
 timeline entry — another ordered, visibility-toggleable content table using

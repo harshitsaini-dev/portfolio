@@ -2,11 +2,10 @@
 
 ## Current state (Phase 8 — Timeline CMS complete)
 
-`pnpm test` runs **thirteen real suites and one no-op** — **980 checks**.
-The 971 verified after the Timeline CMS all still pass on Windows and on
-GitHub Actions/Linux (PR #18 and its post-merge `main` run); the responsive
-overflow fix added nine and is not yet CI-verified. What each one actually
-proves matters, so be precise:
+`pnpm test` runs **thirteen real suites and one no-op** — **980 checks**,
+verified on Windows and on GitHub Actions/Linux (PR #20 and its post-merge
+`main` run). The 971 verified after the Timeline CMS all still pass. What
+each one actually proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |

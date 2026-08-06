@@ -149,11 +149,16 @@ rather than drag-and-drop. Test coverage grew to **971 real checks**
 (287 data/repository + 684 admin). Merged to `main` as `aae6d38` with CI
 green on Linux.
 
-**Immediate next engineering task: `fix/admin-list-table-overflow`.** A
-pre-existing responsive regression, found during Timeline verification and
-deliberately left out of that feature branch: once populated, the
-`/projects` and `/technologies` list pages still scroll the page sideways at
-narrow widths. Timeline is unaffected.
+**Admin populated-list horizontal-overflow regression: fixed.** A
+pre-existing defect found during Timeline verification and deliberately kept
+out of that feature branch. Absolutely positioned Tailwind `sr-only`
+descendants were escaping the list tables' horizontal-scroll wrappers and
+widening the document; making each wrapper a positioned containing block
+(`relative overflow-x-auto`) contains them, with no columns, captions, or
+accessible labels removed and no global overflow hiding. The admin
+foundation suite gained containment coverage (67 → **76 checks**), taking
+the total to **980 real checks**. Merged to `main` as `6d65504` with CI
+green on Linux.
 
 **Next entity: Education.** Not started. The remaining entities —
 Certifications, Skills, Tools, Socials, Sections — are also not started. The

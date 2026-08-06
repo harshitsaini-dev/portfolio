@@ -2,8 +2,13 @@
 
 ## 2026-08-06 — Fix: Admin populated-list horizontal overflow (branch `fix/admin-list-table-overflow`)
 
-**Status: implemented, awaiting review. Not committed. Phase 8 remains IN
-PROGRESS; this is a focused regression fix, not a CMS entity.**
+**Status: COMPLETE.** Merged into `main` as
+`6d65504 fix: contain admin table overflow` via **Pull Request #20**, which
+passed CI on GitHub Actions/Linux; the **post-merge `main` CI run
+`31104352259` passed** as well, covering install, lint, typecheck, tests,
+and build. **Final total: 980 real checks.** The responsive regression is
+closed. **Education CMS is next**, and **Phase 8 remains IN PROGRESS** —
+this was a focused regression fix, not a CMS entity.
 
 ### Fixed
 
@@ -36,12 +41,14 @@ the Timeline branch remains required and was not altered.
 
 `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`,
 `pnpm test` (**980 checks**, up from 971 with all 971 preserved), and
-`pnpm build` all **PASS**. Browser-verified via Playwright MCP against real
-local D1 **with seeded rows** at 1280 / 768 / 375 for both pages: document
-width within viewport, no page-level sideways scroll, wrapper scrolling
-internally, captions and `sr-only` labels intact, and row actions keyboard
-focusable — focusing an off-screen Edit link scrolls the wrapper, not the
-page. `/timeline` and `/profile` re-checked for regressions.
+`pnpm build` all **PASS** — locally and again on GitHub Actions/Linux for
+PR #20 and the post-merge `main` run. Browser-verified via Playwright MCP
+against real local D1 **with seeded rows** at 1280 / 768 / 375 for both
+pages: document width within viewport, no page-level sideways scroll,
+wrapper scrolling internally, captions and `sr-only` labels intact, and row
+actions keyboard focusable — focusing an off-screen Edit link scrolls the
+wrapper, not the page. `/timeline` and `/profile` re-checked for
+regressions.
 
 ## 2026-08-06 — Phase 8: Timeline CMS complete
 
@@ -69,8 +76,8 @@ package, migration, config, CI, or Cloudflare resource changes.
 - **A pre-existing responsive regression was left outstanding** on the
   populated `/projects` and `/technologies` lists. It was discovered during
   Timeline verification and deliberately kept out of that feature branch —
-  those files were restored to `main` before the commit. Since fixed on
-  `fix/admin-list-table-overflow` (see the entry above).
+  those files were restored to `main` before the commit. **Since fixed and
+  merged** as `6d65504` (see the entry above).
 - **Phase 8 remains IN PROGRESS.** Education is the next entity and is not
   started; Certifications, Skills, Tools, Socials, and Sections are not
   started.
