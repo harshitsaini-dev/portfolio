@@ -265,9 +265,41 @@ try {
    * Deliberately specific. A loose "does the file mention requireAdmin"
    * check would pass for a page that imports the guard and forgets to await
    * it, or calls it after building JSX — both of which still leak.
+   *
+   * Type arguments are matched by scanning for balanced angle brackets
+   * rather than with a regex. A naive `<[^>]*>` breaks on nested generics
+   * like `withAdminPage<{ params: Promise<{ id: string }> }>(…)` and would
+   * report a correctly-guarded page as unguarded — which this check did,
+   * before the scanner replaced it.
    */
-  const APPROVED_PATTERN =
-    /export\s+default\s+withAdminPage\s*(<[^>]*>)?\s*\(/;
+  function usesApprovedWrapper(source) {
+    const match = /export\s+default\s+withAdminPage\s*/.exec(source);
+    if (!match) return false;
+
+    let index = match.index + match[0].length;
+
+    if (source[index] === "<") {
+      let depth = 0;
+      while (index < source.length) {
+        const char = source[index];
+        if (char === "<") depth += 1;
+        else if (char === ">") {
+          depth -= 1;
+          if (depth === 0) {
+            index += 1;
+            break;
+          }
+        }
+        index += 1;
+      }
+      if (depth !== 0) return false;
+    }
+
+    // Only whitespace may sit between the wrapper (or its type arguments)
+    // and the opening parenthesis of the call.
+    while (index < source.length && /\s/.test(source[index])) index += 1;
+    return source[index] === "(";
+  }
 
   check(
     "at least one protected page was discovered",
@@ -282,7 +314,7 @@ try {
       .replace(/\\/g, "/");
     check(
       `${name} is exported through withAdminPage`,
-      APPROVED_PATTERN.test(source),
+      usesApprovedWrapper(source),
       "a layout redirect alone still serializes this page's content into the unauthenticated response",
     );
     check(
@@ -326,20 +358,20 @@ try {
   for (const fixture of rejectedFixtures) {
     check(
       `the invariant REJECTS ${fixture.label}`,
-      !APPROVED_PATTERN.test(fixture.source),
+      !usesApprovedWrapper(fixture.source),
     );
   }
 
   check(
     "the invariant ACCEPTS the approved wrapper form",
-    APPROVED_PATTERN.test(
+    usesApprovedWrapper(
       'import { withAdminPage } from "@/lib/auth/protected-page";\n' +
         "export default withAdminPage(async ({ identity }) => <div>{identity.email}</div>);\n",
     ),
   );
   check(
     "the invariant ACCEPTS the approved form with explicit type arguments",
-    APPROVED_PATTERN.test(
+    usesApprovedWrapper(
       "export default withAdminPage<{ params: Params }>(async () => null);\n",
     ),
   );
@@ -366,10 +398,23 @@ try {
   const linked = allItems.filter((item) => item.href);
   const unavailable = allItems.filter((item) => !item.href);
 
+  // Every navigation href must correspond to a real route directory under
+  // `(protected)/`, so a nav entry cannot outlive (or precede) its page.
+  const servedRoutes = new Set(["/"]);
+  for (const pagePath of protectedPages) {
+    const relative = pagePath
+      .slice(pagePath.indexOf("(protected)") + "(protected)".length)
+      .replace(/\\/g, "/")
+      .replace(/\/page\.\w+$/, "");
+    // Skip dynamic segments — nav never links directly to `[id]` routes.
+    if (relative.includes("[")) continue;
+    servedRoutes.add(relative === "" ? "/" : relative);
+  }
+
   check(
     "every linked item points at a route this app actually serves",
-    linked.every((item) => item.href === "/"),
-    linked.map((i) => i.href).join(", "),
+    linked.every((item) => item.href && servedRoutes.has(item.href)),
+    `nav: ${linked.map((i) => i.href).join(", ")} | served: ${[...servedRoutes].join(", ")}`,
   );
   check(
     "every unavailable item explains when it arrives",
@@ -389,7 +434,11 @@ try {
     "item labels are unique",
     new Set(allItems.map((i) => i.label)).size === allItems.length,
   );
-  equal("ADMIN_ROUTES lists only real routes", ADMIN_ROUTES.join(","), "/");
+  check(
+    "ADMIN_ROUTES lists only real routes",
+    ADMIN_ROUTES.every((route) => servedRoutes.has(route)),
+    ADMIN_ROUTES.join(","),
+  );
   check(
     "no navigation label contains an emoji",
     allItems.every((item) => !/\p{Extended_Pictographic}/u.test(item.label)),

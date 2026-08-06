@@ -1,17 +1,140 @@
 # Testing
 
-## Current state (Phase 6)
+## Current state (Phase 7, after the correction pass)
 
-`pnpm test` runs **seven real suites and one no-op** — 327 checks. What
+`pnpm test` runs **ten real suites and one no-op** — **502 checks**. What
 each one actually proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
 | Admin authentication | **42** | real `jose` verification, locally minted tokens | The Access JWT boundary and the development-auth guard |
-| Admin foundation | **47** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, and the protected-page invariant |
+| Admin foundation | **53** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, and the protected-page invariant |
+| **D1 composition boundary** | **25** | the real `binding.ts`, plus `tsc` over Wrangler-generated Cloudflare types | Production fails closed, the provider seam composes, and Phase 22's provider already type-checks |
+| **Projects CMS** | **96** | the real schemas, and **real local D1** via `getPlatformProxy()` | The validation boundary and the full CRUD + relationship path |
+| **Server Action authorization** | **48** | the **real exported action functions**, against real local D1 | Unauthenticated create/update/delete are denied and change nothing |
 
 `apps/admin` is **no longer a no-op**. `apps/web` is now the only fake-green
 script.
+
+## Server Action authorization tests (Phase 7 correction)
+
+`apps/admin/scripts/action-auth-tests.mjs` — **48 checks**.
+
+This suite exists because the original "proof" was wrong. A POST with
+`Next-Action: fake-action-id` returning 404 says nothing about
+authorization: Next rejects an unknown action id before any application
+code runs, so an entirely unguarded app answers identically.
+
+What runs instead: the **actual exported** `createProjectAction`,
+`updateProjectAction`, and `deleteProjectAction`, imported unmodified from
+`src/lib/actions/projects.ts`, invoked while the process has no admin
+identity — then the database is read back.
+
+- **Create** — throws `AdminUnauthorizedError`; no row inserted; the
+  attempted slug does not exist.
+- **Update** — throws; the target project is byte-for-byte identical
+  (title, slug, status, `isFeatured`, summary, position, `updatedAt`, and a
+  whole-record comparison); its links were not replaced; the attacker's
+  slug was never taken.
+- **Delete** — throws; the project still exists; the count is unchanged;
+  its owned links were not cascaded away.
+- **Order** — an *invalid* payload submitted *unauthenticated* still throws
+  an authorization error rather than returning a validation result, and the
+  database provider is never consulted during any denied call. Auth
+  genuinely precedes validation and persistence.
+- **Forged assertion** — with Access configured, a junk
+  `Cf-Access-Jwt-Assertion` (and, separately, none at all) is denied, and
+  the development identity does **not** rescue it even with
+  `ADMIN_DEV_AUTH=enabled`.
+- **Positive control** — the same three functions, under the development
+  identity, really do create, update, and delete, each ending in the
+  expected `redirect()`. Without this, every assertion above would also
+  pass if the actions were simply broken.
+- `PRAGMA foreign_key_check` is clean afterwards.
+
+### Honest scope: what is substituted
+
+The actions are called directly rather than replayed over HTTP. Replaying a
+real Server Action request means reproducing Next's private,
+version-specific action-id transport — brittle, and it would test Next's
+router rather than our boundary.
+
+Three Next framework primitives cannot load outside a Next request
+(`next/navigation` pulls the client React router context), so
+`next/cache`, `next/navigation`, and `next/headers` are replaced with
+minimal shims via a Node module resolve hook. **The action module and the
+auth guard are real and unmodified**, and the shims are not reached in any
+unauthenticated case — `requireAdminIdentity()` throws first. They matter
+only to the positive control, and to supplying the request headers whose
+*verification* is still the app's real `jose` code path.
+
+## D1 composition boundary tests (Phase 7 correction)
+
+`apps/admin/scripts/db-composition-tests.mjs` — **25 checks**. Phase 5
+already proves `D1Database` satisfies `D1Like`; that is not repeated. This
+covers the *application* boundary:
+
+- **The invented contract is gone** — every tracked file is scanned to
+  confirm `__ADMIN_DB__` appears nowhere, and that the binding module names
+  the real API it defers to.
+- **Production fails closed** — with no provider registered and
+  `NODE_ENV=production`, `getAdminDatabase()` throws
+  `DatabaseUnavailableError` whose message names `setAdminDatabaseProvider`
+  and `getCloudflareContext`; the development path is proven not to have
+  run (no cached platform proxy).
+- **The seam composes** — a registered provider is used, is honoured in
+  production too, is consulted on every resolution, and repositories are
+  built per call rather than shared. Clearing it restores fail-closed.
+- **Wrangler stays out of production runtime code** — it is referenced
+  exactly once, dynamically, inside the development-only resolver; it is a
+  devDependency and never a dependency; no other admin source file mentions
+  it.
+- **Phase 22's provider already type-checks** — `tsc` compiles a
+  provider shaped exactly like `async () => getCloudflareContext().env.DB`,
+  returning Cloudflare's own generated `D1Database`, against
+  `AdminDatabaseProvider`, with **no `as unknown as`, `any`, or
+  `@ts-expect-error`**. A negative control confirms a wrongly-typed
+  provider is rejected.
+
+## Projects CMS tests (Phase 7)
+
+`apps/admin/scripts/projects-tests.mjs` — **96 checks**, in two halves.
+
+**Validation (no database).** Runs the real `@portfolio/schemas` project
+schemas: a fully-populated accepted input; ~20 rejection cases (empty
+title, bad slug shape, uppercase slug, invalid status, invalid date,
+duplicate technology ids, `javascript:` / `data:` / `file:` URLs,
+non-object payloads); explicit proof that `id`, `createdAt`, and
+`updatedAt` are **unreachable** through create *and* update because of
+`.strict()`; and slug-suggestion behaviour including collapsing
+punctuation and rejecting an all-punctuation title.
+
+**CRUD against real local D1.** Spins up `getPlatformProxy()` against a
+temporary `--persist-to` directory with the real committed migration
+applied, then exercises the same repository calls the Server Actions make:
+
+- create, then read back by id and by slug
+- duplicate slug → `ConflictError`
+- links and technologies persist, and a second `set*` call **replaces**
+  rather than appends
+- a failed relationship batch leaves the previous set intact (the D1
+  `batch()` atomicity claim, actually tested)
+- list and status filtering
+- update semantics: `undefined` is ignored, `null` clears a nullable
+  column, and `id`/`createdAt` are immutable
+- renaming onto a taken slug → `ConflictError`
+- delete cascades owned rows, leaves media assets alone, and
+  `PRAGMA foreign_key_check` reports nothing
+
+The database half is skipped with a **loud** message if the proxy cannot
+start — it never silently passes.
+
+### What these tests do not cover
+
+They exercise the schemas and the repository path, not React rendering.
+Form behaviour, focus movement, and the unauthenticated-response
+confidentiality checks were verified in a browser (below), not in
+`pnpm test`.
 
 ## Admin authentication tests
 
@@ -77,7 +200,7 @@ the app.
 Both scripts run under `node --conditions=react-server`, which resolves
 `server-only` to its no-op build so the modules load outside a bundler.
 
-## Database and repository suites (Phase 4–5)
+## Database and repository suites (Phase 4—5)
 
 Unchanged and still running first:
 
@@ -303,10 +426,39 @@ running browser:
   stated rather than assumed or fabricated — see
   `.claude/skills/testing-playwright/SKILL.md`.
 
+### Phase 7 browser verification (`playwright-local` MCP, real local D1)
+
+Verified at 1280×900, then re-checked at 768×1024 and 375×812:
+
+- create (with slug auto-suggest) → redirect → row in list; edit →
+  redirect → change persisted, including the link relationship
+- validation failure keeps the user on the page, renders a `role="alert"`
+  summary, **moves focus to it**, and sets `aria-invalid="true"`
+- `javascript:alert(1)` rejected with "Enter a valid http(s) URL"
+- duplicate slug → safe conflict message with **no SQL or constraint
+  string** in the HTML
+- delete: two-step confirm, focus on the confirm button, Cancel restores,
+  confirm redirects to the empty-state list
+- 10/10 form controls have a real `<label for>`; no horizontal overflow at
+  any width
+- **confidentiality invariant re-verified on the new routes**:
+  unauthenticated and forged-header requests to `/projects`,
+  `/projects/new`, and `/projects/[id]` all 307 to `/denied` with
+  **zero-length RSC bodies and no project data**. The only residual is the
+  **static route title**, the known Phase 6 metadata caveat.
+
+**What this browser pass does NOT prove.** It also POSTed with a fabricated
+`Next-Action` id and got a 404. That is a *transport* check only — Next
+rejects an unknown action id before any application code runs, so an
+entirely unguarded app returns the same 404. Mutation authorization is
+proven by the suite below instead.
+
 ## Planned direction (future phases)
 
-- Repository-layer tests in Phase 5, layered on the same local-D1 approach.
-- Playwright for end-to-end/UI coverage across both apps.
+- Playwright for end-to-end/UI coverage across both apps — the Phase 7
+  browser checks above are still manual MCP sessions, not automated.
+- Rendering-level tests for admin forms; the current suites stop at the
+  schema and repository boundaries.
 - Test location convention (e.g. `tests/` per app or colocated `*.test.ts`)
   to be decided and documented here when the first real tests are added.
 - CI already has a `test` step wired to `pnpm test` (see

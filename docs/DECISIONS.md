@@ -3,6 +3,102 @@
 Notable architectural/tooling decisions and their rationale. Append new
 entries; do not delete history.
 
+## 2026-08-06 — Phase 7 Projects CMS vertical slice
+
+### Public portfolio data conversion is deferred, not pulled forward
+
+`docs/ROADMAP.md` scopes Phase 7 as proving CRUD for one entity "through
+the data layer" and does not mention public rendering; the public-site
+data conversion belongs to a later phase. `apps/web` therefore still
+renders its Phase 2 placeholder module and was not touched. Doing it
+anyway would have been silent scope expansion into an unreviewed phase.
+
+### No form library
+
+React 19's `useActionState` already provides pending state, server-returned
+errors, and a no-JavaScript fallback. React Hook Form would have added a
+dependency, a client-side schema duplicate, and a second source of truth
+for validation, in exchange for roughly forty lines of `useState`.
+
+### Validation lives in `@portfolio/schemas`, separate from row decoding
+
+Untrusted input and trusted-store decoding are different problems. Merging
+them would either weaken input checking or make persistence reject rows it
+had itself written. Types are inferred from the schemas so the two cannot
+drift.
+
+### `.strict()` rather than stripping unknown keys
+
+Zod's default is to drop unknown keys silently. A payload containing `id`,
+`createdAt`, or `updatedAt` is not a harmless extra field — it is an
+attempt to write a database-managed column, and it should fail loudly.
+
+### URL validation restricts the protocol
+
+`z.url()` accepts `javascript:` and `data:`, which become stored XSS the
+moment a link is rendered. Project link URLs are restricted to http/https.
+
+### Every Server Action re-authenticates
+
+A Server Action is a POST endpoint, reachable without the page that
+rendered its form. Route protection is not transferable to it, and
+authorization is never derived from a hidden form field.
+
+### `redirect()` outside the try/catch
+
+`redirect()` signals by throwing. Called inside the error handler it would
+be caught and reported as a mutation failure. Server-side redirect also
+replaced a client `router.push` that raced revalidation and left the user
+on the edit page of a deleted project — and it works without JavaScript.
+
+### Static `metadata`, never `generateMetadata`, on protected routes
+
+Route metadata evaluates independently of the page component, so
+`generateMetadata` would run outside `withAdminPage`. The cost is generic
+tab titles; the benefit is that the invariant has no exception.
+
+### `getPlatformProxy()` for local D1; production binding deferred, not invented
+
+Development needs a real D1 that `next dev`'s Node runtime cannot provide,
+so the local binding comes from Wrangler's `getPlatformProxy()`.
+
+For production, an earlier revision of this phase claimed a future OpenNext
+adapter would populate `globalThis.__ADMIN_DB__`. **That was an invented
+contract and has been removed.** The documented `@opennextjs/cloudflare`
+API is `getCloudflareContext().env.DB`, and adopting it is not a one-line
+change: it also requires an app-level `wrangler.json` (binding,
+`compatibility_date`, `nodejs_compat`), an `open-next.config.ts`, and
+`initOpenNextCloudflareForDev()` wired into `next.config.ts`, which changes
+how `next dev` starts. That is Phase 22, and pulling it into a CMS phase
+would be scope expansion into unreviewed deployment work.
+
+So the boundary exposes a narrow provider seam —
+`setAdminDatabaseProvider(() => Promise<D1Like>)` — and production **throws
+`DatabaseUnavailableError`** naming exactly what Phase 22 must register.
+There is deliberately no development fallback in production: a dev fallback
+reachable in production is how a deployment quietly serves the wrong
+database. `remoteBindings: false`, and no path uses `--remote`.
+
+The seam is not test-only scaffolding: it is the same registration point
+Phase 22 will call, and a compile-time assertion proves a provider
+returning Cloudflare's own `D1Database` already satisfies it without a
+cast.
+
+### A fake `Next-Action` id proves nothing about authorization
+
+Phase 7's first pass treated a 404 from `POST` with
+`Next-Action: fake-action-id` as evidence that mutations reject
+unauthenticated callers. It is not: Next rejects an unknown action id
+before any application code runs, so an entirely unguarded app returns the
+same 404. It is retained only as a transport sanity check, and the real
+proof now invokes the actual exported action functions with no identity and
+reads the database back. See `docs/TESTING.md`.
+
+### Media attachment UI deferred to Phase 9
+
+No media asset can exist before R2. The form says so plainly instead of
+presenting an upload control that cannot work.
+
 ## 2026-08-06 — Phase 6 admin foundation
 
 - **Cloudflare Access is the identity provider; the app stores no

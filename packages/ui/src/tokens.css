@@ -36,6 +36,13 @@
   /* Accent tinted for use as a large-area wash rather than as text. */
   --accent-soft: #eef1fd;
 
+  /* ---- Status ------------------------------------------------------ */
+  /* Added in Phase 7 for form validation errors. Contrast-checked against
+     --bg and --surface; error state is always paired with text, never
+     conveyed by colour alone. */
+  --danger: #b3261e;
+  --danger-fg: #ffffff;
+
   /* ---- Interaction ------------------------------------------------- */
   --ring: #2547d0;
   --selection-bg: #d7deff;
@@ -76,6 +83,9 @@
     --accent-fg: #0b0c10;
     --accent-soft: #171a27;
 
+    --danger: #f2b8b5;
+    --danger-fg: #0b0c10;
+
     --ring: #8ea6ff;
     --selection-bg: #2a3563;
     --selection-fg: #f1f2f5;
@@ -105,6 +115,8 @@
   --accent: #8ea6ff;
   --accent-fg: #0b0c10;
   --accent-soft: #171a27;
+  --danger: #f2b8b5;
+  --danger-fg: #0b0c10;
   --ring: #8ea6ff;
   --selection-bg: #2a3563;
   --selection-fg: #f1f2f5;

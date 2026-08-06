@@ -22,6 +22,8 @@
   --color-accent: var(--accent);
   --color-accent-fg: var(--accent-fg);
   --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-fg: var(--danger-fg);
   --color-ring: var(--ring);
 
   --radius-sm: var(--radius-sm);

@@ -5,6 +5,31 @@
 `@portfolio/ui/tokens.css`, which closes the Phase 3 limitation that the
 admin app had not adopted the shared tokens.
 
+## Admin forms (Phase 7)
+
+The Projects CMS introduced the form vocabulary the rest of the admin will
+reuse. No form library — React 19's `useActionState` plus a small amount
+of `useState` covers it, and a dependency would have to earn its place.
+
+- **Field primitives** (`src/components/form/field.tsx`) — every control
+  has a real `<label for>`; placeholders are never used as labels.
+  Messages and hints are wired with `aria-describedby`, and invalid
+  fields get `aria-invalid="true"`.
+- **Error summary** — validation failures render a `role="alert"` summary
+  at the top of the form and **move focus to it**, so the failure is
+  announced rather than silently painted below the fold.
+- **Progressive slug** — the slug is suggested from the title until the
+  user edits it, then never overwritten.
+- **Sections** — Basics / Publishing / Links / Technologies / Media, so a
+  long form stays scannable.
+- **Destructive actions** use `--danger` / `--danger-fg` (added to all
+  three token blocks in Phase 7) and a **two-step in-page confirmation**
+  rather than `window.confirm`, which cannot be styled, is not reliably
+  announced, and is suppressible. Focus moves to the confirm button, and
+  Cancel restores the initial state.
+- **Touch targets** stay at the 44px minimum (`min-h-11`), and every
+  Projects view was checked for horizontal overflow at 1280, 768, and 375.
+
 ## Admin surface (Phase 6)
 
 The admin app uses the same tokens, type scale, focus ring, and

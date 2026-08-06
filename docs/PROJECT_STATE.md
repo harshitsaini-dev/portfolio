@@ -6,25 +6,31 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 6 — Admin foundation: COMPLETE.** Committed as
-`1b1e3a3 feat: build secure admin foundation`, verified by **Pull Request
-#10 on GitHub Actions/Linux**, rebase-merged into `main`, and verified
-again by the **post-merge `main` CI run**.
+**Phase 7 — Projects CMS vertical slice.**
+
+- **Implementation:** complete / ready for review on branch
+  `feat/projects-cms`.
+- **Status:** **awaiting review and Git/CI verification.** Not committed,
+  not pushed, and **not formally complete.**
+- **Phase 6:** Complete (merged to `main`, CI green).
+- **Phase 8:** not started.
+
+Phase 7 is not marked COMPLETE until review, PR CI, merge, and the
+post-merge `main` run all succeed.
 
 ## Active task
 
-Phase 6 completion documentation (documentation-only; no application,
-auth, component, test, package manifest, lockfile, migration, Wrangler,
-CI, or Cloudflare resource changes).
+Phase 7 — the Projects CMS vertical slice: admin routes, validation,
+server mutations, repository wiring, and the reusable CMS pattern Phase 8
+will follow.
 
 ## Blockers
 
-**None for Phase 6.**
-
-The **Cloudflare Zero Trust dashboard configuration remains outstanding**,
-but it is a manual deployment prerequisite rather than a Phase 6 blocker —
-see *Manual actions*. Until it exists the admin app denies every request,
-which is the intended fail-closed behaviour.
+**No implementation blocker.** Outstanding items are unchanged from
+Phase 6: Linux/CI execution of the new suites, and the manual **Cloudflare
+Zero Trust dashboard configuration** (see *Manual actions*). The
+**remote D1 schema also remains unapplied**, so the CMS runs against local
+D1 only until that deliberate step is taken.
 
 ## Phase status summary
 
@@ -37,10 +43,263 @@ which is the intended fail-closed behaviour.
 | Phase 4 — D1 schema/migrations | **Complete** (merged to `main`, CI green) |
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
 | Phase 6 — Admin foundation | **Complete** (merged to `main`, CI green) |
-| Phase 7 — Projects CMS vertical slice | Not started (next) |
+| Phase 7 — Projects CMS vertical slice | Implemented; **awaiting review and CI** |
+| Phase 8 — Remaining CMS | Not started |
 
-Phases 7–22 are not started. See `docs/ROADMAP.md` for the authoritative
+Phases 8—22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
+
+## Phase 7 — completed work
+
+### Route structure
+
+```
+apps/admin/src/app/(protected)/projects/
+  page.tsx            list — all statuses, admin view
+  new/page.tsx        create
+  [id]/page.tsx       edit + delete
+```
+
+All three use `withAdminPage`, so the Phase 6 recursive invariant test
+covers them automatically. Projects is now a **real** navigation
+destination; the remaining Phase 8 entries are still inert labels.
+
+### D1 runtime binding
+
+`src/lib/db/binding.ts` is the app's single database composition boundary:
+`getAdminRepositories()` → `createRepositories(db)`. No component
+constructs a binding, and there is no global mutable repository state.
+
+- **Production: explicitly not implemented.** The real
+  `@opennextjs/cloudflare` API is `getCloudflareContext().env.DB`, and
+  installing that package also requires an app-level `wrangler.json`,
+  `open-next.config.ts`, and `initOpenNextCloudflareForDev()` — Phase 22
+  work. So the module exposes a narrow provider seam,
+  `setAdminDatabaseProvider()`, and production **fails closed with a clear
+  internal error** naming what Phase 22 must register. No fake global
+  stands in for it.
+- **Local:** `next dev` is a Node server with no Workers `env`, so the
+  binding comes from Wrangler's `getPlatformProxy()` — the same real
+  workerd-backed local D1 the Phase 5 tests use, with
+  `remoteBindings: false`. The import is dynamic and development-guarded,
+  and `serverExternalPackages: ["wrangler"]` keeps it out of the production
+  bundle. **No Cloudflare credentials, no `--remote`.**
+
+### Validation
+
+`@portfolio/schemas` gained the project schemas (Zod 4.4.3). This is the
+**untrusted-input** boundary and is deliberately distinct from the
+persistence-row decoders in `@portfolio/database`, which validate data
+coming *out* of a store we own. Types are inferred from the schemas, so
+validator and type cannot drift.
+
+Notable rules: `.strict()` so `id`/`createdAt`/`updatedAt` and any unknown
+field are **rejected**, not silently dropped; slug shape enforced
+(`^[a-z0-9]+(?:-[a-z0-9]+)*$`), with uniqueness left to the database;
+URLs restricted to **http/https only** — `z.url()` alone would accept
+`javascript:` and `data:`, which become stored XSS; duplicate technology
+ids rejected before they hit the join table's composite key.
+
+### Server mutations
+
+Three Server Actions, each following the same order without exception:
+`requireAdminIdentity()` → Zod → repository → typed result. Authorization
+is **never** taken from a hidden form field; a Server Action is a POST
+endpoint and is treated as independently reachable.
+
+`ActionResult` (`src/lib/actions/result.ts`) distinguishes only what the UI
+renders differently — validation / conflict / not_found / failure — and
+never carries SQL, a constraint string, or a stack trace. Designed for
+Phase 8 to reuse verbatim.
+
+### Relationships
+
+Links and technologies are written through the existing project aggregate
+(`setLinks`, `setTechnologies`) — no second data layer, no redundant
+storage of technology names. A non-existent technology id surfaces as a
+foreign-key `ConflictError` and is reported as a form-level conflict.
+
+**Media is deferred, honestly.** The schema supports metadata
+associations, but no assets can exist until R2 arrives in Phase 9, so the
+form states that plainly and sends an empty media array rather than faking
+an upload or hardcoding asset ids.
+
+### Public portfolio boundary — deliberately NOT in this phase
+
+`docs/ROADMAP.md` scopes Phase 7 as "one entity end to end — projects —
+proving the full create/read/update/delete path **through the data
+layer**". It says nothing about public rendering, so `apps/web` still
+renders from its Phase 2 placeholder module and was **not touched**.
+Pulling that conversion forward would have been silent scope expansion.
+
+## Phase 7 — verification actually performed
+
+| Command | Result |
+| --- | --- |
+| `pnpm install --frozen-lockfile` | **PASS** — lockfile unmodified |
+| `pnpm lint` | **PASS** (exit 0) |
+| `pnpm typecheck` | **PASS** (exit 0) |
+| `pnpm test` | **PASS** — **502 real checks** |
+| `pnpm build` | **PASS** — all `/projects*` routes are `ƒ (Dynamic)` |
+
+### Test suites after Phase 7
+
+| Suite | Checks | Real? |
+| --- | --- | --- |
+| UUIDv7 | 26 | Yes |
+| D1 migration smoke | 59 | Yes — real Wrangler/workerd D1 |
+| Repository integration | 111 | Yes — `node:sqlite` D1 adapter |
+| D1 binding compatibility | 38 | Yes — real workerd D1 binding |
+| D1Like type compatibility | 4 | Yes |
+| Admin authentication | 42 | Yes |
+| Admin foundation / invariant | **53** | Yes (+6 this phase) |
+| **Projects CMS** | **96** | **Yes — new; validation + real local D1 CRUD** |
+| `apps/web` | — | **No — still the only no-op** |
+
+The 96 Projects checks are validation (accepted input, ~20 rejection
+cases, database-managed-field rejection, slug suggestion) plus a full CRUD
+pass against **real local D1** with the real migration: create, duplicate
+slug → `ConflictError`, relationship persistence and replacement, a failed
+relationship batch leaving prior tags intact, list/filter, aggregate
+reads, update semantics (`undefined` ignored, `null` clears, id and
+`createdAt` immutable), rename-onto-taken-slug conflict, delete with
+cascade, and `PRAGMA foreign_key_check`.
+
+### Two defects found and fixed during verification
+
+1. **Client-side navigation raced the mutation.** After a delete, the user
+   was left on the edit page of a project that no longer existed. Replaced
+   `router.push` in the client with `redirect()` in the Server Action —
+   called **outside** the try/catch, because `redirect()` signals by
+   throwing and the error handler would otherwise report a spurious
+   failure. Also works without JavaScript.
+2. **The invariant test had a false negative.** Its regex
+   (`withAdminPage\s*(<[^>]*>)?`) could not parse nested generics, so it
+   reported the correctly-guarded `[id]/page.tsx` as unguarded. Replaced
+   with a balanced-angle-bracket scanner; all negative controls still
+   reject. The test caught this itself — on its own matcher.
+
+### Browser verification (`playwright-local` MCP, real local D1)
+
+Full CRUD at 1280×900, then responsive at 768×1024 and 375×812:
+
+- **Create** — slug auto-suggested (`Nebula CMS` → `nebula-cms`), link
+  added, redirect to `/projects?created=…`, row visible in the list.
+- **Edit** — form pre-populated including the relationship row; rename
+  persisted; redirect to `/projects?updated=…`.
+- **Validation** — clearing the title kept the user on the page, showed a
+  `role="alert"` summary **with focus moved to it**, set
+  `aria-invalid="true"`, and rendered "Required" wired via
+  `aria-describedby`.
+- **URL protocol** — `javascript:alert(1)` rejected with "Enter a valid
+  http(s) URL"; no navigation.
+- **Duplicate slug** — safe conflict message; **no SQL or constraint
+  string** in the HTML.
+- **Delete** — two-step confirmation, focus moved to the confirm button,
+  Cancel restores the initial state, confirm deletes and redirects to an
+  empty-state list.
+- **No horizontal overflow** at any width; **10/10 form controls have a
+  real `<label for>`**, none relying on a placeholder.
+- **Confidentiality invariant holds** on the new routes: unauthenticated
+  and forged-header requests to `/projects`, `/projects/new`, and
+  `/projects/[id]` all 307 to `/denied`; **RSC bodies are zero-length**;
+  **no project data leaked** in any response.
+  - The only residual is the **static route title** on `/projects/new` —
+    the exact Phase 6 `metadata` residual, which is precisely why these
+    routes use static metadata rather than `generateMetadata`.
+- **Mutation authorization is proven separately, in `pnpm test`.** A POST
+  carrying a fabricated `Next-Action` id returns 404, but that proves
+  nothing about our boundary — Next rejects an unknown action id before any
+  application code runs, so a completely unguarded app returns the same
+  404. It is kept only as a transport sanity check. The real proof invokes
+  the actual exported `createProjectAction` / `updateProjectAction` /
+  `deleteProjectAction` with no identity and reads the database back; see
+  *Phase 7 correction pass* below.
+
+## Phase 7 — correction pass (pre-commit)
+
+Two claims from the first pass did not hold up and were corrected.
+
+### 1. The production D1 contract was invented
+
+The binding module claimed a future OpenNext adapter would populate
+`globalThis.__ADMIN_DB__`. **No such API exists.** The documented
+`@opennextjs/cloudflare` accessor is `getCloudflareContext().env.DB`.
+
+`@opennextjs/cloudflare` (1.20.2) was **not** installed, because adopting
+it also requires an app-level `wrangler.json` (`compatibility_date`,
+`nodejs_compat`), an `open-next.config.ts`, and
+`initOpenNextCloudflareForDev()` in `next.config.ts` — Phase 22 deployment
+configuration. So production resolution is now **explicitly deferred**
+behind a narrow seam, `setAdminDatabaseProvider(() => Promise<D1Like>)`,
+and `getAdminDatabase()` throws `DatabaseUnavailableError` in production
+until Phase 22 registers the real provider. Nothing claims to work today
+that does not. Local `getPlatformProxy()` behaviour is unchanged.
+
+The seam is not test-only scaffolding: `tsc` proves that a provider shaped
+exactly like `async () => getCloudflareContext().env.DB`, returning
+Cloudflare's own generated `D1Database`, already satisfies
+`AdminDatabaseProvider` **with no cast**.
+
+### 2. A fake `Next-Action` id proved nothing
+
+The 404 from `POST` with `Next-Action: fake-action-id` was reported as
+mutation-auth evidence. It is not — Next rejects an unknown action id
+before any application code runs, so an unguarded app answers identically.
+It is retained only as a transport sanity check.
+
+Mutation authorization is now proven by `scripts/action-auth-tests.mjs`
+(**48 checks**), which invokes the **actual exported**
+`createProjectAction`, `updateProjectAction`, and `deleteProjectAction`
+with no identity and reads real local D1 back: nothing is inserted, the
+target project is logically identical afterwards, and it still exists.
+Auth is also proven to run *before* validation and before the database is
+touched, and a positive control confirms the same three functions really do
+mutate when authenticated. Full scope and the framework shims used are
+documented in `docs/TESTING.md`.
+
+### 3. `serverExternalPackages: ["wrangler"]` re-evaluated, and kept
+
+Removing it was **measured**, not assumed: `next build` then fails with an
+import trace pulling `wrangler/wrangler-dist/cli.js` into the production
+Server Component graph, because Turbopack resolves dynamic imports
+statically. It stays, and the tests now assert that `wrangler` is
+referenced exactly once, dynamically, inside the development-only resolver,
+and is a devDependency — so production runtime code cannot depend on it.
+
+### Correction-pass verification
+
+| Command | Result |
+| --- | --- |
+| `pnpm install --frozen-lockfile` | **PASS** — lockfile unmodified |
+| `pnpm lint` | **PASS** (exit 0) |
+| `pnpm typecheck` | **PASS** (exit 0) |
+| `pnpm test` | **PASS** — **502 real checks** |
+| `pnpm build` | **PASS** — all `/projects*` routes `ƒ (Dynamic)` |
+
+Browser re-verification against real local D1 confirmed authenticated
+create → edit → delete still work through the refactored binding (slug
+auto-suggested, both redirects correct, two-step delete with focus on the
+confirm button, empty-state list afterwards). With dev auth **off**, a
+seeded canary project was used to re-check confidentiality: `/`,
+`/projects`, `/projects/new`, and `/projects/[id]` all 307 to `/denied` for
+plain, `RSC: 1`, and forged-header requests; **RSC bodies were 0 bytes**;
+and the canary string appeared **0 times** in all twelve responses. The
+only content in the redirect bodies is the static route title — the known
+Phase 6 metadata residual. The canary was removed afterwards.
+
+## Phase 7 — known limitations
+
+- **Not yet reviewed, committed, or run on Linux/CI.**
+- **Public portfolio still uses placeholder data** — deferred, see above.
+- **No media attachment UI** — R2 is Phase 9.
+- **No technology CRUD**, so the technology picker is empty until
+  technologies exist. Creating them belongs to Phase 8.
+- **No list filtering UI.** The repository supports status filters; the
+  admin list intentionally shows everything, and a filter control was not
+  worth building for a single-entity slice.
+- **Remote D1 remains unapplied**, so the CMS is local-only for now.
+- Cloudflare Access dashboard configuration still pending.
 
 ### Phase 6 — CI
 
@@ -367,7 +626,7 @@ portfolio conversion from placeholder data, and **no remote migration**.
 Repositories are **not wired into `apps/web` or `apps/admin`** — zero app
 behaviour change was the goal.
 
-### Repository ↔ table ownership
+### Repository — table ownership
 
 15 repositories cover all 20 tables. Join and child tables are owned by
 the aggregate they belong to rather than exposed as top-level CRUD:
@@ -876,7 +1135,7 @@ protection.
 | Check | 1280×900 | 768×1024 | 375×812 |
 | --- | --- | --- | --- |
 | Page loads | PASS | PASS | PASS |
-| Horizontal overflow | None (1265 ≤ 1280) | None (753 ≤ 768) | None (360 ≤ 375) |
+| Horizontal overflow | None (1265 … 1280) | None (753 … 768) | None (360 … 375) |
 | Overflowing elements | 0 | 0 | 0 |
 | Projects grid | 2 columns | 2 columns | 1 column |
 | Skills grid | 3 columns | 2 columns | 1 column |
@@ -952,8 +1211,8 @@ luminance. Every sample passes AA:
 | Eyebrow (accent on bg) | 7.02:1 | 8.42:1 |
 | Action button label | 18.52:1 | 16.43:1 |
 | `--accent-fg` on `--accent` | 7.26:1 | 8.42:1 |
-| Focus ring vs page bg (needs ≥3:1) | 7.02:1 | 8.42:1 |
-| Focus ring vs card surface (needs ≥3:1) | 7.26:1 | 7.92:1 |
+| Focus ring vs page bg (needs …3:1) | 7.02:1 | 8.42:1 |
+| Focus ring vs card surface (needs …3:1) | 7.26:1 | 7.92:1 |
 
 ### Reduced motion — verified in-browser
 
@@ -1043,7 +1302,7 @@ All copy lives in `apps/web/src/data/placeholder-content.ts`, typed by
 `apps/web/src/data/types.ts`. Both files are headed by comments stating
 they are Phase 2 placeholders to be **replaced** — not extended — by
 `@portfolio/types` / `@portfolio/schemas` and the repository layer in
-Phases 4–5. Field names echo the planned entities in `docs/DATABASE.md`
+Phases 4—5. Field names echo the planned entities in `docs/DATABASE.md`
 so the swap is mechanical. No database, repository, or Zod schema was
 implemented, and nothing here was promoted to `packages/*`.
 
@@ -1080,7 +1339,7 @@ coverage. Real coverage is Phase 20.
 | Check | Desktop 1280×900 | Tablet 768×1024 | Mobile 375×812 |
 | --- | --- | --- | --- |
 | Page loads | PASS | PASS | PASS |
-| Horizontal overflow | None (1265 ≤ 1280) | None (753 ≤ 768) | None (360 ≤ 375) |
+| Horizontal overflow | None (1265 … 1280) | None (753 … 768) | None (360 … 375) |
 | Projects grid | 2 columns | 2 columns | 1 column (stacks) |
 | Layout integrity | PASS | PASS | Hero and footer both within viewport |
 
@@ -1110,10 +1369,10 @@ rendering white on `opacity-70` blue at **3.58:1** — below the WCAG AA
 secondary (bordered) appearance with no opacity reduction, since a
 non-functional control should not look like a primary CTA anyway.
 Re-measured after the fix: **16.75:1**. All other sampled text measured
-6.88:1–17.93:1 in light mode.
+6.88:1—17.93:1 in light mode.
 
 Dark-mode contrast was **calculated** from the token values (muted text
-≈8.2:1 on the dark background), **not** measured in the browser — the MCP
+≥8.2:1 on the dark background), **not** measured in the browser — the MCP
 server offers no colour-scheme emulation. Treat dark mode as reasoned,
 not verified.
 

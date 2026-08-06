@@ -3,6 +3,100 @@
 Notes on things learned while building this project that are worth
 remembering for future work.
 
+## Phase 7 — correction pass
+
+### A plausible-looking integration seam is still a fabrication
+
+`globalThis.__ADMIN_DB__` read as a reasonable adapter contract, was
+documented confidently in four files, and was entirely made up. The real
+API is `getCloudflareContext().env.DB`. The tell was that no source was
+ever cited for it — a deferred integration point should be written from the
+target's documentation or marked unimplemented, never invented and then
+described as though it worked.
+
+The fix was not to install the package. It was to be honest about the gap:
+a narrow seam, a production path that throws, and a compile-time proof that
+the real provider will drop straight into it.
+
+### Test what your code does, not what the framework does
+
+A 404 from `POST` with `Next-Action: fake-action-id` felt like proof that
+mutations reject anonymous callers. It proves the opposite of useful: Next
+rejects unknown action ids before application code runs, so a completely
+unguarded app returns the same 404. The check passed for a reason that had
+nothing to do with the thing being claimed.
+
+The question worth asking of any security test is: *if the protection were
+removed entirely, would this test still pass?* Here it would have.
+
+### "It made the build green" is not a justification
+
+`serverExternalPackages: ["wrangler"]` was originally added because the
+build failed without it, which is a symptom, not a reason. Removing it and
+reading the actual import trace — the Wrangler CLI being pulled into the
+production Server Component graph — turned it into a decision that can be
+defended, and produced assertions that keep it true.
+
+### Don't bulk-rewrite files through a shell for a two-character change
+
+Piping documentation through `Get-Content`/`Set-Content` to update a test
+count double-encoded three files and destroyed every em-dash, arrow, and
+symbol in them. Reconstructing them was possible only because the damage
+was uniform. A targeted edit would have changed the two numbers and nothing
+else.
+
+## Phase 7
+
+### `redirect()` inside a try/catch is a silent footgun
+
+`redirect()` signals by throwing. A Server Action with a broad
+`catch (error)` around its mutation will swallow that throw and report a
+mutation failure to the user — for a mutation that *succeeded*. The fix is
+positional, not defensive: call `redirect()` after the try block.
+
+### A client-side redirect after a mutation is a race
+
+The first delete implementation used `router.push` in the client. It
+raced `revalidatePath`, and the user landed back on the edit page of a
+project that no longer existed. Redirecting from the Server Action is both
+correct and works without JavaScript. When both server and client could
+perform a navigation, the server is the one that knows the mutation
+actually committed.
+
+### Zod's default is to *drop* unknown keys, not reject them
+
+Without `.strict()`, a payload containing `id` or `createdAt` parses
+cleanly and the fields vanish. That looks safe, and mostly is — but it
+means a client attempting to overwrite a database-managed column gets a
+success response. Failing loudly is the more honest boundary.
+
+### `z.url()` is not a safe-URL check
+
+It accepts `javascript:` and `data:`. Rendered into an `href`, that is
+stored XSS. Protocol allowlisting has to be explicit.
+
+### A test that fails is not automatically a wrong test
+
+The invariant suite reported the correctly-guarded `[id]/page.tsx` as
+unguarded. The temptation is to relax the test; the actual bug was the
+matcher's regex `<[^>]*>`, which cannot parse a nested generic like
+`withAdminPage<{ params: Promise<{ id: string }> }>(`. Regexes cannot
+match balanced delimiters — a small hand-written scanner can. The
+instinct to check the *test* before the *code* was the useful part.
+
+### Development fallbacks must not be reachable in production
+
+The D1 binding resolver could easily have fallen back to
+`getPlatformProxy()` whenever the injected binding was missing. That is
+exactly how a deployment quietly serves the wrong database. Production
+throws instead.
+
+### Route metadata evaluates outside the page component
+
+`generateMetadata` runs independently of the component, so it sits outside
+any wrapper-based page guard. Per-record admin tab titles are not worth an
+exception to an authorization invariant.
+
 ## Phase 6
 
 - **A layout redirect does not stop the page from rendering.** This is the
