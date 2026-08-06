@@ -1,5 +1,57 @@
 # Changelog
 
+## 2026-08-06 — Phase 8: Profile CMS (branch `feat/remaining-cms-profile`)
+
+**Status: implemented, awaiting review. Not committed. Phase 8 remains IN
+PROGRESS — this is its second entity.**
+
+### Added
+
+- `packages/schemas/src/profile.ts` — `profileSaveSchema` (`.strict()`)
+  over only the fields the committed table has. `id`, `createdAt`, and
+  `updatedAt` are absent by design, so a payload cannot steer the singleton
+  key. Optional email normalises blank to `null` before the format check.
+- `apps/admin/src/lib/actions/profile.ts` — `saveProfileAction`, following
+  `requireAdminIdentity()` → Zod → repository → typed `ActionResult` and
+  reusing the existing result model verbatim. One action, no create/update
+  pair and no `id`, because the row's identity is fixed. Returns and
+  revalidates instead of redirecting — the route *is* the editor.
+- `apps/admin/src/app/(protected)/profile/page.tsx` — a single route via
+  `withAdminPage`, static metadata, handling both the unconfigured and
+  configured states on one screen.
+- `apps/admin/src/components/profile/profile-form.tsx` — accessible
+  singleton form on the shared field primitives, with an error summary that
+  takes focus and a `role="status"` save confirmation that does not.
+- `apps/admin/scripts/profile-tests.mjs` — **77 checks** (validation +
+  real local-D1 singleton lifecycle).
+
+### Changed
+
+- `apps/admin/scripts/action-auth-tests.mjs` — 93 → **124 checks**,
+  covering the real profile save unauthenticated plus authenticated
+  validation, rejected singleton-key/timestamp payloads, and single-row
+  invariance.
+- `apps/admin/src/lib/navigation.ts` — Profile is a real destination,
+  replacing its Phase 8 placeholder.
+
+### Not changed
+
+`migrations/0001_initial_schema.sql` (the committed schema was sufficient),
+the **profile repository** (its contract was already adequate, so no
+repository-package tests were added and the database subtotal stays
+**256**), `apps/web`, remote D1, and Cloudflare resources. The repository's
+`clear()` is deliberately **not** exposed as delete UI.
+
+### Verification
+
+`pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`,
+`pnpm test` (**780 checks** — database 256, admin 524 — up from 670 with
+all 670 preserved), and `pnpm build` all **PASS**; `/profile` is
+`ƒ (Dynamic)`. Browser-verified via Playwright MCP against real local D1,
+including the create-then-update singleton lifecycle, single-row
+invariance, and a canary proving **zero profile data** in unauthenticated
+plain/RSC/forged responses.
+
 ## 2026-08-06 — Phase 8: Technologies CMS complete
 
 Documentation-only entry. No application, test, schema, repository,

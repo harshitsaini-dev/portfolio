@@ -40,7 +40,7 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
       // manages yet, and linking this one entry under that label would imply
       // the rest of that CMS exists.
       { label: "Technologies", href: "/technologies" },
-      { label: "Profile", availableIn: "Phase 8" },
+      { label: "Profile", href: "/profile" },
       { label: "Experience", availableIn: "Phase 8" },
       { label: "Education", availableIn: "Phase 8" },
       { label: "Skills & tools", availableIn: "Phase 8" },

@@ -5,6 +5,29 @@
 `@portfolio/ui/tokens.css`, which closes the Phase 3 limitation that the
 admin app had not adopted the shared tokens.
 
+## Singleton editing (Phase 8 — profile)
+
+A singleton needs one thing the collection forms do not: the screen must
+say whether the record exists yet, without becoming two different screens.
+
+- **Unconfigured** — a dashed-border explanatory panel above the form
+  ("No profile has been created… there is only ever one profile, so this
+  same screen edits it afterwards"), and the submit button reads **"Create
+  profile"**.
+- **Configured** — a summary line with the last-updated date, and the
+  button reads **"Save changes"**.
+
+The form itself is identical in both states. Only the wording changes, so
+there is nothing to learn twice and no mode to get stuck in.
+
+Saving stays on the page. Confirmation is a `role="status"`
+`aria-live="polite"` message — announced, but it does not move focus, since
+a successful save is not something the user needs taking to. That is the
+deliberate counterpart to the error summary, which *does* take focus
+because a failure does need attention.
+
+No internal identifier is ever rendered.
+
 ## Admin forms — reuse check (Phase 8)
 
 The technologies CMS was built entirely from the Phase 7 vocabulary below

@@ -3,6 +3,58 @@
 Notable architectural/tooling decisions and their rationale. Append new
 entries; do not delete history.
 
+## 2026-08-06 — Phase 8 Profile CMS
+
+### One route and one action, because the entity is a singleton
+
+`/profile` with no `/new` and no `/[id]`, and `saveProfileAction` with no
+create/update pair and no `id` parameter. The primary key is pinned by a
+CHECK constraint, so there is never a choice of which record to edit and
+never a second one to create. Modelling it as a collection would have meant
+inventing UI affordances for states the schema forbids.
+
+### The save returns instead of redirecting
+
+Projects and technologies redirect to their list because the user has
+finished with a record. The profile is edited in place on a single route,
+so redirecting would target the page the user is already on. The action
+revalidates that path — so the server component re-reads the row and the
+page cannot show stale values — and returns a `success` result the form
+confirms with. The confirmation uses `role="status"` rather than
+`role="alert"`: a successful save is confirmation, not an interruption, and
+must not steal focus.
+
+### No delete UI, though the repository has `clear()`
+
+Deleting the site's identity is not a routine editorial action, has no
+undo, and would be one mis-click from wiping the profile. The schema
+already treats zero rows as valid, so nothing is broken by its absence, and
+the repository method remains available if a real need appears. Exposing
+every repository capability in the UI is not a design goal.
+
+### The singleton key is unreachable, not merely hidden
+
+`id` is absent from `profileSaveSchema`, so `.strict()` rejects any payload
+that supplies it — including `"singleton"` itself. The repository binds the
+key, and the schema's CHECK constraint is the backstop. Three independent
+layers, because "the form doesn't render it" is not a control.
+
+### No URL validation, because there are no URL columns
+
+The `profile` table has no avatar, website, or social columns. Adding URL
+fields would have meant either dropping the values or implying storage that
+does not exist. `public_email` is a real column and *is* validated as an
+email — with the empty case normalised to `null` before the format check,
+so clearing the field is not an error.
+
+### No repository tests were added
+
+The Phase 5 suite already proves upsert-creates-then-updates, `created_at`
+preservation, `updated_at` advancing, the CHECK rejecting a second row, and
+zero rows being valid. The repository contract did not change, so the
+database subtotal did not either. Repository-package tests grow when a
+repository *contract* grows — not once per CMS entity that consumes it.
+
 ## 2026-08-06 — Phase 8 Technologies CMS
 
 ### The CMS exposes only the columns that exist

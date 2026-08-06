@@ -188,6 +188,35 @@ UI components never talk to the database directly; they go through the
 service layer once it exists. Types shared between layers live in
 `packages/types` to avoid duplication and drift.
 
+## Third CMS entity: profile — the singleton shape (Phase 8)
+
+Projects and technologies are collections. Profile is the first
+**singleton-key** entity, and the difference is structural rather than
+cosmetic:
+
+- **One route, `/profile`.** No `/new`, no `/[id]`. The primary key is
+  pinned to `'singleton'` by a CHECK constraint, so there is never a choice
+  of which record to edit; a collection route shape would imply otherwise.
+- **One action, `saveProfileAction`.** No create/update pair and no `id`
+  parameter, because `ProfileRepository.upsert()` is the only write and
+  "create" versus "update" is not a meaningful distinction for a row whose
+  identity is fixed.
+- **It returns instead of redirecting.** The collection actions redirect to
+  their list once the user has finished with a record; here the route *is*
+  the editor, so a redirect would target the current page. The action calls
+  `revalidatePath("/profile")` — so the server component re-reads the saved
+  row and nothing renders stale — and returns a `success` result the form
+  confirms with.
+- **The key is unreachable from the client.** It is absent from the schema,
+  `.strict()` rejects any attempt to supply it, and the repository supplies
+  it. The schema's CHECK constraint is the backstop.
+- **Zero rows is a valid state**, so the page renders the same form whether
+  or not a profile exists and changes only what it says.
+
+Everything else is the established pattern, unchanged: `withAdminPage`,
+static metadata, the same mutation order, the same `ActionResult`, the same
+field primitives, the same database composition boundary.
+
 ## Second CMS entity: technologies (Phase 8)
 
 Technologies was the first entity built *on* the projects pattern rather

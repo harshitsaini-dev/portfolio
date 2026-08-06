@@ -12,8 +12,10 @@ something passed without running it.
   `97d6425 feat: add technologies CMS`, verified by **Pull Request #14 on
   GitHub Actions/Linux** and again by the **post-merge `main` CI run
   `31084430634`**.
-- **Profile CMS: NEXT** — not started, and not to be implemented until
-  explicitly scoped and approved.
+- **Profile CMS: implemented, awaiting review.** On
+  `feat/remaining-cms-profile`; not committed, not pushed, and **not
+  complete** — it is complete only after review, PR CI, merge, the
+  post-merge `main` run, and completion documentation.
 - **Later Phase 8 entities** — Timeline/Experience, Education,
   Certifications, Skills, Tools, Socials, Sections: **not started**.
 - **Phase 7:** Complete (merged to `main`, CI green).
@@ -21,14 +23,128 @@ something passed without running it.
   covers is delivered and verified.
 
 Unchanged and still outstanding: the **remote `portfolio-cms` schema
-remains unapplied**, and **Cloudflare Access dashboard configuration
-remains pending**.
+remains unapplied**, **Cloudflare Access dashboard configuration remains
+pending**, and the **production OpenNext D1 provider remains deferred to
+Phase 22** (fail-closed until then).
 
 ## Active task
 
-Technologies CMS completion documentation (documentation-only; no
-application, test, schema, repository, package, migration, config, or CI
-changes).
+**Phase 8 — Profile CMS.** Implemented; awaiting review.
+
+## Phase 8 — Profile CMS (awaiting review)
+
+### Route — one, because the entity is a singleton
+
+```
+apps/admin/src/app/(protected)/profile/page.tsx
+```
+
+No `/profile/new` and no `/profile/[id]`. `profile` is a singleton-key
+table whose primary key is pinned to `'singleton'` by a CHECK constraint,
+so there is never more than one record and never a choice of which to edit
+— a collection-style route shape would imply otherwise.
+
+It goes through `withAdminPage`, so the Phase 6 recursive invariant
+discovered it automatically (the foundation suite grew 59 → 61 without the
+invariant being touched). Static metadata, never `generateMetadata`: route
+metadata evaluates independently of the component, and here the record is
+the site owner's name — precisely the wrong thing to leak.
+
+### Schema fields used — and deliberately not invented
+
+The committed `profile` table is:
+
+```
+id ('singleton') | full_name NOT NULL | headline NOT NULL | tagline
+| bio | location | availability | public_email | created_at | updated_at
+```
+
+- **Editable:** `full_name`, `headline` (both required), and the nullable
+  `tagline`, `bio`, `location`, `availability`, `public_email`.
+- **Repository/database-managed:** `created_at`, `updated_at`.
+- **Singleton identity:** `id`, fixed to `'singleton'` and supplied by the
+  repository.
+
+There is **no avatar, website, social, or any URL column**, so the CMS
+exposes none and there is no URL validation — there would be nothing to
+validate. `public_email` is a real column and is checked as an email.
+`migrations/0001_initial_schema.sql` was **not edited**; the committed
+schema was sufficient and no forward migration was needed.
+
+### Validation
+
+`@portfolio/schemas` gained `profile.ts` with a single `profileSaveSchema`
+(`.strict()`), mirroring the existing modules. `id`, `createdAt`, and
+`updatedAt` are absent by design, so a payload attempting to supply them —
+including an attempt to steer the singleton key — is **rejected outright**.
+Blank optional text normalises to `null`, consistent with the projects and
+technologies modules. The optional email normalises the empty case to
+`null` *before* the format check, so clearing the field is not an error.
+
+### Server mutation — one action, no redirect
+
+`saveProfileAction` follows the established order:
+`requireAdminIdentity()` → Zod → repository → typed `ActionResult`. The
+existing `ActionResult` was reused verbatim; no second abstraction.
+
+There is no create/update pair and no `id` parameter, because the row's
+identity is fixed and `ProfileRepository.upsert()` is the only write.
+
+It **returns** rather than redirecting. The collection actions redirect to
+their list because the user has finished with a record; the profile is
+edited in place on a single route, so a redirect would target the page the
+user is already on. Instead it calls `revalidatePath("/profile")` — so the
+server component re-reads the saved row and nothing renders stale — and
+returns a `success` result the form uses to confirm.
+
+### Repository — unchanged
+
+The Phase 5 profile repository is used exactly as-is: `get()` returning
+`Profile | null`, and `upsert()`. **The repository contract did not
+change**, so no repository-package tests were added; the existing Phase 5
+singleton coverage already proves upsert-creates-then-updates, `created_at`
+preservation, `updated_at` advancing, the CHECK constraint rejecting a
+second row, and zero rows being a valid state. The database subtotal is
+therefore unchanged at **256**.
+
+`clear()` exists on the repository but is **deliberately not exposed in the
+UI** — see *Delete decision* below.
+
+### Empty and configured states
+
+The same screen handles both, changing only what it *says*:
+
+- **Not configured** — an explanatory panel ("No profile has been
+  created… there is only ever one profile, so this same screen edits it
+  afterwards") and a **"Create profile"** submit label.
+- **Configured** — a summary line with the last-updated date and a **"Save
+  changes"** label.
+
+The singleton key is never rendered, never submitted, and not in the
+payload.
+
+### Delete decision — no destructive UI
+
+`ProfileRepository.clear()` is not surfaced. Deleting the site's identity
+is not a routine editorial action, it has no undo, and the schema already
+treats zero rows as valid — so nothing is broken by its absence. Adding a
+destructive control for it would be offering a footgun for no workflow
+anyone asked for. Revisit only if a real need appears.
+
+### Public-site boundary — unchanged, and deliberately
+
+`apps/web` was **not touched**. Phase 7 established that public-side data
+conversion is not part of the CMS slices, and nothing in the roadmap or
+architecture moves it into this one. The project rule that admin-editable
+content ultimately comes from data still holds; the conversion is simply
+not this subtask's job, and pulling it forward would be scope expansion
+into unreviewed work.
+
+### Navigation
+
+Profile became a real linked destination, replacing its "Phase 8"
+placeholder. Every other unbuilt entry stays an unlinked, phase-labelled
+placeholder — no dead links.
 
 ## Phase 8 — Technologies CMS (COMPLETE)
 
@@ -172,9 +288,94 @@ fail-closed behaviour.
 
 ## Next suggested task
 
-**Profile CMS** — the next Phase 8 entity. Not started, and not to be
-implemented until explicitly scoped and approved. Rationale at the end of
-this file.
+Review the Profile CMS. After it merges, the next Phase 8 entity is
+suggested at the end of this file — **not to be implemented until
+explicitly scoped and approved**.
+
+## Phase 8 — Profile CMS: verification actually performed
+
+| Command | Result |
+| --- | --- |
+| `pnpm install --frozen-lockfile` | **PASS** — lockfile unmodified |
+| `pnpm lint` | **PASS** (exit 0) |
+| `pnpm typecheck` | **PASS** (exit 0) |
+| `pnpm test` | **PASS** — **780 real checks** |
+| `pnpm build` | **PASS** — `/profile` is `ƒ (Dynamic)` |
+
+### Test suites after the Profile CMS
+
+| Suite | Checks | Change |
+| --- | --- | --- |
+| UUIDv7 | 26 | — |
+| D1 migration smoke | 59 | — |
+| Repository integration | 126 | — |
+| D1 binding compatibility | 41 | — |
+| D1Like type compatibility | 4 | — |
+| **Database subtotal** | **256** | **unchanged — the repository contract did not change** |
+| Admin authentication | 42 | — |
+| Admin foundation / invariant | **61** | +2 — the invariant discovered `/profile` on its own |
+| Admin D1 composition boundary | 34 | — |
+| Projects CMS | 96 | — |
+| Technologies CMS | 90 | — |
+| **Profile CMS** | **77** | **new** |
+| **Server Action authorization** | **124** | +31 for profile |
+| **Admin subtotal** | **524** | — |
+| **Total** | **780** | up from 670 |
+
+**All 670 previous checks still pass**, and none were weakened or removed.
+`apps/web` remains the only no-op suite; coverage is representative, not
+exhaustive.
+
+The 77 Profile checks are validation (accepted input, 20 rejection cases,
+blank-to-null normalisation for every optional field, email format,
+explicit proof that `id`/`createdAt`/`updatedAt` and unknown fields are
+unreachable) plus a real local-D1 lifecycle pass: no row initially, first
+save creates, values read back including a multi-paragraph bio, second save
+updates **the same row** with exactly one row remaining, `createdAt`
+preserved, `updatedAt` advanced, blank optionals clearing to `null`, a
+payload carrying an `id` never reaching the database, the schema CHECK
+rejecting any other key, and `PRAGMA foreign_key_check` clean.
+
+The 31 added authorization checks invoke the **real exported**
+`saveProfileAction` unauthenticated and read the database back: no profile
+created when none exists, an existing profile left byte-identical, auth
+proven to run **before** validation and before the database is touched, and
+the provider never consulted during a denied call. Authenticated positive
+controls cover a successful save that preserves `createdAt`, malformed
+input returning field-keyed validation, a client-supplied singleton `id`
+and `createdAt` both rejected, exactly one row surviving every attempt, and
+no result message leaking SQL, constraint text, or the singleton key.
+
+### Browser verification (`playwright-local` MCP, real local D1)
+
+Manual MCP verification — **not** automated Playwright CI tests.
+
+- `/profile` with **no row**: the "Not configured yet" panel renders and
+  the submit button reads **"Create profile"**.
+- Required-field validation and a malformed email were rejected together:
+  focus moved to the `role="alert"` summary, `aria-invalid="true"` on all
+  three fields, and "Required" / "Enter a valid email address" wired
+  through `aria-describedby`.
+- A valid save succeeded, the page flipped to the configured state with a
+  last-updated line and a **"Save changes"** label, and "Profile saved."
+  was announced via `role="status"` **without stealing focus**.
+- Reload retained every value, including the multi-paragraph bio.
+- A second save changed the headline, set availability, and cleared the
+  tagline. Read back from D1 directly: **exactly one row**, `createdAt`
+  preserved, `updatedAt` advanced, cleared tagline stored as `null`.
+- **No duplicate profile could be created through the UI**, and **no
+  internal singleton id is exposed** anywhere in the rendered HTML.
+- No horizontal overflow at 1280, 768, or 375; **7/7 form controls have a
+  real `<label for>`**, none placeholder-only.
+- **Unauthenticated confidentiality:** with dev auth off and a seeded
+  canary profile, `/profile` returned 307 to `/denied` for plain,
+  `RSC: 1`, and forged-header requests, with **zero-length RSC bodies** and
+  the canary appearing **0 times**. The canary profile was verified
+  **unchanged** afterwards.
+- Console errors relevant to the feature: **none** — only HMR reconnects
+  and 404s from dev-server restarts, which is development-session noise.
+
+Local test data and the temporary dev-auth file were removed afterwards.
 
 ## Phase status summary
 
@@ -188,7 +389,7 @@ this file.
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
 | Phase 6 — Admin foundation | **Complete** (merged to `main`, CI green) |
 | Phase 7 — Projects CMS vertical slice | **Complete** (merged to `main`, CI green) |
-| Phase 8 — Remaining CMS | **In progress** — Technologies CMS **complete** (merged, CI green); Profile CMS next; other entities not started |
+| Phase 8 — Remaining CMS | **In progress** — Technologies CMS **complete** (merged, CI green); Profile CMS implemented, awaiting review; other entities not started |
 
 Phases 9–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
@@ -2039,12 +2240,14 @@ Local development needs none of this: set `ADMIN_DEV_AUTH=enabled` in
 
 ## Next suggested task
 
-**Phase 8, next entity: Profile.** It is the singleton-key table the Phase 4
-work already characterised (*at most* one row), so it exercises a shape the
-projects and technologies slices did not: a form that creates-or-updates
-rather than listing, with no delete and no `/new` route. Doing it next
-settles the singleton editing pattern before the repeating entities
-(experience, education, certifications) arrive and multiply any mistake.
+**Phase 8, next entity: Timeline / professional experience.** With the
+collection pattern (projects, technologies) and the singleton pattern
+(profile) both settled, timeline is the next meaningful shape: an ordered
+collection that **owns a child table** (`timeline_highlights` via
+`setHighlights`), which neither previous slice exercised — technologies
+were *referenced*, and project links were owned but never independently
+ordered by the user. It also unblocks education and certifications, which
+follow the same ordered-with-children shape.
 
 The pattern it reuses unchanged: `withAdminPage` routes, static metadata,
 shared `@portfolio/schemas` validation, the
