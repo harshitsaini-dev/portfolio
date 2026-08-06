@@ -121,11 +121,23 @@ composes that with `repos.technologies.list()`. Test coverage grew to
 **670 real checks** (256 data/repository + 414 admin). Merged to `main` as
 `97d6425` with CI green on Linux.
 
-**Next: Profile CMS.** Not started. The remaining entities —
-Timeline/Experience, Education, Certifications, Skills, Tools, Socials,
-Sections — are also not started. The remote database schema remains
-**intentionally unapplied**, and **Cloudflare Access dashboard
-configuration is still pending**.
+**Profile CMS: complete.** The first singleton-key entity, and a
+deliberately different shape: one route `/profile` with no `/new` and no
+`/[id]`, one `saveProfileAction` with no create/update pair and no `id`,
+because the primary key is pinned to `'singleton'` by a CHECK constraint.
+The same screen handles the unconfigured and configured states, and the
+save revalidates in place rather than redirecting. Strict shared Zod
+schemas over only the fields the committed table has; the singleton key is
+unreachable from the client. The Phase 5 repository was reused
+**unchanged**, so no repository-package tests were needed. Test coverage
+grew to **780 real checks** (256 data/repository + 524 admin). Merged to
+`main` as `f2ff5c3` with CI green on Linux.
+
+**Next: Timeline / professional experience.** Not started. The remaining
+entities — Education, Certifications, Skills, Tools, Socials, Sections —
+are also not started. The remote database schema remains **intentionally
+unapplied**, and **Cloudflare Access dashboard configuration is still
+pending**.
 
 ## Phase 9 — R2/media
 

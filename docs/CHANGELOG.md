@@ -1,9 +1,36 @@
 # Changelog
 
+## 2026-08-06 — Phase 8: Profile CMS complete
+
+Documentation-only entry. No application, test, schema, repository,
+package, migration, config, CI, or Cloudflare resource changes.
+
+- **Profile CMS — the second Phase 8 subtask — is complete.** The first
+  singleton-key entity: one `/profile` route, one `saveProfileAction`, no
+  create/update pair and no client-supplied id. Merged into `main` as
+  `f2ff5c3 feat: add profile CMS` via **Pull Request #16**, which passed CI
+  on GitHub Actions/Linux; the **post-merge `main` CI run `31094360487`
+  passed** as well, covering install, lint, typecheck, tests, and build.
+- **Final real test total: 780** — database **256** (unchanged, because the
+  Phase 5 profile repository contract was reused as-is), admin **524**.
+  `apps/web` remains the only no-op suite.
+- **No Profile delete UI** was added. `ProfileRepository.clear()` exists
+  but is deliberately not surfaced — a design decision, not missing CRUD.
+- **Phase 8 remains IN PROGRESS.** Timeline / professional experience is
+  next and not started; Education, Certifications, Skills, Tools, Socials,
+  and Sections are not started.
+- **The public site is still placeholder-driven** — profile data exists in
+  D1, but `apps/web` has not been converted to read it.
+- **Remote `portfolio-cms` schema remains intentionally unapplied**, remote
+  D1 was not mutated, no `--remote` runtime path exists, and **Cloudflare
+  Access dashboard configuration remains pending**. The production OpenNext
+  D1 provider remains Phase 22; no R2 bucket or upload workflow exists yet.
+
 ## 2026-08-06 — Phase 8: Profile CMS (branch `feat/remaining-cms-profile`)
 
-**Status: implemented, awaiting review. Not committed. Phase 8 remains IN
-PROGRESS — this is its second entity.**
+**Status at the time: implemented, awaiting review. Subsequently merged
+into `main` as `f2ff5c3`. Phase 8 remains IN PROGRESS — this is its second
+entity.**
 
 ### Added
 
