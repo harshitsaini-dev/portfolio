@@ -6,31 +6,42 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 7 — Projects CMS vertical slice.**
+**Phase 7 — Projects CMS vertical slice: COMPLETE.**
 
-- **Implementation:** complete / ready for review on branch
-  `feat/projects-cms`.
-- **Status:** **awaiting review and Git/CI verification.** Not committed,
-  not pushed, and **not formally complete.**
-- **Phase 6:** Complete (merged to `main`, CI green).
-- **Phase 8:** not started.
+Implemented on `feat/projects-cms`, corrected before merge, verified by
+**Pull Request #12 on GitHub Actions/Linux** (after one initial
+source-policy failure and a focused follow-up fix), rebase-merged into
+`main` as:
 
-Phase 7 is not marked COMPLETE until review, PR CI, merge, and the
-post-merge `main` run all succeed.
+- `af63b1c feat: add projects CMS vertical slice`
+- `4434c1c fix: make admin D1 composition test CI-safe`
+
+and verified again by the **post-merge `main` CI run `31077681211`**.
+
+- **Phases 0–7:** Complete.
+- **Phase 8 — Remaining CMS:** not started (next).
 
 ## Active task
 
-Phase 7 — the Projects CMS vertical slice: admin routes, validation,
-server mutations, repository wiring, and the reusable CMS pattern Phase 8
-will follow.
+Phase 7 completion documentation (documentation-only; no application,
+test, schema, package manifest, lockfile, migration, Wrangler, Next
+config, CI, or Cloudflare resource changes).
 
 ## Blockers
 
-**No implementation blocker.** Outstanding items are unchanged from
-Phase 6: Linux/CI execution of the new suites, and the manual **Cloudflare
-Zero Trust dashboard configuration** (see *Manual actions*). The
-**remote D1 schema also remains unapplied**, so the CMS runs against local
-D1 only until that deliberate step is taken.
+**None for Phase 7.**
+
+Two items remain outstanding but are **deployment prerequisites, not
+Phase 7 blockers** — see *Known limitations* and *Manual actions*: the
+**Cloudflare Zero Trust dashboard configuration**, and the **remote
+`portfolio-cms` schema**, which is still intentionally unapplied. Until
+Access exists the admin app denies every request, which is the intended
+fail-closed behaviour.
+
+## Next suggested task
+
+**Phase 8 — Remaining CMS.** Not started, and not to be implemented until
+explicitly scoped and approved.
 
 ## Phase status summary
 
@@ -43,10 +54,10 @@ D1 only until that deliberate step is taken.
 | Phase 4 — D1 schema/migrations | **Complete** (merged to `main`, CI green) |
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
 | Phase 6 — Admin foundation | **Complete** (merged to `main`, CI green) |
-| Phase 7 — Projects CMS vertical slice | Implemented; **awaiting review and CI** |
-| Phase 8 — Remaining CMS | Not started |
+| Phase 7 — Projects CMS vertical slice | **Complete** (merged to `main`, CI green) |
+| Phase 8 — Remaining CMS | Not started (**next**) |
 
-Phases 8—22 are not started. See `docs/ROADMAP.md` for the authoritative
+Phases 8–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
 
 ## Phase 7 — completed work
@@ -134,12 +145,15 @@ Pulling that conversion forward would have been silent scope expansion.
 
 ## Phase 7 — verification actually performed
 
+Locally on Windows, and again on **GitHub Actions/Linux** for both PR #12
+and the post-merge `main` run:
+
 | Command | Result |
 | --- | --- |
 | `pnpm install --frozen-lockfile` | **PASS** — lockfile unmodified |
 | `pnpm lint` | **PASS** (exit 0) |
 | `pnpm typecheck` | **PASS** (exit 0) |
-| `pnpm test` | **PASS** — **502 real checks** |
+| `pnpm test` | **PASS** — **511 real checks** |
 | `pnpm build` | **PASS** — all `/projects*` routes are `ƒ (Dynamic)` |
 
 ### Test suites after Phase 7
@@ -151,10 +165,17 @@ Pulling that conversion forward would have been silent scope expansion.
 | Repository integration | 111 | Yes — `node:sqlite` D1 adapter |
 | D1 binding compatibility | 38 | Yes — real workerd D1 binding |
 | D1Like type compatibility | 4 | Yes |
+| **Database subtotal** | **238** | — |
 | Admin authentication | 42 | Yes |
 | Admin foundation / invariant | **53** | Yes (+6 this phase) |
+| **Admin D1 composition boundary** | **34** | **Yes — new; working-tree source policy, fail-closed production, `tsc` type proof** |
 | **Projects CMS** | **96** | **Yes — new; validation + real local D1 CRUD** |
+| **Server Action authorization** | **48** | **Yes — new; the real exported actions, unauthenticated, against real local D1** |
+| **Admin subtotal** | **273** | — |
+| **Total** | **511** | — |
 | `apps/web` | — | **No — still the only no-op** |
+
+Coverage is **representative, not exhaustive**.
 
 The 96 Projects checks are validation (accepted input, ~20 rejection
 cases, database-managed-field rejection, slug suggestion) plus a full CRUD
@@ -269,12 +290,15 @@ and is a devDependency — so production runtime code cannot depend on it.
 
 ### Correction-pass verification
 
+Counts **as they stood at that point**; the CI correction below took the
+total to its final **511**.
+
 | Command | Result |
 | --- | --- |
 | `pnpm install --frozen-lockfile` | **PASS** — lockfile unmodified |
 | `pnpm lint` | **PASS** (exit 0) |
 | `pnpm typecheck` | **PASS** (exit 0) |
-| `pnpm test` | **PASS** — **502 real checks** |
+| `pnpm test` | **PASS** — 502 real checks (at that time) |
 | `pnpm build` | **PASS** — all `/projects*` routes `ƒ (Dynamic)` |
 
 Browser re-verification against real local D1 confirmed authenticated
@@ -288,13 +312,17 @@ and the canary string appeared **0 times** in all twelve responses. The
 only content in the redirect bodies is the static route title — the known
 Phase 6 metadata residual. The canary was removed afterwards.
 
-## Phase 7 — CI fix pass (PR #12, uncommitted)
+## Phase 7 — Linux CI correction (PR #12)
 
-Linux CI failed on the Phase 7 commit (`dd7dc23`) in
+This was a **test-harness / source-policy failure, not an application
+runtime failure** — no shipped behaviour was ever wrong. It is recorded in
+full because the lesson is durable.
+
+The first Linux CI run on PR #12 failed in
 `apps/admin/scripts/db-composition-tests.mjs`:
 
 ```
-FAIL  __ADMIN_DB__ appears in no tracked source file
+FAIL  <legacy identifier> appears in no tracked source file
       — apps/admin/src/lib/db/binding.ts
 ```
 
@@ -323,24 +351,54 @@ documentation regex used a `[^.\n]` gap that could not span the `.` in
 "populate `globalThis.<identifier>`", so a genuine violation written that
 way would have passed. Widened to `[^\n]`.
 
+The durable properties the fix established: application-source policy uses
+**deterministic filesystem discovery**, not tracked-file-only discovery;
+**new/untracked source files are included**; generated and vendored
+directories are excluded; paths are normalized cross-platform so Windows
+and Linux agree; and **negative controls prove an untracked violating
+source file fails immediately**. The stale source occurrence was removed.
+
 The D1 composition suite grew **25 → 34 checks**; repository total
-**502 → 511**. `pnpm install --frozen-lockfile`, `pnpm lint`,
-`pnpm typecheck`, `pnpm test` (511), and `pnpm build` all pass, with
-`/projects*` still `ƒ (Dynamic)`. No Playwright rerun: this changed no
-application behaviour.
+**502 → 511**. That fix shipped as `4434c1c fix: make admin D1 composition
+test CI-safe`; **PR #12 CI then passed**, the PR was rebase-merged, and the
+post-merge `main` run `31077681211` passed. No Playwright rerun was needed:
+the fix changed no application behaviour.
+
+## Phase 7 — CI
+
+- **Pull Request #12 initially failed once** on GitHub Actions/Linux — the
+  source-policy blind spot described above.
+- A **focused follow-up commit** fixed the scanner
+  (`4434c1c fix: make admin D1 composition test CI-safe`).
+- **PR #12 CI then passed.**
+- PR #12 was **rebase-merged** into `main` as `af63b1c` and `4434c1c`.
+- The **post-merge `main` CI run `31077681211` passed.**
+- Linux therefore verified install, lint, typecheck, tests, and build for
+  the final Phase 7 state.
 
 ## Phase 7 — known limitations
 
-- **Not yet reviewed, committed, or run on Linux/CI.**
-- **Public portfolio still uses placeholder data** — deferred, see above.
-- **No media attachment UI** — R2 is Phase 9.
-- **No technology CRUD**, so the technology picker is empty until
-  technologies exist. Creating them belongs to Phase 8.
-- **No list filtering UI.** The repository supports status filters; the
-  admin list intentionally shows everything, and a filter control was not
-  worth building for a single-entity slice.
-- **Remote D1 remains unapplied**, so the CMS is local-only for now.
-- Cloudflare Access dashboard configuration still pending.
+These are limitations, not blockers.
+
+- **The production D1 / OpenNext binding provider is intentionally
+  deferred to Phase 22.** Production fails closed until it is registered;
+  production D1 runtime integration is **not** implemented today.
+- **Remote D1 remains unmigrated**, so the CMS is local-only for now.
+- **Cloudflare Access has not been exercised end to end** against a real
+  deployment or dashboard session.
+- **The public website still uses placeholder project data** — deferred,
+  see above.
+- **No technology CRUD**, so the Projects technology picker may be empty
+  until Phase 8 adds technology management.
+- **No R2 / media upload UI** — Phase 9.
+- **No Projects list filtering UI.** The repository supports status
+  filters; the admin list intentionally shows everything, and a filter
+  control was not worth building for a single-entity slice.
+- **Browser tests are manual MCP verification, not automated Playwright
+  CI.** Automated E2E is Phase 20.
+- **`apps/web` automated tests remain a no-op** — the only fake-green
+  script in the repository.
+- **CSP remains deferred** to the security/deployment phases.
 
 ### Phase 6 — CI
 
@@ -1343,7 +1401,7 @@ All copy lives in `apps/web/src/data/placeholder-content.ts`, typed by
 `apps/web/src/data/types.ts`. Both files are headed by comments stating
 they are Phase 2 placeholders to be **replaced** — not extended — by
 `@portfolio/types` / `@portfolio/schemas` and the repository layer in
-Phases 4—5. Field names echo the planned entities in `docs/DATABASE.md`
+Phases 4–5. Field names echo the planned entities in `docs/DATABASE.md`
 so the swap is mechanical. No database, repository, or Zod schema was
 implemented, and nothing here was promoted to `packages/*`.
 
@@ -1410,7 +1468,7 @@ rendering white on `opacity-70` blue at **3.58:1** — below the WCAG AA
 secondary (bordered) appearance with no opacity reduction, since a
 non-functional control should not look like a primary CTA anyway.
 Re-measured after the fix: **16.75:1**. All other sampled text measured
-6.88:1—17.93:1 in light mode.
+6.88:1–17.93:1 in light mode.
 
 Dark-mode contrast was **calculated** from the token values (muted text
 ≥8.2:1 on the dark background), **not** measured in the browser — the MCP
@@ -1696,11 +1754,15 @@ Local development needs none of this: set `ADMIN_DEV_AUTH=enabled` in
 
 ## Next suggested task
 
-**Phase 7 — Projects CMS vertical slice.** One entity end to end: list,
-create, edit, and delete projects through the admin UI, backed by the
-Phase 5 `projects` repository. This is where `createRepositories(env.DB)`
-first meets a real binding in application code, where Zod form/input
-validation earns its place at the request boundary, and where the
-singleton-bootstrap question gets answered for real.
+**Phase 8 — Remaining CMS.** The rest of the content entities, following
+the pattern the projects slice established: `withAdminPage` routes, shared
+`@portfolio/schemas` validation, the
+`requireAdminIdentity()` → Zod → repository → `ActionResult` mutation
+order, the shared field primitives, and the existing database composition
+boundary — all reusable unchanged.
 
-Not implemented as part of this task.
+Technologies are the natural first entity, because the Projects technology
+picker stays empty until technology management exists.
+
+Not implemented as part of this task, and not to be started until
+explicitly scoped and approved.

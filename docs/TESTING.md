@@ -1,9 +1,10 @@
 # Testing
 
-## Current state (Phase 7, after the correction pass)
+## Current state (Phase 7 complete)
 
-`pnpm test` runs **ten real suites and one no-op** — **511 checks**. What
-each one actually proves matters, so be precise:
+`pnpm test` runs **ten real suites and one no-op** — **511 checks**,
+verified on Windows and on GitHub Actions/Linux. What each one actually
+proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
@@ -13,8 +14,11 @@ each one actually proves matters, so be precise:
 | **Projects CMS** | **96** | the real schemas, and **real local D1** via `getPlatformProxy()` | The validation boundary and the full CRUD + relationship path |
 | **Server Action authorization** | **48** | the **real exported action functions**, against real local D1 | Unauthenticated create/update/delete are denied and change nothing |
 
+Subtotals: **admin 273** (42 + 53 + 34 + 96 + 48) and **database 238**
+(26 + 59 + 111 + 38 + 4, detailed below) — **511 total**.
+
 `apps/admin` is **no longer a no-op**. `apps/web` is now the only fake-green
-script.
+script. Coverage is **representative, not exhaustive**.
 
 ## Server Action authorization tests (Phase 7 correction)
 
@@ -225,7 +229,7 @@ the app.
 Both scripts run under `node --conditions=react-server`, which resolves
 `server-only` to its no-op build so the modules load outside a bundler.
 
-## Database and repository suites (Phase 4—5)
+## Database and repository suites (Phase 4–5)
 
 Unchanged and still running first:
 

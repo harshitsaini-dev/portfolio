@@ -1,9 +1,42 @@
 # Changelog
 
+## 2026-08-06 — Phase 7 complete
+
+Documentation-only entry. No application, test, schema, package manifest,
+lockfile, migration, Wrangler, Next config, CI, or Cloudflare resource
+changes.
+
+- **Phase 7 — Projects CMS vertical slice is complete.** Merged into
+  `main` as `af63b1c feat: add projects CMS vertical slice` and
+  `4434c1c fix: make admin D1 composition test CI-safe`.
+- Delivered the projects CMS: `/projects`, `/projects/new`, and
+  `/projects/[id]` behind `withAdminPage`, strict shared Zod schemas at the
+  untrusted-input boundary, a fixed
+  `requireAdminIdentity()` → validation → repository → typed-result
+  mutation order with server-side redirects, and a single D1 composition
+  boundary.
+- **Pull Request #12 initially failed once on GitHub Actions/Linux** — a
+  source-policy blind spot in `db-composition-tests.mjs`, which discovered
+  files through the git index and so could not see a still-untracked source
+  file during local verification. A **focused follow-up commit** replaced
+  that with deterministic working-tree discovery plus negative controls.
+  **PR #12 CI then passed**, the PR was rebase-merged, and the **post-merge
+  `main` CI run `31077681211` passed.** This was a test-harness failure,
+  not an application runtime failure.
+- **Final real test total: 511** (238 data/repository + 273 admin).
+  `apps/web` remains the only no-op suite; coverage is representative
+  rather than exhaustive.
+- Phases 0–7 complete; **Phase 8 — Remaining CMS** is next and not started.
+- **Remote `portfolio-cms` schema remains intentionally unapplied**, remote
+  D1 was not mutated, no `--remote` runtime path exists, and **Cloudflare
+  Access dashboard configuration remains pending**. OpenNext deployment
+  wiring and the production D1 provider remain Phase 22; no R2 bucket or
+  upload workflow exists yet.
+
 ## 2026-08-06 — Phase 7 CI fix (branch `feat/projects-cms`, PR #12)
 
-**Status: uncommitted, for review. The Phase 7 commit `dd7dc23` was not
-amended.**
+**Status at the time: uncommitted, for review. Subsequently merged into
+`main` as `4434c1c`.**
 
 ### Fixed
 
@@ -44,7 +77,8 @@ changed.
 
 ## 2026-08-06 — Phase 7 correction pass (branch `feat/projects-cms`)
 
-**Status: still awaiting review and CI. Not committed.**
+**Status at the time: awaiting review and CI. Subsequently merged into
+`main` as part of `af63b1c`.**
 
 ### Fixed
 
@@ -97,7 +131,8 @@ response.
 
 ## 2026-08-06 — Phase 7: Projects CMS vertical slice (branch `feat/projects-cms`)
 
-**Status: implemented, awaiting review and CI. Not committed.**
+**Status at the time: implemented, awaiting review and CI. Subsequently
+merged into `main` as `af63b1c`.**
 
 ### Added
 
@@ -170,7 +205,7 @@ changes.
 - Linux CI verified lint, typecheck, tests, and build, including the two
   new admin suites. Total: **327 real checks** (238 data/repository + 89
   admin).
-- Phases 0—6 complete; **Phase 7 — Projects CMS vertical slice** is next
+- Phases 0–6 complete; **Phase 7 — Projects CMS vertical slice** is next
   and not started.
 - `apps/admin` no longer has a no-op test script; **`apps/web` is now the
   only no-op suite**. Coverage remains representative, not exhaustive.
@@ -244,7 +279,7 @@ workspace config, test, CI, or Cloudflare resource changes.
 - Linux CI proved `getPlatformProxy`, workerd, and Wrangler type
   generation all work on a clean runner — the parts of the **238-check**
   suite that had previously only run on Windows.
-- Phases 0—5 complete; **Phase 6 — Admin foundation** is next and not
+- Phases 0–5 complete; **Phase 6 — Admin foundation** is next and not
   started.
 - Restated precisely: the 111 adapter checks are repository-logic tests
   over a `node:sqlite` D1 adapter and are **not** proof of the real D1
@@ -316,7 +351,7 @@ Cloudflare resource changes.
 - GitHub Actions installed Wrangler and `workerd` successfully on Linux,
   so the real D1 migration smoke test now has **cross-platform proof —
   59/59 checks on both Windows and Linux**.
-- Phases 0—4 complete; **Phase 5 — Repository/data layer** is next and not
+- Phases 0–4 complete; **Phase 5 — Repository/data layer** is next and not
   started.
 - Restated precisely: `@portfolio/database` has real automated D1
   schema coverage, while the `apps/web` and `apps/admin` test scripts
@@ -384,7 +419,7 @@ CI, configuration, or design-system changes.
   `feat: establish portfolio design system`, verified by **Pull Request #4
   GitHub Actions**, merged into `main`, and verified again by the
   **post-merge `main` CI run, which passed**.
-- Phases 0—3 are now complete; **Phase 4 — D1 schema/migrations** is next
+- Phases 0–3 are now complete; **Phase 4 — D1 schema/migrations** is next
   and not started.
 - Restated the standing limitation explicitly: a green `pnpm test` is a
   no-op script, not test coverage. **Automated unit, integration, and E2E
@@ -450,7 +485,7 @@ CI, configuration, or design-system changes.
   (`apps/web/src/data/{types,placeholder-content}.ts`) and render every
   section from it. Both files are marked as Phase 2 placeholders to be
   replaced by `@portfolio/types`/`@portfolio/schemas` and the repository
-  layer in Phases 4—5. All content is neutral and fictional.
+  layer in Phases 4–5. All content is neutral and fictional.
 - Added 12 section/layout components under `apps/web/src/components/`.
   **All are Server Components — no `"use client"` anywhere.**
 - Added a global `:focus-visible` style, neutral surface/border/muted/
@@ -489,7 +524,7 @@ configuration changes.
   has a focusable application control yet.
 - Confirmed no D1, R2, auth, CMS CRUD, Motion, Three.js, or other
   later-phase functionality has been implemented.
-- Aligned `docs/ROADMAP.md` with the authoritative Phase 0—22 sequence,
+- Aligned `docs/ROADMAP.md` with the authoritative Phase 0–22 sequence,
   marking Phase 0 and Phase 1 complete and Phase 2 (Static responsive
   portfolio) as next.
 
