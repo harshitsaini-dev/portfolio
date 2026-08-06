@@ -1,9 +1,46 @@
 # Changelog
 
+## 2026-08-06 — Phase 8: Timeline CMS complete
+
+Documentation-only entry. No application, test, schema, repository,
+package, migration, config, CI, or Cloudflare resource changes.
+
+- **Timeline / professional experience CMS — the third Phase 8 subtask — is
+  complete.** The first entity that owns a child table the user edits
+  directly: `timeline_highlights` stays owned exclusively by the timeline
+  aggregate, with no separate highlights repository and no child SQL in
+  actions or pages.
+- **Atomic aggregate persistence.** The repository gained
+  `createWithHighlights()` and `updateWithHighlights()`, writing parent and
+  children in a single D1 `batch()`; forced-failure tests prove a failing
+  child rolls the parent mutation back, leaves `updatedAt` unchanged, keeps
+  the previous highlights, and leaves no orphaned row. Transaction logic
+  stayed in the data layer.
+- Merged into `main` as `aae6d38 feat: add timeline CMS` via **Pull Request
+  #18**, which passed CI on GitHub Actions/Linux; the **post-merge `main` CI
+  run `31100867892` passed** as well, covering install, lint, typecheck,
+  tests, and build.
+- **Final real test total: 971** — database **287** (repository integration
+  126 → 157 for the aggregate-write and rollback coverage), admin **684**.
+  `apps/web` remains the only no-op suite.
+- **A pre-existing responsive regression remains outstanding** on the
+  populated `/projects` and `/technologies` lists. It was discovered during
+  Timeline verification and deliberately kept out of that feature branch —
+  those files were restored to `main` before the commit. Queued as
+  `fix/admin-list-table-overflow`, the immediate next engineering task.
+- **Phase 8 remains IN PROGRESS.** Education is the next entity and is not
+  started; Certifications, Skills, Tools, Socials, and Sections are not
+  started.
+- **Remote `portfolio-cms` schema remains intentionally unapplied**, remote
+  D1 was not mutated, no `--remote` runtime path exists, and **Cloudflare
+  Access dashboard configuration remains pending**. The production OpenNext
+  D1 provider remains Phase 22; no R2 work exists.
+
 ## 2026-08-06 — Phase 8: Timeline CMS (branch `feat/remaining-cms-timeline`)
 
-**Status: implemented, awaiting review. Not committed. Phase 8 remains IN
-PROGRESS — this is its third entity.**
+**Status at the time: implemented, awaiting review. Subsequently scope-
+corrected and merged into `main` as `aae6d38`. Phase 8 remains IN PROGRESS —
+this is its third entity.**
 
 ### Added
 

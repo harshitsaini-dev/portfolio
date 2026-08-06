@@ -1,11 +1,11 @@
 # Testing
 
-## Current state (Phase 8 — Timeline CMS in review)
+## Current state (Phase 8 — Timeline CMS complete)
 
-`pnpm test` runs **thirteen real suites and one no-op** — **971 checks**.
-The 780 verified after the Profile CMS all still pass, on Windows and on
-GitHub Actions/Linux; the Timeline CMS added the rest and is not yet
-CI-verified. What each one actually proves matters, so be precise:
+`pnpm test` runs **thirteen real suites and one no-op** — **971 checks**,
+verified on Windows and on GitHub Actions/Linux (PR #18 and the post-merge
+`main` run). The 780 verified after the Profile CMS all still pass. What
+each one actually proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
