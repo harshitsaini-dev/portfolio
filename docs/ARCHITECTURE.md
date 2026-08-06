@@ -188,6 +188,31 @@ UI components never talk to the database directly; they go through the
 service layer once it exists. Types shared between layers live in
 `packages/types` to avoid duplication and drift.
 
+## Fourth CMS entity: timeline — the parent/child aggregate (Phase 8)
+
+Projects reference technologies; profile is a singleton. Timeline is the
+first entity that **owns a child table the user edits directly**
+(`timeline_highlights`), and that changed one thing structurally:
+
+- **Atomicity moved into the repository, not the Server Action.**
+  `create()` + `setHighlights()` is two round-trips, so a failing child
+  could leave a half-saved aggregate. `createWithHighlights()` and
+  `updateWithHighlights()` issue one `db.batch()` each. The alternative —
+  orchestrating two repository calls and compensating on failure inside an
+  action — would have put transaction logic in the layer least able to
+  express it.
+- **Children have no independent Server Actions.** A highlight has no
+  meaning outside its entry, so exposing child mutations would let a caller
+  half-save an aggregate the repository is built to keep whole. The test
+  suite asserts no exported action name mentions highlights.
+- **Ordering is array order.** The form submits an explicit ordered list and
+  never sends `position`; the repository assigns it from the index. Nothing
+  depends on DOM order, and a client-supplied `position` is rejected.
+
+Everything else is unchanged: `withAdminPage`, static metadata, the same
+mutation order, the same `ActionResult`, the same field primitives, the same
+database composition boundary.
+
 ## Third CMS entity: profile — the singleton shape (Phase 8)
 
 Projects and technologies are collections. Profile is the first

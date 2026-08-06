@@ -271,6 +271,42 @@ Note that `skills` also has `UNIQUE (category_id, name)`, whose leading
 column already serves "skills in this category"; the additional index
 exists only for the ordered read.
 
+## Timeline in the admin (Phase 8)
+
+`timeline_highlights` remains owned solely by the timeline aggregate — no
+highlights repository exists, and no other repository reads or writes the
+table.
+
+The CMS needed a guarantee the existing API could not give, so the
+repository gained two methods:
+
+```ts
+createWithHighlights(input, highlights)
+updateWithHighlights(id, patch, highlights)
+```
+
+`create()` followed by `setHighlights()` is two round-trips. If the second
+failed, the entry would be persisted with no highlights — a half-saved
+aggregate. Both now issue **one `db.batch()`**, so parent and children
+commit or roll back together. The entry id is generated in application code
+(UUIDv7), which is what makes a single batch possible: the child rows can
+reference the parent before it has been written.
+
+`updateWithHighlights` checks existence **before** the batch rather than
+inferring it from `meta.changes`: with an empty patch and an empty
+highlight list every statement legitimately affects zero rows, so "no
+changes" cannot distinguish a missing entry from a no-op. A row deleted
+between the check and the batch is still caught, because the highlight
+inserts would violate the foreign key and abort it.
+
+**Ordering** is array order. Callers never supply `position`; it is assigned
+from the index and renumbered contiguously from zero on every write.
+
+**Delete** relies on the committed `ON DELETE CASCADE` on
+`timeline_highlights.timeline_entry_id`: removing an entry removes its own
+bullets and nothing else. Both directions are tested, and an explicit
+orphan-row query runs afterwards.
+
 ## Profile in the admin (Phase 8)
 
 The profile CMS uses the Phase 5 repository **entirely unchanged** —

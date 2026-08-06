@@ -8,3 +8,4 @@
 export * from "./profile.ts";
 export * from "./projects.ts";
 export * from "./technologies.ts";
+export * from "./timeline.ts";

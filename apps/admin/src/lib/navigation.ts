@@ -41,7 +41,9 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
       // the rest of that CMS exists.
       { label: "Technologies", href: "/technologies" },
       { label: "Profile", href: "/profile" },
-      { label: "Experience", availableIn: "Phase 8" },
+      // "Experience" matches the public site's and docs' wording for the
+      // `timeline_entries` table; the route keeps the table's name.
+      { label: "Experience", href: "/timeline" },
       { label: "Education", availableIn: "Phase 8" },
       { label: "Skills & tools", availableIn: "Phase 8" },
       { label: "Sections", availableIn: "Phase 8" },

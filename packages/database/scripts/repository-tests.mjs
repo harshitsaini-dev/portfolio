@@ -19,7 +19,12 @@ import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { createRepositories, ConflictError, NotFoundError } from "../src/index.ts";
+import {
+  createRepositories,
+  ConflictError,
+  DatabaseError,
+  NotFoundError,
+} from "../src/index.ts";
 import { openTestDatabase } from "./d1-test-adapter.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -632,6 +637,156 @@ try {
     equal(
       "setHighlights replaces rather than appends",
       (await repos.timeline.listHighlights(entry.id)).length,
+      1,
+    );
+  }
+
+  // -- Timeline aggregate writes -------------------------------------------
+  {
+    group("Timeline aggregate (entry + owned highlights in one batch)");
+    const { repos } = freshFixture();
+
+    // A bystander that must survive every failure below.
+    const bystander = await repos.timeline.createWithHighlights(
+      { role: "Bystander", organization: "Untouched Ltd", position: 1 },
+      ["Bystander highlight"],
+    );
+
+    const created = await repos.timeline.createWithHighlights(
+      {
+        role: "Senior Engineer",
+        organization: "Placeholder Ltd",
+        summary: "Did the work.",
+        position: 0,
+      },
+      ["First bullet", "Second bullet", "Third bullet"],
+    );
+    equal("createWithHighlights returns the entry", created.role, "Senior Engineer");
+    equal("it returns the highlights too", created.highlights.length, 3);
+    equal("highlight order follows array order", created.highlights[0].content, "First bullet");
+    equal("positions are assigned from the index", created.highlights[2].position, 2);
+    equal(
+      "highlights are persisted, not just returned",
+      (await repos.timeline.listHighlights(created.id)).length,
+      3,
+    );
+
+    // Update parent and children together.
+    const updated = await repos.timeline.updateWithHighlights(
+      created.id,
+      { role: "Staff Engineer", summary: null },
+      ["Replaced first", "Replaced second"],
+    );
+    equal("the parent updated", updated.role, "Staff Engineer");
+    equal("a null patch field cleared", updated.summary, null);
+    equal("highlights were replaced wholesale", updated.highlights.length, 2);
+    equal("in the new order", updated.highlights[0].content, "Replaced first");
+    equal("positions were renumbered from zero", updated.highlights[0].position, 0);
+    equal("and stay contiguous", updated.highlights[1].position, 1);
+
+    // Reordering is expressed purely as array order.
+    const reordered = await repos.timeline.updateWithHighlights(
+      created.id,
+      {},
+      ["Replaced second", "Replaced first"],
+    );
+    equal("reordering swaps content by position", reordered.highlights[0].content, "Replaced second");
+    equal("the swapped item takes position 0", reordered.highlights[0].position, 0);
+
+    // An empty highlight list is legitimate.
+    const emptied = await repos.timeline.updateWithHighlights(
+      created.id,
+      {},
+      [],
+    );
+    equal("an empty highlight list clears them", emptied.highlights.length, 0);
+    equal(
+      "and the parent survives",
+      (await repos.timeline.getById(created.id))?.role,
+      "Staff Engineer",
+    );
+
+    // ---- Atomicity: a failing child must roll back the whole write --------
+    //
+    // `content` is NOT NULL, so a null bullet aborts the batch. This is the
+    // guarantee `create()` + `setHighlights()` could not offer.
+    await repos.timeline.setHighlights(created.id, ["Keep me"]);
+    const before = await repos.timeline.getById(created.id);
+
+    await expectRejection(
+      "an invalid highlight rejects the whole aggregate update",
+      repos.timeline.updateWithHighlights(
+        created.id,
+        { role: "Should Not Persist" },
+        ["Valid", null],
+      ),
+      (error) => error instanceof DatabaseError,
+    );
+    equal(
+      "the parent update rolled back with it",
+      (await repos.timeline.getById(created.id))?.role,
+      before.role,
+    );
+    equal(
+      "updatedAt did not advance",
+      (await repos.timeline.getById(created.id))?.updatedAt,
+      before.updatedAt,
+    );
+    const survivingHighlights = await repos.timeline.listHighlights(created.id);
+    equal("the previous highlights survived", survivingHighlights.length, 1);
+    equal("with their content intact", survivingHighlights[0].content, "Keep me");
+
+    const countBefore = (await repos.timeline.list()).length;
+    await expectRejection(
+      "an invalid highlight rejects the whole aggregate create",
+      repos.timeline.createWithHighlights(
+        { role: "Never Created", organization: "Nowhere" },
+        ["Valid", null],
+      ),
+      (error) => error instanceof DatabaseError,
+    );
+    equal("no entry row was left behind", (await repos.timeline.list()).length, countBefore);
+    check(
+      "and the orphaned parent is genuinely absent",
+      (await repos.timeline.list()).every((e) => e.role !== "Never Created"),
+    );
+
+    // ---- Unrelated entries are never collateral damage --------------------
+    equal(
+      "the bystander entry survived every failure",
+      (await repos.timeline.getById(bystander.id))?.role,
+      "Bystander",
+    );
+    equal(
+      "with its own highlights untouched",
+      (await repos.timeline.listHighlights(bystander.id)).length,
+      1,
+    );
+
+    // ---- Not found --------------------------------------------------------
+    await expectRejection(
+      "updating a missing entry raises NotFoundError",
+      repos.timeline.updateWithHighlights("no-such-entry", { role: "X" }, []),
+      (error) => error instanceof NotFoundError,
+    );
+
+    // ---- Delete cascades owned highlights only ----------------------------
+    await repos.timeline.setHighlights(created.id, ["A", "B"]);
+    equal("delete reports success", await repos.timeline.delete(created.id), true);
+    equal("the entry is gone", await repos.timeline.getById(created.id), null);
+    equal(
+      "its owned highlights cascaded away",
+      (await repos.timeline.listHighlights(created.id)).length,
+      0,
+    );
+    equal(
+      "the unrelated entry still exists after the delete",
+      (await repos.timeline.getById(bystander.id))?.role,
+      "Bystander",
+    );
+    equal(
+      "and keeps its highlights",
+      (await repos.timeline.listHighlights(bystander.id)).length,
       1,
     );
   }
