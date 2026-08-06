@@ -288,6 +288,47 @@ and the canary string appeared **0 times** in all twelve responses. The
 only content in the redirect bodies is the static route title — the known
 Phase 6 metadata residual. The canary was removed afterwards.
 
+## Phase 7 — CI fix pass (PR #12, uncommitted)
+
+Linux CI failed on the Phase 7 commit (`dd7dc23`) in
+`apps/admin/scripts/db-composition-tests.mjs`:
+
+```
+FAIL  __ADMIN_DB__ appears in no tracked source file
+      — apps/admin/src/lib/db/binding.ts
+```
+
+**Root cause — two faults, one symptom.** The binding module's header
+comment still named the removed identifier while explaining that it had
+been removed. And the scanner enumerated files with `git ls-files`, so
+during local verification — when `binding.ts` was still an **untracked new
+file** — it never opened it and reported a false green. Committing made the
+file tracked, and CI then correctly found the violation. The test was
+right; it had simply been unable to see the file locally.
+
+**Fix 1** — the comment now describes the removed contract without naming
+the identifier, deferring to `docs/DECISIONS.md` for the history. The
+provider architecture is unchanged: local Wrangler `getPlatformProxy()`,
+production fails closed without a registered provider, Phase 22 registers
+`getCloudflareContext().env.DB`.
+
+**Fix 2** — source discovery now walks the working tree instead of the git
+index, so a newly created untracked file is covered. Details and the
+negative controls are in `docs/TESTING.md`. Proven live by temporarily
+creating an untracked `.ts` file containing the identifier: the suite
+failed and named it, then it was deleted.
+
+While adding those controls, one of them caught a **second real gap**: the
+documentation regex used a `[^.\n]` gap that could not span the `.` in
+"populate `globalThis.<identifier>`", so a genuine violation written that
+way would have passed. Widened to `[^\n]`.
+
+The D1 composition suite grew **25 → 34 checks**; repository total
+**502 → 511**. `pnpm install --frozen-lockfile`, `pnpm lint`,
+`pnpm typecheck`, `pnpm test` (511), and `pnpm build` all pass, with
+`/projects*` still `ƒ (Dynamic)`. No Playwright rerun: this changed no
+application behaviour.
+
 ## Phase 7 — known limitations
 
 - **Not yet reviewed, committed, or run on Linux/CI.**

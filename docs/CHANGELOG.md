@@ -1,5 +1,47 @@
 # Changelog
 
+## 2026-08-06 — Phase 7 CI fix (branch `feat/projects-cms`, PR #12)
+
+**Status: uncommitted, for review. The Phase 7 commit `dd7dc23` was not
+amended.**
+
+### Fixed
+
+- **Linux CI failure in `db-composition-tests.mjs`.** The binding module's
+  header comment still named the removed `globalThis` identifier while
+  explaining its removal. Reworded to describe the removed contract without
+  naming it, deferring to `docs/DECISIONS.md`. The provider architecture is
+  untouched.
+- **A test-harness blind spot that caused a false green locally.** The
+  source-policy scanner used `git ls-files`, so it never opened
+  `src/lib/db/binding.ts` while that file was untracked — the violation
+  only appeared after the commit made it tracked. Source discovery now
+  walks the working tree (`apps/`, `packages/`) with sorted entries,
+  repository-relative forward-slash paths, no shell, and explicit
+  exclusions for generated/vendored directories. The banned identifier is
+  assembled at runtime so the test file needs no self-exclusion.
+- **A second gap found by a new negative control:** the documentation
+  regex's `[^.\n]` gap could not span the `.` in
+  "populate `globalThis.<identifier>`", so a real violation written that
+  way would have passed. Widened to `[^\n]`.
+
+### Changed
+
+- D1 composition suite **25 → 34 checks** (working-tree scan assertions
+  plus five negative controls covering new-untracked source files,
+  comment-only occurrences, clean files, and both documentation
+  directions). Repository total **502 → 511**.
+
+### Verification
+
+`pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`,
+`pnpm test` (**511 checks**), `pnpm build` all **PASS**; `/projects*`
+routes remain `ƒ (Dynamic)`. `git grep -n "__ADMIN_DB__" -- apps/admin/src`
+returns nothing. Blind spot proven closed by temporarily creating an
+untracked `.ts` file containing the identifier — the suite failed and named
+it — then deleting it. No Playwright rerun: no application behaviour
+changed.
+
 ## 2026-08-06 — Phase 7 correction pass (branch `feat/projects-cms`)
 
 **Status: still awaiting review and CI. Not committed.**

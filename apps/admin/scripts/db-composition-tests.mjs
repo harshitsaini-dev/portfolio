@@ -8,9 +8,12 @@
  * What is proven here is the *application* boundary
  * (`src/lib/db/binding.ts`):
  *
- *   1. **No invented API.** An earlier revision claimed OpenNext would
- *      populate `globalThis.__ADMIN_DB__`. It would not. This asserts that
- *      contract is gone from the whole repository.
+ *   1. **No invented API.** An earlier revision resolved the production
+ *      binding from a bespoke `globalThis` property, claiming OpenNext
+ *      would populate it. It would not. This asserts that identifier is
+ *      gone from every source file in the working tree — see `FORBIDDEN`
+ *      below, which is assembled at runtime so this file needs no
+ *      self-exclusion from its own scan.
  *   2. **Production fails closed.** With no provider registered and
  *      `NODE_ENV=production`, `getAdminDatabase()` throws — it does not fall
  *      back to the development path, and it does not load `wrangler`.
@@ -27,9 +30,16 @@
 
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from "node:fs";
+import {
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+  readFileSync,
+  readdirSync,
+  existsSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { experimental_generateTypes } from "wrangler";
@@ -60,15 +70,114 @@ function check(description, condition, detail = "") {
   }
 }
 
-/** Every tracked source/doc file, so the removed contract cannot hide anywhere. */
-function trackedFiles() {
-  const result = spawnSync("git", ["ls-files"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    shell: false,
-  });
-  if (result.status !== 0) return null;
-  return result.stdout.split(/\r?\n/).filter(Boolean);
+/**
+ * The identifier this policy bans, assembled at runtime.
+ *
+ * Deliberately never written as one literal: that way *this* file needs no
+ * self-exclusion from the scan below, and the scanner has no blind spot of
+ * its own to reason about.
+ */
+const FORBIDDEN = ["__ADMIN", "DB__"].join("_");
+
+/**
+ * Source discovery.
+ *
+ * This used to call `git ls-files`, which is how the identifier reached
+ * CI: during local verification `src/lib/db/binding.ts` was still an
+ * untracked new file, so the scan never opened it and reported a false
+ * green. It only failed once the commit made the file tracked.
+ *
+ * A source policy has to describe the working tree, not the index, so this
+ * walks the filesystem instead. Deterministic (entries sorted), no shell,
+ * and no platform-specific path handling — results are repository-relative
+ * with forward slashes so Windows and Linux agree.
+ */
+const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]);
+
+/** Generated, vendored, or scratch locations. Never source. */
+const EXCLUDED_DIRECTORIES = new Set([
+  "node_modules",
+  ".next",
+  ".wrangler",
+  ".git",
+  ".turbo",
+  "dist",
+  "build",
+  "coverage",
+  ".playwright-mcp",
+]);
+
+function walk(absoluteDir, relativeDir, collected, extensions) {
+  let entries;
+  try {
+    entries = readdirSync(absoluteDir, { withFileTypes: true });
+  } catch {
+    return collected; // directory absent in this checkout
+  }
+  for (const entry of [...entries].sort((a, b) => a.name.localeCompare(b.name))) {
+    const relative = relativeDir ? `${relativeDir}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      if (EXCLUDED_DIRECTORIES.has(entry.name)) continue;
+      walk(join(absoluteDir, entry.name), relative, collected, extensions);
+    } else if (entry.isFile() && extensions.has(extname(entry.name))) {
+      collected.push(relative);
+    }
+  }
+  return collected;
+}
+
+/** Every application/source file in the working tree, tracked or not. */
+function sourceFiles() {
+  const roots = ["apps", "packages"];
+  const collected = [];
+  for (const root of roots) {
+    walk(join(repoRoot, root), root, collected, SOURCE_EXTENSIONS);
+  }
+  return collected;
+}
+
+/** Every Markdown file in the working tree. */
+function documentationFiles() {
+  const collected = [];
+  walk(repoRoot, "", collected, new Set([".md"]));
+  return collected;
+}
+
+/**
+ * The policy itself, as a pure function of (path, contents).
+ *
+ * Separated from the walk so it can be exercised against sample inputs —
+ * including a file that does not exist on disk — which is how the negative
+ * control proves a *new, untracked* source file would be rejected.
+ */
+function violatesSourcePolicy(_relativePath, contents) {
+  return contents.includes(FORBIDDEN);
+}
+
+/**
+ * Documentation is held to a weaker rule: it may name the identifier while
+ * recording that it was removed — erasing that history is how the same
+ * mistake returns unnoticed — but must not present it as a live contract.
+ */
+function violatesDocumentationPolicy(_relativePath, contents) {
+  if (!contents.includes(FORBIDDEN)) return false;
+  const asserts =
+    // The gap must allow `.` — a real violation reads "populate
+    // `globalThis.<identifier>`", and an earlier `[^.\n]` gap could not
+    // span that dot. The negative control below caught exactly that.
+    new RegExp(
+      `(populate|provide|inject|set|read|supply)s?\\b[^\\n]{0,60}${FORBIDDEN}`,
+      "i",
+    ).test(contents) ||
+    new RegExp(
+      `${FORBIDDEN}[^\\n]{0,60}\\b(is populated|will be populated|is provided|is injected)`,
+      "i",
+    ).test(contents);
+  const disclaims =
+    /invented|removed|no such api|does not exist|not the documented|appears nowhere|is gone/i.test(
+      contents,
+    );
+  return asserts && !disclaims;
 }
 
 let workDir = null;
@@ -78,54 +187,85 @@ try {
   // =========================================================================
   startGroup("The invented production contract is gone");
 
-  const files = trackedFiles();
-  check("the tracked file list was readable", Array.isArray(files) && files.length > 0);
-
-  // In code the ban is absolute. In documentation the name may only appear
-  // as a *correction* — docs record why it was removed, and erasing that
-  // history would let the same mistake return unnoticed. So docs are held
-  // to the weaker rule that they must not describe it as a live contract.
-  const codeOffenders = [];
-  const docOffenders = [];
-  for (const file of files ?? []) {
-    if (file === "apps/admin/scripts/db-composition-tests.mjs") continue; // this file names it
-    const path = join(repoRoot, file);
-    if (!existsSync(path)) continue;
-    let text;
-    try {
-      text = readFileSync(path, "utf8");
-    } catch {
-      continue; // binary
-    }
-    if (!text.includes("__ADMIN_DB__")) continue;
-
-    if (file.endsWith(".md")) {
-      // Flag only an actual *assertion* that something populates or reads
-      // the global — the specific mistake being guarded against. Prose that
-      // merely names it while explaining its removal is fine and wanted.
-      const asserts =
-        /(populate|provide|inject|set|read|supply)s?\b[^.\n]{0,60}__ADMIN_DB__/i.test(text) ||
-        /__ADMIN_DB__[^.\n]{0,60}\b(is populated|will be populated|is provided|is injected)/i.test(
-          text,
-        );
-      const disclaims =
-        /invented|removed|no such api|does not exist|not the documented|appears nowhere|is gone/i.test(
-          text,
-        );
-      if (asserts && !disclaims) docOffenders.push(file);
-    } else {
-      codeOffenders.push(file);
-    }
-  }
+  const files = sourceFiles();
   check(
-    "`__ADMIN_DB__` appears in no tracked source file",
+    "the working-tree source scan found files",
+    files.length > 0,
+    String(files.length),
+  );
+  check(
+    "the scan reaches the admin database boundary",
+    files.includes("apps/admin/src/lib/db/binding.ts"),
+  );
+  check(
+    "the scan skips generated and vendored directories",
+    !files.some((file) => /(^|\/)(node_modules|\.next|\.wrangler|dist)(\/|$)/.test(file)),
+  );
+  check(
+    "paths are repository-relative and platform-neutral",
+    files.every((file) => !file.includes("\\") && !file.startsWith("/")),
+  );
+
+  const codeOffenders = files.filter((file) =>
+    violatesSourcePolicy(file, readFileSync(join(repoRoot, file), "utf8")),
+  );
+  check(
+    "the banned identifier appears in no working-tree source file, tracked or not",
     codeOffenders.length === 0,
     codeOffenders.join(", "),
   );
+
+  const docs = documentationFiles();
+  const docOffenders = docs.filter((file) =>
+    violatesDocumentationPolicy(file, readFileSync(join(repoRoot, file), "utf8")),
+  );
+  check("documentation was scanned", docs.length > 0, String(docs.length));
   check(
-    "no documentation still presents `__ADMIN_DB__` as a live contract",
+    "no documentation still presents the identifier as a live contract",
     docOffenders.length === 0,
     docOffenders.join(", "),
+  );
+
+  // ---- Negative controls -------------------------------------------------
+  //
+  // The CI failure was not just a stale comment — the scanner itself gave a
+  // false green because it consulted the git index instead of the working
+  // tree, so a brand-new untracked file was invisible. These prove the
+  // policy rejects exactly that case, without leaving a bad file on disk.
+  check(
+    "negative control — a NEW UNTRACKED source file carrying the identifier is rejected",
+    violatesSourcePolicy(
+      "apps/admin/src/lib/db/brand-new-untracked.ts",
+      `export const db = globalThis.${FORBIDDEN};\n`,
+    ),
+  );
+  check(
+    "negative control — the identifier is caught inside a comment too",
+    violatesSourcePolicy(
+      "apps/admin/src/lib/db/another-new-file.ts",
+      `/** Reads ${FORBIDDEN} in deployment. */\nexport const x = 1;\n`,
+    ),
+  );
+  check(
+    "a clean source file is not flagged",
+    !violatesSourcePolicy(
+      "apps/admin/src/lib/db/clean.ts",
+      "export const db = await getAdminDatabase();\n",
+    ),
+  );
+  check(
+    "negative control — documentation asserting the identifier is populated is rejected",
+    violatesDocumentationPolicy(
+      "docs/ARCHITECTURE.md",
+      `The OpenNext adapter will populate \`globalThis.${FORBIDDEN}\` in Phase 22.`,
+    ),
+  );
+  check(
+    "documentation recording that it was removed is allowed",
+    !violatesDocumentationPolicy(
+      "docs/DECISIONS.md",
+      `An earlier revision claimed OpenNext would populate \`${FORBIDDEN}\`. That was an invented contract and has been removed.`,
+    ),
   );
 
   const bindingSource = readFileSync(

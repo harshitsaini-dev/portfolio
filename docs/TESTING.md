@@ -2,14 +2,14 @@
 
 ## Current state (Phase 7, after the correction pass)
 
-`pnpm test` runs **ten real suites and one no-op** — **502 checks**. What
+`pnpm test` runs **ten real suites and one no-op** — **511 checks**. What
 each one actually proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
 | Admin authentication | **42** | real `jose` verification, locally minted tokens | The Access JWT boundary and the development-auth guard |
 | Admin foundation | **53** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, and the protected-page invariant |
-| **D1 composition boundary** | **25** | the real `binding.ts`, plus `tsc` over Wrangler-generated Cloudflare types | Production fails closed, the provider seam composes, and Phase 22's provider already type-checks |
+| **D1 composition boundary** | **34** | the real `binding.ts`, the **working tree**, plus `tsc` over Wrangler-generated Cloudflare types | Production fails closed, the provider seam composes, and Phase 22's provider already type-checks |
 | **Projects CMS** | **96** | the real schemas, and **real local D1** via `getPlatformProxy()` | The validation boundary and the full CRUD + relationship path |
 | **Server Action authorization** | **48** | the **real exported action functions**, against real local D1 | Unauthenticated create/update/delete are denied and change nothing |
 
@@ -70,13 +70,38 @@ only to the positive control, and to supplying the request headers whose
 
 ## D1 composition boundary tests (Phase 7 correction)
 
-`apps/admin/scripts/db-composition-tests.mjs` — **25 checks**. Phase 5
+`apps/admin/scripts/db-composition-tests.mjs` — **34 checks**. Phase 5
 already proves `D1Database` satisfies `D1Like`; that is not repeated. This
 covers the *application* boundary:
 
-- **The invented contract is gone** — every tracked file is scanned to
-  confirm `__ADMIN_DB__` appears nowhere, and that the binding module names
-  the real API it defers to.
+- **The invented contract is gone** — the banned identifier appears in no
+  source file, and the binding module names the real API it defers to.
+
+  **Source discovery walks the working tree, not the git index.** This
+  originally called `git ls-files`, which produced a false green: during
+  local verification `src/lib/db/binding.ts` was still an untracked new
+  file, so the scan never opened it, and the violation only surfaced on
+  Linux CI once the commit made the file tracked. A source policy has to
+  describe the working tree, so it now walks `apps/` and `packages/`
+  recursively (sorted entries, repository-relative forward-slash paths, no
+  shell), skipping `node_modules`, `.next`, `.wrangler`, `.git`, `.turbo`,
+  `dist`, `build`, `coverage`, and `.playwright-mcp`. The banned identifier
+  is assembled at runtime from fragments, so the test file needs no
+  self-exclusion and therefore has no blind spot of its own.
+
+  Documentation is scanned separately and held to a weaker rule: it may
+  name the identifier while recording that it was removed — erasing that
+  history is how the same mistake returns unnoticed — but must not present
+  it as a live contract.
+
+  **Negative controls** exercise the policy as a pure `(path, contents)`
+  function, so a *new untracked* file can be tested without one existing:
+  a fresh untracked source file carrying the identifier is rejected, as is
+  one carrying it only in a comment; a clean file is not flagged;
+  documentation asserting the identifier is populated is rejected, while
+  documentation recording its removal is allowed. Verified live as well, by
+  temporarily creating an untracked `.ts` file containing the identifier —
+  the suite failed and named it — then deleting it.
 - **Production fails closed** — with no provider registered and
   `NODE_ENV=production`, `getAdminDatabase()` throws
   `DatabaseUnavailableError` whose message names `setAdminDatabaseProvider`

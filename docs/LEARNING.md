@@ -3,6 +3,37 @@
 Notes on things learned while building this project that are worth
 remembering for future work.
 
+## Phase 7 — CI fix
+
+### A source-policy test that reads the git index tests the wrong thing
+
+The scanner used `git ls-files`, so it was blind to exactly the files most
+likely to violate a brand-new policy: the brand-new files. It passed
+locally, then failed on CI the moment the commit made them tracked. The
+test was correct throughout — it simply could not see what it was meant to
+check.
+
+The general shape: when a check enumerates "everything", ask *everything
+according to whom?* The index, the working tree, and the build output are
+three different populations, and a policy about source code means the
+working tree.
+
+### A test that must exclude itself has a blind spot by construction
+
+The old scanner skipped its own file, because it contained the banned
+string. Assembling the identifier at runtime from fragments removed the
+need for that exclusion entirely — so the scanner now covers itself. When a
+check needs a carve-out, it is worth asking whether the carve-out can be
+designed away instead.
+
+### Negative controls keep earning their place
+
+Writing "documentation asserting the identifier is populated must be
+rejected" immediately failed — the regex gap was `[^.\n]` and could not
+span the dot in `globalThis.<identifier>`. A real violation written the
+natural way would have passed silently. The control was added to prove the
+check *could* fail, and it found a live hole in the check itself.
+
 ## Phase 7 — correction pass
 
 ### A plausible-looking integration seam is still a fabrication
