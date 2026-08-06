@@ -188,6 +188,25 @@ UI components never talk to the database directly; they go through the
 service layer once it exists. Types shared between layers live in
 `packages/types` to avoid duplication and drift.
 
+## Fifth CMS entity: education — the pattern transferring unchanged (Phase 8)
+
+Education is the first entity that needed **no new architecture at all**:
+`withAdminPage` routes, static metadata, the same mutation order, the same
+`ActionResult`, the same field primitives, the same composition boundary,
+and `createOrderedRepository` with **no repository change**. That was the
+point of doing it after timeline — it confirms the ordered collection
+pattern transfers before certifications, tools, socials, and sections
+follow the same shape.
+
+The one thing it did change is a shared validation rule:
+
+- **Update shapes must not be derived with `.partial()` when fields carry
+  `.default()`.** Zod still materialises defaults for absent keys, so the
+  patch arrives carrying values the caller never sent, and the repository's
+  patch allowlist writes them. Education declares its update shape with
+  plain `.optional()` fields and no defaults. The same defect is latent in
+  the merged timeline module and is queued as its own fix.
+
 ## Fourth CMS entity: timeline — the parent/child aggregate (Phase 8)
 
 Projects reference technologies; profile is a singleton. Timeline is the

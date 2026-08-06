@@ -773,6 +773,125 @@ try {
   );
 
   // =========================================================================
+  // Education (Phase 8) — a flat ordered entity, same boundary.
+  // =========================================================================
+  const educationActions = await import("../src/lib/actions/education.ts");
+  check(
+    "the real education action module exports all three mutations",
+    typeof educationActions.createEducationEntryAction === "function" &&
+      typeof educationActions.updateEducationEntryAction === "function" &&
+      typeof educationActions.deleteEducationEntryAction === "function",
+  );
+
+  function educationPayload(overrides = {}) {
+    return {
+      qualification: "Guarded Qualification",
+      institution: "Guarded University",
+      ...overrides,
+    };
+  }
+
+  const educationVictim = await repos.education.create({
+    qualification: "Existing Qualification",
+    institution: "Existing University",
+    fieldOfStudy: "Existing Field",
+    position: 4,
+    isVisible: false,
+  });
+  const educationBefore = await repos.education.getById(educationVictim.id);
+  const educationCountBefore = (await repos.education.list()).length;
+  const consultedBeforeEducation = providerConsulted;
+
+  startGroup("Unauthenticated education CREATE cannot insert");
+
+  clearAuthEnvironment();
+
+  const educationCreate = await invoke(
+    educationActions.createEducationEntryAction,
+    payloadForm(educationPayload()),
+  );
+  equal("the action does not return a result", educationCreate.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    educationCreate.error?.name,
+    "AdminUnauthorizedError",
+  );
+  equal(
+    "no entry was inserted",
+    (await repos.education.list()).length,
+    educationCountBefore,
+  );
+
+  startGroup("Education auth wins before validation and the database");
+
+  const educationOrder = await invoke(
+    educationActions.createEducationEntryAction,
+    payloadForm({ qualification: "", institution: "", id: "x", position: -3 }),
+  );
+  equal("an invalid unauthenticated payload still throws", educationOrder.kind, "threw");
+  equal(
+    "it is an authorization failure, not a validation result",
+    educationOrder.error?.name,
+    "AdminUnauthorizedError",
+  );
+  equal(
+    "the database was never consulted during any denied education call",
+    providerConsulted,
+    consultedBeforeEducation,
+  );
+
+  startGroup("Unauthenticated education UPDATE cannot modify");
+
+  const educationUpdate = await invoke(
+    educationActions.updateEducationEntryAction,
+    payloadForm(
+      { qualification: "Hijacked", institution: "Hijacked", position: 0, isVisible: true },
+      educationVictim.id,
+    ),
+  );
+  equal("the action does not return a result", educationUpdate.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    educationUpdate.error?.name,
+    "AdminUnauthorizedError",
+  );
+  const educationAfterUpdate = await repos.education.getById(educationVictim.id);
+  equal(
+    "qualification is unchanged",
+    educationAfterUpdate?.qualification,
+    educationBefore?.qualification,
+  );
+  equal("position is unchanged", educationAfterUpdate?.position, educationBefore?.position);
+  equal("isVisible is unchanged", educationAfterUpdate?.isVisible, educationBefore?.isVisible);
+  equal("updatedAt is unchanged", educationAfterUpdate?.updatedAt, educationBefore?.updatedAt);
+  check(
+    "the whole record is logically identical",
+    JSON.stringify(educationAfterUpdate) === JSON.stringify(educationBefore),
+  );
+
+  startGroup("Unauthenticated education DELETE cannot remove");
+
+  const educationDelete = await invoke(
+    educationActions.deleteEducationEntryAction,
+    payloadForm({}, educationVictim.id),
+  );
+  equal("the action does not return a result", educationDelete.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    educationDelete.error?.name,
+    "AdminUnauthorizedError",
+  );
+  check(
+    "the entry still exists afterwards",
+    (await repos.education.getById(educationVictim.id)) !== null,
+  );
+  equal(
+    "the entry count is unchanged",
+    (await repos.education.list()).length,
+    educationCountBefore,
+  );
+
+  // =========================================================================
   startGroup("A forged Access assertion is also rejected");
 
   // With Access configured, a caller supplying a self-signed or junk
@@ -1202,6 +1321,135 @@ try {
       const serialized = JSON.stringify(outcome.result ?? {});
       return !/SQLITE|constraint|timeline_highlights|FOREIGN KEY/i.test(serialized);
     }),
+  );
+
+  // =========================================================================
+  startGroup("Positive control — education actions work when authenticated");
+
+  const authedEducationCreate = await invoke(
+    educationActions.createEducationEntryAction,
+    payloadForm(
+      educationPayload({ qualification: "Authenticated Degree", position: 7 }),
+    ),
+  );
+  equal("an authenticated create redirects on success", authedEducationCreate.kind, "redirect");
+  equal("it redirects to the list", authedEducationCreate.to, "/education?created=1");
+
+  const createdEducation = (await repos.education.list()).find(
+    (entry) => entry.qualification === "Authenticated Degree",
+  );
+  check("the entry really was inserted", Boolean(createdEducation));
+  equal("its position persisted", createdEducation?.position, 7);
+
+  // Invalid parent field → validation, nothing written.
+  const badEducation = await invoke(
+    educationActions.updateEducationEntryAction,
+    payloadForm({ qualification: "" }, createdEducation.id),
+  );
+  equal("a malformed field returns a result", badEducation.kind, "returned");
+  equal("it is reported as validation", badEducation.result?.status, "validation");
+  check(
+    "the error is keyed to the field",
+    Boolean(badEducation.result?.fieldErrors?.qualification),
+  );
+
+  const badPosition = await invoke(
+    educationActions.updateEducationEntryAction,
+    payloadForm({ position: -2 }, createdEducation.id),
+  );
+  equal("an invalid position is rejected", badPosition.result?.status, "validation");
+
+  const badVisibility = await invoke(
+    educationActions.updateEducationEntryAction,
+    payloadForm({ isVisible: "sometimes" }, createdEducation.id),
+  );
+  equal("an invalid visibility is rejected", badVisibility.result?.status, "validation");
+
+  const badDate = await invoke(
+    educationActions.updateEducationEntryAction,
+    payloadForm({ startedOn: "01/09/2018" }, createdEducation.id),
+  );
+  equal("a malformed date is rejected", badDate.result?.status, "validation");
+
+  const managedEducation = await invoke(
+    educationActions.updateEducationEntryAction,
+    payloadForm({ id: "forced", createdAt: "2000-01-01" }, createdEducation.id),
+  );
+  equal(
+    "client-supplied database-managed fields are rejected",
+    managedEducation.result?.status,
+    "validation",
+  );
+
+  equal(
+    "none of the rejected patches touched the row",
+    (await repos.education.getById(createdEducation.id))?.position,
+    7,
+  );
+
+  // A partial update must not reset the fields it does not mention.
+  const partialEducation = await invoke(
+    educationActions.updateEducationEntryAction,
+    payloadForm({ institution: "Renamed University" }, createdEducation.id),
+  );
+  equal("an authenticated partial update redirects", partialEducation.kind, "redirect");
+  const afterPartial = await repos.education.getById(createdEducation.id);
+  equal("the named field changed", afterPartial?.institution, "Renamed University");
+  equal(
+    "an unmentioned position was NOT reset to its default",
+    afterPartial?.position,
+    7,
+  );
+  equal(
+    "an unmentioned isVisible was NOT reset to its default",
+    afterPartial?.isVisible,
+    true,
+  );
+
+  const missingEducation = await invoke(
+    educationActions.updateEducationEntryAction,
+    payloadForm({ qualification: "Ghost" }, "does-not-exist"),
+  );
+  equal(
+    "updating a missing entry returns not_found",
+    missingEducation.result?.status,
+    "not_found",
+  );
+
+  const authedEducationDelete = await invoke(
+    educationActions.deleteEducationEntryAction,
+    payloadForm({}, createdEducation.id),
+  );
+  equal("an authenticated delete redirects on success", authedEducationDelete.kind, "redirect");
+  equal("it redirects to the list", authedEducationDelete.to, "/education");
+  equal(
+    "the entry really was removed",
+    await repos.education.getById(createdEducation.id),
+    null,
+  );
+  check(
+    "the untouched target entry is still there",
+    (await repos.education.getById(educationVictim.id)) !== null,
+  );
+
+  const missingDelete = await invoke(
+    educationActions.deleteEducationEntryAction,
+    payloadForm({}, createdEducation.id),
+  );
+  equal(
+    "deleting an already-deleted entry returns not_found",
+    missingDelete.result?.status,
+    "not_found",
+  );
+
+  check(
+    "no education result message leaks SQL or constraint text",
+    [badEducation, badPosition, badDate, managedEducation, missingEducation].every(
+      (outcome) => {
+        const serialized = JSON.stringify(outcome.result ?? {});
+        return !/SQLITE|constraint|education\.|CHECK/i.test(serialized);
+      },
+    ),
   );
 
   // =========================================================================

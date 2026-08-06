@@ -25,8 +25,10 @@ something passed without running it.
   **Pull Request #20 on GitHub Actions/Linux** and again by the
   **post-merge `main` CI run `31104352259`**. See *Responsive overflow
   regression* below.
-- **Education CMS: NEXT** — **not started**, and not to be implemented
-  until explicitly scoped and approved.
+- **Education CMS: implemented, awaiting review.** On
+  `feat/remaining-cms-education`; not committed, not pushed, and **not
+  complete** — it is complete only after review, PR CI, merge, the
+  post-merge `main` run, and completion documentation.
 - **Later Phase 8 entities** — Certifications, Skills, Tools, Socials,
   Sections: **not started**.
 - **Phase 7:** Complete (merged to `main`, CI green).
@@ -40,13 +42,100 @@ Phase 22** (fail-closed until then).
 
 ## Active task
 
-Admin table overflow fix completion documentation (documentation-only; no
-application, test, schema, repository, package, migration, config, CI, or
-Cloudflare resource changes).
+**Phase 8 — Education CMS.** Implemented; awaiting review.
 
-## Next engineering task
+## Phase 8 — Education CMS (awaiting review)
 
-**Education CMS** — the next Phase 8 entity. Not started.
+### Routes
+
+```
+apps/admin/src/app/(protected)/education/
+  page.tsx            list — every entry, hidden ones badged
+  new/page.tsx        create
+  [id]/page.tsx       edit + delete
+```
+
+All three go through `withAdminPage`, so the Phase 6 recursive invariant
+discovered them automatically — the foundation suite grew 76 → 83 without
+the invariant being touched or special-cased. All three use **static**
+metadata; none reads education data during metadata evaluation.
+
+### Schema fields used — and deliberately not invented
+
+```
+education
+  id | qualification NOT NULL | institution NOT NULL | field_of_study
+  | summary | period_label | started_on | ended_on
+  | position NOT NULL CHECK (>= 0) | is_visible NOT NULL CHECK (0,1)
+  | created_at | updated_at
+```
+
+There is **no logo, URL, media, institution relationship, grade, or
+technology column**, so the CMS exposes none. `position` and `is_visible`
+*are* real columns, so both are exposed and validated.
+`migrations/0001_initial_schema.sql` was **not edited**; the committed
+schema was sufficient and no forward migration was needed.
+
+Nothing in the schema references `education`, so a delete removes exactly
+one row and cascades to nothing.
+
+### Repository — unchanged
+
+Education already uses `createOrderedRepository` with `getById`, `list`
+(including `visibleOnly`), `create`, `update`, and `delete`. **The
+repository contract did not change**, so no repository-package tests were
+added — the generic ordered plumbing (position ordering, visibility
+filtering) is already proven in Phase 5 via the sections fixtures. The
+database subtotal is therefore unchanged at **287**.
+
+### Validation — and a real bug this caught
+
+`@portfolio/schemas` gained `education.ts`. `.strict()` on both shapes, so
+`id`, `createdAt`, `updatedAt`, and unknown fields are rejected. Dates are
+`YYYY-MM-DD` with a cross-field rule that `endedOn` must not precede
+`startedOn`; `position` is a non-negative integer; `isVisible` is a strict
+boolean.
+
+**Create and update are written out separately, on purpose.** The first
+draft derived the update shape with `.partial()`, matching the sibling
+modules — and the local-D1 tests failed. In Zod, `.partial()` does **not**
+neutralise `.default()`: a defaulted field is still materialised when its
+key is absent. A patch built that way silently carried `position: 0`,
+`isVisible: true`, and `null` for every optional, and the repository's
+allowlist then wrote them — so editing only the qualification would reset
+the entry's display order and un-hide it.
+
+The update shape now declares plain `.optional()` fields with no defaults,
+so an absent key stays absent and `buildPatch` skips the column. Asserted
+directly: a single-field patch parses to exactly one key, and each
+unmentioned field is proven absent rather than defaulted.
+
+**The same latent defect exists in the merged timeline module** — see
+*Known limitations*. It was not repaired here.
+
+### Server mutations
+
+Three actions — create, update, delete — each following
+`requireAdminIdentity()` → Zod → repository → typed `ActionResult` /
+`redirect()`, reusing the existing result model verbatim. Education owns no
+child table and nothing references it, so there is no aggregate write.
+
+### Ordering and visibility
+
+Ordering uses the persisted `position` column via the existing ordered
+repository — an explicit validated numeric field, matching the timeline
+convention. **No drag-and-drop**, and no invented ranking semantics.
+
+`is_visible` is an explicit labelled checkbox. Hidden entries stay listed in
+the admin with a **Hidden** badge rather than being filtered out — the
+admin view is the editorial view; `visibleOnly` is for public reads.
+
+### Public-site boundary — unchanged
+
+`apps/web` was **not touched**. It continues to render Phase 2 placeholder
+content, including its own education section. Nothing in the roadmap places
+public data integration in this subtask, and no admin-created content was
+hardcoded into React.
 
 ## Responsive overflow regression — COMPLETE
 
@@ -580,13 +669,76 @@ fail-closed behaviour.
 
 ## Next suggested task
 
-**Education CMS** — the next Phase 8 entity. Not started, and not to be
-implemented until explicitly scoped and approved. Rationale at the end of
-this file.
+Review the Education CMS. After it merges, the next Phase 8 entity is
+suggested at the end of this file — **not to be implemented until
+explicitly scoped and approved**.
 
-The responsive overflow regression that previously sat ahead of it is
-**complete and merged** (`6d65504`) — see *Responsive overflow regression*
-above.
+## Phase 8 — Education CMS: verification actually performed
+
+| Command | Result |
+| --- | --- |
+| `pnpm install --frozen-lockfile` | **PASS** — lockfile unmodified |
+| `pnpm lint` | **PASS** (exit 0) |
+| `pnpm typecheck` | **PASS** (exit 0) |
+| `pnpm test` | **PASS** — **1140 real checks** |
+| `pnpm build` | **PASS** — all `/education*` routes are `ƒ (Dynamic)` |
+
+### Test suites after the Education CMS
+
+| Suite | Checks | Change |
+| --- | --- | --- |
+| UUIDv7 | 26 | — |
+| D1 migration smoke | 59 | — |
+| Repository integration | 157 | — |
+| D1 binding compatibility | 41 | — |
+| D1Like type compatibility | 4 | — |
+| **Database subtotal** | **287** | **unchanged — the repository contract did not change** |
+| Admin authentication | 42 | — |
+| Admin foundation / invariant / containment | **83** | +7 — the invariant and containment check discovered the three new routes |
+| Admin D1 composition boundary | 34 | — |
+| Projects CMS | 96 | — |
+| Technologies CMS | 90 | — |
+| Profile CMS | 77 | — |
+| Timeline CMS | 110 | — |
+| **Education CMS** | **112** | **new** |
+| **Server Action authorization** | **209** | +41 for education |
+| **Admin subtotal** | **853** | — |
+| **Total** | **1140** | up from 980 |
+
+**All 980 previous checks still pass**, and none were weakened or removed.
+`apps/web` remains the only no-op suite.
+
+### Browser verification (`playwright-local` MCP, real local D1)
+
+Manual MCP verification — **not** automated Playwright CI tests.
+
+- `/education` empty state, with Education wired into navigation
+  (`aria-current`) and **no dead links** — six real destinations.
+- Required-field validation *and* the cross-field date rule fired together:
+  focus moved to the `role="alert"` summary, `aria-invalid="true"` on all
+  three fields, and "Required" / "End date must not precede the start date"
+  wired through `aria-describedby`.
+- Created two entries; the list showed them **ordered by position**
+  (0 then 1), with redirects to `/education?created=1`.
+- Edited one: renamed it and unchecked **Visible**. The list still shows it,
+  badged **Hidden** — and read back from D1 directly: `position` still 1,
+  `isVisible` false, and `visibleOnly` returns 1 of 2 rows.
+- **Populated list at 375px**: document width 375 ≤ viewport, the page
+  **cannot** be scrolled sideways, the wrapper needs and can scroll
+  internally (704 > 343), caption and 4 `sr-only` labels present, and both
+  "Edit …" actions focusable. Also clean at 768 and 1280.
+- Form at 375px: no page overflow, **9/9 controls labelled**, none
+  placeholder-only, all focusable, 44px submit control.
+- Two-step delete named the entry, moved focus to "Yes, delete", Cancel
+  restored the initial state, and confirming deleted it — **the unrelated
+  entry survived**.
+- **Unauthenticated confidentiality:** with dev auth off and a seeded canary
+  entry, all nine combinations of `/education`, `/education/new`,
+  `/education/[id]` × plain / `RSC: 1` / forged header returned 307 to
+  `/denied`, with **zero-length RSC bodies** and the canary appearing **0
+  times**. The canary was verified **unchanged** afterwards.
+
+Local test data and the temporary dev-auth file were removed afterwards.
 
 ## Phase 8 — Timeline CMS: verification actually performed
 
@@ -813,7 +965,7 @@ Local test data and the temporary dev-auth file were removed afterwards.
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
 | Phase 6 — Admin foundation | **Complete** (merged to `main`, CI green) |
 | Phase 7 — Projects CMS vertical slice | **Complete** (merged to `main`, CI green) |
-| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, and Timeline CMS **complete**, plus the admin list overflow regression fix (all merged, CI green); Education next, later entities not started |
+| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, and Timeline CMS **complete**, plus the admin list overflow regression fix (all merged, CI green); Education CMS implemented and awaiting review; later entities not started |
 
 Phases 9–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
@@ -953,15 +1105,38 @@ than changed here.
 
 ## Phase 8 — known limitations (not blockers)
 
-- **Phase 8 is not complete.** Technologies, Profile, and Timeline are three
-  entities of several.
-- **The remaining CMS entities are not implemented** — Education (next
-  entity), Certifications, Skills, Tools, Socials, Sections.
+- **Phase 8 is not complete.** Technologies, Profile, Timeline, and
+  Education are four entities of several.
+- **The remaining CMS entities are not implemented** — Certifications,
+  Skills, Tools, Socials, Sections.
+- **A latent partial-update defect exists in the merged timeline module.**
+  `timelineEntryUpdateSchema` is built with `.partial()`, which does **not**
+  neutralise `.default()` — so a patch that omits a field still carries
+  `position: 0`, `isVisible: true`, `highlights: []`, and `null` for every
+  optional. Verified directly:
+  `timelineEntryUpdateSchema.safeParse({ summary: "" })` returns all of
+  those keys. Because `updateTimelineEntryAction` passes
+  `highlights ?? []` to `updateWithHighlights`, a partial payload would
+  **wipe an entry's highlights** and reset its order and visibility.
+
+  It is **not reachable through the admin UI**, which always submits the
+  complete object — which is why the browser flows never exposed it — but it
+  is reachable by any direct Server Action call with a partial payload.
+  Education was fixed by declaring its update shape with plain
+  `.optional()` fields and no defaults; the same fix applies to timeline.
+  Deliberately **not** repaired in this feature branch, since timeline is a
+  merged slice. Queued as `fix/timeline-partial-update-defaults` — see
+  *Next suggested task*.
+- **Date validation is shape-only across projects, timeline, and
+  education.** `2024-13-99` matches `YYYY-MM-DD` and is accepted; a real
+  calendar parser would reject it. Documented and asserted rather than
+  assumed. Any tightening should be applied to all three consistently.
 - ~~A known responsive regression is outstanding on `/projects` and
   `/technologies`.~~ **Fixed and merged** as `6d65504` — see *Responsive
   overflow regression* near the top of this file.
-- **The public site is still placeholder-driven.** Profile and timeline data
-  exist in D1, but `apps/web` has not been converted to read them.
+- **The public site is still placeholder-driven.** Profile, timeline, and
+  education data exist in D1, but `apps/web` has not been converted to read
+  them.
 - **`apps/web` automated tests remain a no-op** — still the only
   fake-green script in the repository.
 - **Browser tests remain manual MCP verification**, not automated
@@ -2674,19 +2849,27 @@ Local development needs none of this: set `ADMIN_DEV_AUTH=enabled` in
 populated — `relative` on each list's `overflow-x-auto` wrapper, matching
 `/timeline`, plus a containment assertion in the foundation suite.
 
-**Phase 8, next entity: Education.** It is the closest sibling of the
-timeline entry — another ordered, visibility-toggleable content table using
-the same `createOrderedRepository` plumbing — but with **no owned child
-table**, so it should be the smallest remaining slice now that the
-aggregate pattern exists. Doing it next also settles whether the ordered
-collection form can be reused as-is before certifications, tools, socials,
-and sections follow the same shape.
+**Done: Education CMS** (awaiting review). It confirmed the ordered
+collection pattern is reusable as-is — `withAdminPage` routes, static
+metadata, shared validation, the
+`requireAdminIdentity()` → Zod → repository → `ActionResult` order, the
+shared field primitives, and the existing composition boundary, with **no
+repository change**.
 
-The pattern it reuses unchanged: `withAdminPage` routes, static metadata,
-shared `@portfolio/schemas` validation, the
-`requireAdminIdentity()` → Zod → repository → `ActionResult` mutation
-order, the shared field primitives, and the existing database composition
-boundary.
+**1. `fix/timeline-partial-update-defaults`** — a focused fix for the
+latent partial-update defect Education surfaced, described in *Phase 8 —
+known limitations*. Timeline is a merged slice, so it belongs in its own
+branch with its own verification rather than inside a feature. The fix is
+known: declare `timelineEntryUpdateSchema` with plain `.optional()` fields
+and no defaults, exactly as `educationEntryUpdateSchema` now does, and
+assert that a single-field patch parses to a single key.
 
-Not implemented as part of this task, and not to be started until
-explicitly scoped and approved.
+**2. Phase 8, next entity: Certifications.** It is the closest sibling of
+education — another flat, ordered, visibility-toggleable table on the same
+`createOrderedRepository` plumbing, with no child rows — so the Education
+slice should transfer almost verbatim. Its one new wrinkle is
+`credential_url`, the first URL column in an ordered entity, which should
+reuse the http/https protocol allowlist the projects module already
+established rather than inventing a second URL rule.
+
+Neither is to be implemented until explicitly scoped and approved.
