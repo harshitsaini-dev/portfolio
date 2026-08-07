@@ -10,6 +10,7 @@ export * from "./education.ts";
 export * from "./profile.ts";
 export * from "./projects.ts";
 export * from "./skills.ts";
+export * from "./socials.ts";
 export * from "./technologies.ts";
 export * from "./timeline.ts";
 export * from "./tools.ts";

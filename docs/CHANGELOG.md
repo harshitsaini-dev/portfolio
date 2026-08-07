@@ -1,6 +1,69 @@
 
 # Changelog
 
+## 2026-08-07 — Phase 8: Socials CMS (branch `feat/remaining-cms-socials`)
+
+**Status: implemented, awaiting review. Not committed. Phase 8 remains IN
+PROGRESS** — Socials is the eighth area, and is complete only after review,
+PR CI, merge, the post-merge `main` run, and completion documentation.
+Sections remains **not started** and is the last Phase 8 entity.
+
+### Added
+
+- **Socials CMS** — `/socials`, `/socials/new`, and `/socials/[id]`, all
+  exported through `withAdminPage` with static metadata, over **only** the
+  columns committed in migration `0001` (`label`, `platform`, `url`,
+  `position`, `is_visible`). No field was invented and **no migration was
+  added**.
+- `packages/schemas/src/socials.ts` — strict create/update shapes, written
+  out separately so the update shape inherits no defaults. `url` uses the
+  **required** `httpUrlSchema` because the column is `NOT NULL`; `platform`
+  is validated for presence and length only.
+- `apps/admin/src/lib/actions/socials.ts` — three Server Actions in the
+  mandatory `requireAdminIdentity()` → Zod → repository order.
+- `apps/admin/scripts/socials-tests.mjs` — **161 checks**.
+- A **Social links** navigation entry.
+
+### Changed
+
+- `apps/admin/scripts/action-auth-tests.mjs` — 439 → **499 checks**, adding
+  the real exported social link actions: unauthenticated create/update/delete
+  denied with the row byte-for-byte unchanged, an unauthenticated *partial*
+  update denied, a forged Access assertion denied without development auth
+  rescuing it, and authenticated positive controls including a blank-URL
+  rejection and an unsafe URL proven never to reach the row.
+- A stale comment in `navigation.ts` claimed `skills`, `skill_categories`,
+  and `tools` had no routes. All three do now, so it was corrected while
+  adding the Socials entry.
+- The admin foundation suite grew 111 → **118 by itself** — its recursive
+  invariant discovered the three new routes without being edited.
+
+### Not changed
+
+`migrations/0001_initial_schema.sql` (**no migration `0002`**),
+`packages/database` (`createSocialLinkRepository` already existed and its
+contract did not change, so the database subtotal stays **297**), the shared
+URL and slug helpers, projects, technologies, timeline, education,
+certifications, skills, tools, `apps/web`, CI, and Cloudflare resources.
+**Sections was not implemented.**
+
+### Verification
+
+`pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`,
+`pnpm test` (**2245 checks**, up from 2017 with all 2017 preserved), and
+`pnpm build` all **PASS** locally, each exiting `0`. **Not yet CI-verified.**
+Browser-checked by **manual Playwright MCP verification** — not automated
+E2E, which is Phase 20 — against real local D1: three required-field
+rejections with error-summary focus, `javascript:` rejected, arbitrary
+free-text platforms (Cyrillic, Japanese, punctuation) accepted and stored
+verbatim, ordering, Hidden badge, external links carrying
+`rel="noopener noreferrer"`, edit with reload-confirmed persistence, two-step
+delete with Cancel, and populated containment at 1280/768/375.
+Confidentiality was probed with canaries in **label, platform and url** —
+never the row id — across HTML, RSC, direct-edit and forged-Access requests,
+all denied with no content disclosed, and with a positive control proving the
+probe detects the canaries when authorized. Zero console errors.
+
 ## 2026-08-07 — Phase 8: Tools CMS
 
 **Status: merged.** Merged into `main` as `3f15349 feat: add tools CMS` via

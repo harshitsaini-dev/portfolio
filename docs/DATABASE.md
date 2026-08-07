@@ -271,6 +271,43 @@ Note that `skills` also has `UNIQUE (category_id, name)`, whose leading
 column already serves "skills in this category"; the additional index
 exists only for the ordered read.
 
+## Social links in the admin (Phase 8)
+
+The socials CMS uses the Phase 5 repository **entirely unchanged**:
+`createSocialLinkRepository` already existed, already decoded all eight
+committed columns, and was already exposed on the factory as
+**`repos.socialLinks`**. No method was added, so the repository-package
+suites were not extended, and **no migration was needed**.
+
+```
+social_links
+  id | label NOT NULL | platform NOT NULL | url NOT NULL
+  | position NOT NULL DEFAULT 0 CHECK (position >= 0)
+  | is_visible NOT NULL DEFAULT 1 CHECK (is_visible IN (0, 1))
+  | created_at | updated_at
+```
+
+Four schema facts the CMS relies on:
+
+- **`url` is `NOT NULL`**, so this entity takes the **required**
+  `httpUrlSchema` rather than the `nullableHttpUrlSchema` certifications and
+  tools use. Blank is a validation error rather than "no link", and an update
+  may change the URL but never clear it. The allowlist is identical; only the
+  emptiness contract differs, and it differs *because the column does*.
+- **`platform` is plain `TEXT NOT NULL` with no CHECK, enum, or lookup
+  table.** It is free text, and the CMS renders a text input rather than a
+  `<select>`: a vocabulary in the UI would reject values the database accepts
+  and would date as platforms change. Presence and length are still enforced.
+- **There are no nullable columns at all** — the only entity in the schema
+  where that is true, so nothing here normalises to `NULL`.
+- **No UNIQUE constraint and no foreign key in either direction.** Nothing
+  references `social_links` and it references nothing, so a delete removes
+  exactly one row and there is no conflict path to surface.
+
+`idx_social_links_visible_position` on `(is_visible, position)` serves the
+future public read; the admin list deliberately does **not** filter by
+visibility.
+
 ## Tools in the admin (Phase 8)
 
 The tools CMS uses the Phase 5 repository **entirely unchanged**:

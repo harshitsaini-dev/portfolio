@@ -1,17 +1,17 @@
 # Testing
 
-## Current state (Phase 8 — Tools CMS complete)
+## Current state (Phase 8 — Socials CMS implemented, awaiting review)
 
-`pnpm test` runs **seventeen real suites and one no-op** — **2017 checks**,
-all passing on Windows and on GitHub Actions/Linux (PR #30 and its
-post-merge `main` run `31178459051`). The 1804 verified after the Skills CMS
-are all still among them and none were weakened. What each one actually
-proves matters, so be precise:
+`pnpm test` runs **eighteen real suites and one no-op** — **2245 checks**.
+The 2017 verified after the Tools CMS all still pass on Windows and on
+GitHub Actions/Linux (PR #30 and its post-merge `main` run `31178459051`);
+the Socials CMS added the rest and **is not yet CI-verified**. What each one
+actually proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
 | Admin authentication | **42** | real `jose` verification, locally minted tokens | The Access JWT boundary and the development-auth guard |
-| Admin foundation | **111** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, the protected-page invariant, and horizontal scroll containment |
+| Admin foundation | **118** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, the protected-page invariant, and horizontal scroll containment |
 | **D1 composition boundary** | **34** | the real `binding.ts`, the **working tree**, plus `tsc` over Wrangler-generated Cloudflare types | Production fails closed, the provider seam composes, and Phase 22's provider already type-checks |
 | **Projects CMS** | **96** | the real schemas, and **real local D1** via `getPlatformProxy()` | The validation boundary and the full CRUD + relationship path |
 | **Technologies CMS** | **90** | the real schemas, and **real local D1** | The validation boundary, CRUD, the page-level usage composition, and `ON DELETE RESTRICT` |
@@ -21,11 +21,12 @@ proves matters, so be precise:
 | **Certifications CMS** | **167** | the real schemas, and **real local D1** | The validation boundary, the shared URL policy, partial-patch safety, and the ordered CRUD lifecycle |
 | **Skills CMS** | **233** | the real schemas, **real local D1**, and the shipped UI strings | Two entities, the canonical slug grammar, partial-patch safety, that `ON DELETE RESTRICT` actually protects child skills, and that user-facing guidance names only operations the CMS supports |
 | **Tools CMS** | **146** | the real schemas, and **real local D1** | The validation boundary, the shared URL policy, the `UNIQUE` name constraint on both create and rename, partial-patch safety, and the ordered CRUD lifecycle |
-| **Server Action authorization** | **439** | the **real exported action functions** for all nine entities, against real local D1 | Unauthenticated mutations are denied and change nothing; partial updates preserve what they omit; unsafe URLs never reach a row; an in-use category cannot be deleted, leaks no SQL, and does not advertise moving skills |
+| **Socials CMS** | **161** | the real schemas, and **real local D1** | The validation boundary, the **required** URL policy, that `platform` is free text rather than an enum, partial-patch safety, and the ordered CRUD lifecycle |
+| **Server Action authorization** | **499** | the **real exported action functions** for all ten entities, against real local D1 | Unauthenticated mutations are denied and change nothing; partial updates preserve what they omit; unsafe URLs never reach a row; an in-use category cannot be deleted, leaks no SQL, and does not advertise moving skills |
 
-Subtotals: **admin 1720** (42 + 111 + 34 + 96 + 90 + 77 + 173 + 112 + 167 +
-233 + 146 + 439) and **database 297** (26 + 59 + 167 + 41 + 4, detailed
-below) — **2017 total**.
+Subtotals: **admin 1948** (42 + 118 + 34 + 96 + 90 + 77 + 173 + 112 + 167 +
+233 + 146 + 161 + 499) and **database 297** (26 + 59 + 167 + 41 + 4, detailed
+below) — **2245 total**.
 
 The database subtotal moved 287 → **297** for the first time since the
 Technologies slice: Skills needed `getSkillById()` on the repository
@@ -259,6 +260,53 @@ always did. It is:
 
 That last one is the important shape: assert the **state after the write**,
 not merely that the mutation returned without error.
+
+## Socials CMS tests (Phase 8)
+
+`apps/admin/scripts/socials-tests.mjs` — **161 checks**, and **none** in the
+repository package: `createSocialLinkRepository` already existed and its
+contract did not change.
+
+**Validation.** Accepted input with trimming; 15 rejection cases; `.strict()`
+rejection of `id`, `createdAt`, `updatedAt`, and unknown fields — plus
+explicit rejection of six fields the table does **not** have (`username`,
+`handle`, `icon`, `iconKey`, `colour`, `slug`), so a future "helpful"
+addition cannot slip in unvalidated.
+
+**Platform freedom gets its own group**, asserted in both directions. Eleven
+arbitrary values are accepted — including Cyrillic, Japanese, punctuation,
+a single character, and an 80-character string — and the update schema
+accepts an unforeseen value too. But empty, whitespace-only, and over-long
+platforms are still **rejected**, which is what stops "free text" from
+meaning "unvalidated". These exist to fail loudly if someone later
+introduces an enum the database does not have.
+
+**The URL group uses the REQUIRED policy**, not the nullable one: five
+accepted shapes (https, http, query string, explicit port, fragment) and
+**fifteen rejected** ones — including blank and whitespace-only, which are
+validation errors here rather than "no link", because the column is
+`NOT NULL`. The update schema is proven to apply the same policy and to
+**refuse clearing** the URL.
+
+**Partial updates stay partial** — a single-field patch carries exactly one
+key, four named fields are proven absent rather than defaulted, an empty
+patch produces zero keys, and explicit `position: 0` / `isVisible: false` are
+proven *present* with their falsy values. The create schema is separately
+proven to still default both.
+
+**Lifecycle against real local D1.** Create and read-back; an unforeseen
+platform round-tripping verbatim; an update changing **both** `platform` and
+`url` to other arbitrary valid values; visibility filtering; a preservation
+fixture proving a one-field patch leaves platform, url, position, visibility
+and `createdAt` intact; an empty patch proven a byte-for-byte no-op; a
+bystander untouched; deterministic ordering; an invalid payload and a
+`javascript:` URL both rejected **before** the database; delete removing only
+its target; `PRAGMA foreign_key_check`, a NOT NULL scan over all three
+required columns, and a scan proving **every stored URL is http(s)**.
+
+`social_links` has **no UNIQUE constraint and no foreign key**, so this suite
+deliberately asserts no duplicate-conflict behaviour — there is none, and
+inventing one would be testing a constraint the schema does not have.
 
 ## Tools CMS tests (Phase 8)
 
