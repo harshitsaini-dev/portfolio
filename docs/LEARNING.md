@@ -3,6 +3,46 @@
 Notes on things learned while building this project that are worth
 remembering for future work.
 
+## Phase 8 — Sections CMS
+
+### "Unchanged" is still a field the contract does not accept
+
+The obvious key-immutability tests are: reject a rename, and reject a rename
+smuggled beside a valid field. The one that is easy to miss is rejecting
+`{ key: "projects" }` when the stored key *already is* `projects`.
+
+It is tempting to allow that — nothing would change, so what is the harm?
+The harm is that it makes the contract conditional on data rather than on
+shape. A client that always echoes the full object back would work by
+accident until the day someone edits the key field, and then fail in a way
+no test covered. `.strict()` refusing the field regardless of its value is
+the simpler rule and the honest one.
+
+### A strict rejection must refuse the whole patch, not the acceptable part
+
+When a key is smuggled beside a legitimate `title` change, there are two
+defensible-sounding outcomes: apply the title and drop the key, or refuse
+everything. Only the second is safe — a partial application means the caller
+got a success for a request that was half-ignored.
+
+That is what `.strict()` already does, but it was worth an explicit
+assertion (`the whole patch was refused — the title is unchanged too`)
+rather than trusting the library. The test costs one line and documents an
+intent that a future refactor could quietly break.
+
+### Read-only is a presentation decision, not just a disabled input
+
+The edit form shows the section key in a `<dl>`, not a `<input disabled>` or
+`<input readonly>`. Both of those still *look* like form controls: disabled
+reads as "temporarily unavailable, maybe I can enable it", and readonly is
+focusable and copyable but still visually a field. Neither is honest about a
+value that cannot change in this UI at all.
+
+The structural test followed from the presentation choice: assert there is
+**no input named `key` anywhere**, and **no disabled or readonly input at
+all**. Both are things a future contributor might reach for while "improving"
+the form, and both would now fail loudly.
+
 ## Phase 8 — Socials CMS
 
 ### A wrapper's exit code is not the command's exit code

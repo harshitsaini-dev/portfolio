@@ -235,15 +235,24 @@ values accepted and empty/over-long still rejected. It is also the first
 entity with **no nullable columns at all**. Test coverage grew to **2245 real
 checks**. Merged to `main` as `1d26dbd` with CI green on Linux.
 
-**Immediate next entity: Sections — the last one in Phase 8.** Not started.
-`sections` is flat and ordered, and `createSectionRepository` already exists
-with an extra `getByKey()`. One thing genuinely differs: `key` is the stable
-machine identifier the UI maps to a component, and the Phase 5 repository
-deliberately excludes it from the patch allowlist so a rename cannot silently
-break rendering — so the CMS should set it on create and treat it as
-immutable thereafter. The remote database schema remains **intentionally
-unapplied**, and **Cloudflare Access dashboard configuration is still
-pending**.
+**Sections CMS: implemented, awaiting review — the last of the nine Phase 8
+areas.** Three `withAdminPage` routes over only the committed columns, with
+`createSectionRepository` (including its `getByKey()`) and the migration
+both unchanged, so `packages/database` was untouched and the database
+subtotal held at 297. The prediction held exactly: `key` is the stable
+machine identifier, already excluded from the repository's patch allowlist,
+so the CMS added the matching schema refusal — an update carrying `key` is
+**rejected**, not silently ignored, and the edit UI shows the key as
+read-only context rather than a disabled input. Its grammar reuses the
+canonical `slugSchema`, with **no enum**, since the schema defines no closed
+set of keys. Test coverage grew to **2488 real checks**. **Not merged and
+not CI-verified yet.**
+
+**Phase 8 is therefore still IN PROGRESS.** It closes only once Sections is
+reviewed, merged, CI-verified, and formally documented — every other area is
+complete, but an implemented branch is not a closed phase. The remote
+database schema remains **intentionally unapplied**, and **Cloudflare Access
+dashboard configuration is still pending**.
 
 ## Phase 9 — R2/media
 

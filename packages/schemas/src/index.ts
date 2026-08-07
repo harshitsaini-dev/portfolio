@@ -9,6 +9,7 @@ export * from "./certifications.ts";
 export * from "./education.ts";
 export * from "./profile.ts";
 export * from "./projects.ts";
+export * from "./sections.ts";
 export * from "./skills.ts";
 export * from "./socials.ts";
 export * from "./technologies.ts";
