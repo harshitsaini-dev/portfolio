@@ -3,6 +3,43 @@
 Notes on things learned while building this project that are worth
 remembering for future work.
 
+## Phase 8 — Timeline partial-update fix
+
+### The same bug twice, because the pattern propagated it
+
+Education found `.partial()` not neutralising `.default()` and shipped the
+safe shape. Timeline had the identical defect, inherited from the module
+education was copied *from*. Finding a bug in a copy is evidence about the
+original, and acting on that — recording it, queuing it, then fixing it —
+is what stopped it sitting there indefinitely.
+
+Worth generalising: when a shared pattern turns out to be wrong, the
+question is not "where did I just find it?" but "everywhere this pattern
+was applied, is it wrong there too?"
+
+### Two defects compounding is worse than either alone
+
+The schema leaked `highlights: []` into every partial patch. Independently,
+the action wrote `(highlights ?? [])`, treating omission as "clear". Either
+alone is a bug; together they turned a one-field rename into **deleting
+every bullet on the entry**. The `?? []` looked like defensive
+null-handling — it is exactly the kind of line that reads as careful and
+does the opposite, because it erases the distinction between *unspecified*
+and *empty*.
+
+`undefined` and `[]` are different requests. So are `undefined` and `null`,
+and `undefined` and `0`. Collapsing them with `??` is convenient precisely
+where it is most dangerous.
+
+### The fix needed no new repository method
+
+The instinct on finding "the action can't express this" is to extend the
+data layer. Both paths already existed: the ordered `update()` for
+parent-only patches and `updateWithHighlights()` for the aggregate. The
+action just had to *choose*. Checking what the repository already offered
+before adding to it kept `packages/database` untouched and the database
+subtotal flat.
+
 ## Phase 8 — Education CMS
 
 ### `.partial()` does not undo `.default()`

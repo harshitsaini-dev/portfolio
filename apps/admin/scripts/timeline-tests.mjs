@@ -248,6 +248,111 @@ try {
   check("an empty id is rejected", !timelineEntryIdSchema.safeParse("").success);
 
   // =========================================================================
+  startGroup("Partial updates stay partial (regression)");
+
+  // The defect this group exists for: the update shape was derived with
+  // `.partial()` from a create shape carrying `.default()`. `.partial()`
+  // does NOT neutralise a default, so an absent key was still materialised
+  // — `parse({ summary: "" })` returned eight keys including `position: 0`,
+  // `isVisible: true`, and `highlights: []`. The repository's patch
+  // allowlist then wrote them, and the action turned that defaulted `[]`
+  // into a highlight replacement, so a one-field edit reset an entry's
+  // order, un-hid it, and deleted every bullet.
+  const singleField = timelineEntryUpdateSchema.safeParse({ summary: "" });
+  check("a single-field patch parses", singleField.success);
+  equal(
+    "it produces exactly one key",
+    Object.keys(singleField.data ?? {}).length,
+    1,
+  );
+  equal(
+    "and that key is the one supplied, normalised",
+    singleField.data?.summary,
+    null,
+  );
+  for (const field of [
+    "position",
+    "isVisible",
+    "highlights",
+    "location",
+    "periodLabel",
+    "startedOn",
+    "endedOn",
+    "role",
+    "organization",
+  ]) {
+    check(
+      `an omitted ${field} stays omitted, not defaulted`,
+      !(field in (singleField.data ?? {})),
+      JSON.stringify(singleField.data),
+    );
+  }
+  equal(
+    "an empty patch produces no keys at all",
+    Object.keys(timelineEntryUpdateSchema.safeParse({}).data ?? {}).length,
+    0,
+  );
+
+  // Explicit values must survive intact — the fix must not swing the other
+  // way and start dropping deliberate falsy input.
+  const explicitFalsy = timelineEntryUpdateSchema.safeParse({
+    isVisible: false,
+    position: 0,
+  });
+  check("an explicit false/zero patch parses", explicitFalsy.success);
+  equal("explicit isVisible: false is kept", explicitFalsy.data?.isVisible, false);
+  equal("explicit position: 0 is kept", explicitFalsy.data?.position, 0);
+  equal(
+    "and nothing else is invented alongside them",
+    Object.keys(explicitFalsy.data ?? {}).length,
+    2,
+  );
+
+  // Omitted vs explicitly-empty highlights are different requests.
+  const clearHighlights = timelineEntryUpdateSchema.safeParse({ highlights: [] });
+  check("an explicit empty highlight list parses", clearHighlights.success);
+  check(
+    "explicit `highlights: []` stays an array, not undefined",
+    Array.isArray(clearHighlights.data?.highlights),
+  );
+  equal("and it is empty", clearHighlights.data?.highlights.length, 0);
+  check(
+    "omitted highlights are undefined, which the action reads as leave alone",
+    timelineEntryUpdateSchema.safeParse({ role: "R" }).data?.highlights ===
+      undefined,
+  );
+  const replaceHighlights = timelineEntryUpdateSchema.safeParse({
+    highlights: [{ content: "Replacement" }],
+  });
+  equal(
+    "an explicit replacement list is preserved",
+    replaceHighlights.data?.highlights[0]?.content,
+    "Replacement",
+  );
+
+  // A one-sided date patch cannot be cross-checked without stored state, so
+  // it is accepted here by design. Documented rather than silently allowed.
+  check(
+    "a patch supplying only startedOn is accepted",
+    timelineEntryUpdateSchema.safeParse({ startedOn: "2024-01-01" }).success,
+  );
+  check(
+    "a patch supplying only endedOn is accepted",
+    timelineEntryUpdateSchema.safeParse({ endedOn: "2020-01-01" }).success,
+  );
+
+  // The create shape must be untouched by the fix.
+  const createDefaults = timelineEntryCreateSchema.safeParse({
+    role: "R",
+    organization: "O",
+  });
+  check("create still applies its defaults", createDefaults.success);
+  equal("create still defaults position", createDefaults.data?.position, 0);
+  equal("create still defaults isVisible", createDefaults.data?.isVisible, true);
+  equal("create still defaults highlights", createDefaults.data?.highlights.length, 0);
+  equal("create still defaults nullable text", createDefaults.data?.summary, null);
+
+  // =========================================================================
   // Real local D1 from here on.
   // =========================================================================
   persistRoot = mkdtempSync(join(tmpdir(), "portfolio-timeline-"));
@@ -290,16 +395,24 @@ try {
     return { ok: true, saved };
   }
 
-  /** Exactly what the update action does. */
+  /**
+   * Exactly what the update action does, including its branch on whether
+   * highlights were supplied at all. Omitted highlights take the plain
+   * ordered update, which leaves the owned rows untouched; a supplied list
+   * — empty or not — takes the aggregate write.
+   */
   async function updateThroughBoundary(id, payload) {
     const parsed = timelineEntryUpdateSchema.safeParse(payload);
     if (!parsed.success) return { ok: false, issues: parsed.error.issues };
     const { highlights, ...patch } = parsed.data;
-    const saved = await repos.timeline.updateWithHighlights(
-      id,
-      patch,
-      (highlights ?? []).map((h) => h.content),
-    );
+    const saved =
+      highlights === undefined
+        ? await repos.timeline.update(id, patch)
+        : await repos.timeline.updateWithHighlights(
+            id,
+            patch,
+            highlights.map((h) => h.content),
+          );
     return { ok: true, saved };
   }
 
@@ -372,6 +485,154 @@ try {
     (await repos.timeline.getById(created.saved.id))?.role,
     "Staff Engineer",
   );
+
+  // =========================================================================
+  startGroup("Partial update preserves everything it did not mention");
+
+  // Deliberately non-default values, so a leaked default would be obvious:
+  // a non-zero position, hidden, populated text and dates, three bullets.
+  const preserve = await createThroughBoundary(
+    validPayload({
+      role: "Preserve Me",
+      organization: "Preserve Ltd",
+      summary: "Original summary.",
+      location: "Original location",
+      periodLabel: "2019 — 2021",
+      startedOn: "2019-03-01",
+      endedOn: "2021-08-31",
+      position: 6,
+      isVisible: false,
+      highlights: [
+        { content: "Bullet one" },
+        { content: "Bullet two" },
+        { content: "Bullet three" },
+      ],
+    }),
+  );
+  check("the fixture entry was created", preserve.ok, JSON.stringify(preserve.issues));
+
+  // A bystander that must be untouched by everything below.
+  const bystander = await createThroughBoundary(
+    validPayload({
+      role: "Bystander",
+      organization: "Other Ltd",
+      position: 9,
+      highlights: [{ content: "Bystander bullet" }],
+    }),
+  );
+  check("a bystander entry exists", bystander.ok);
+
+  const beforePartial = await repos.timeline.getById(preserve.saved.id);
+  const highlightsBefore = await repos.timeline.listHighlights(preserve.saved.id);
+
+  // The regression, end to end: change ONE parent field and nothing else.
+  const partial = await updateThroughBoundary(preserve.saved.id, {
+    role: "Renamed Only",
+  });
+  check("the partial update succeeds", partial.ok, JSON.stringify(partial.issues));
+
+  const afterPartial = await repos.timeline.getById(preserve.saved.id);
+  equal("the named field changed", afterPartial?.role, "Renamed Only");
+  equal("position was preserved, not reset to 0", afterPartial?.position, 6);
+  equal("isVisible was preserved, not reset to true", afterPartial?.isVisible, false);
+  equal("organization was preserved", afterPartial?.organization, beforePartial.organization);
+  equal("summary was preserved, not nulled", afterPartial?.summary, "Original summary.");
+  equal("location was preserved, not nulled", afterPartial?.location, "Original location");
+  equal("periodLabel was preserved, not nulled", afterPartial?.periodLabel, "2019 — 2021");
+  equal("startedOn was preserved, not nulled", afterPartial?.startedOn, "2019-03-01");
+  equal("endedOn was preserved, not nulled", afterPartial?.endedOn, "2021-08-31");
+  equal("createdAt is immutable", afterPartial?.createdAt, beforePartial.createdAt);
+
+  const highlightsAfter = await repos.timeline.listHighlights(preserve.saved.id);
+  equal("all three highlights survived", highlightsAfter.length, 3);
+  check(
+    "with identical content and order",
+    JSON.stringify(highlightsAfter) === JSON.stringify(highlightsBefore),
+  );
+
+  // Unrelated entries are never collateral damage.
+  equal(
+    "the bystander entry is untouched",
+    (await repos.timeline.getById(bystander.saved.id))?.role,
+    "Bystander",
+  );
+  equal(
+    "including its position",
+    (await repos.timeline.getById(bystander.saved.id))?.position,
+    9,
+  );
+  equal(
+    "and its own highlights",
+    (await repos.timeline.listHighlights(bystander.saved.id)).length,
+    1,
+  );
+
+  // Explicit falsy values must still be applied.
+  const explicitReset = await updateThroughBoundary(preserve.saved.id, {
+    position: 0,
+    isVisible: true,
+  });
+  check("an explicit falsy/zero patch succeeds", explicitReset.ok);
+  const afterExplicit = await repos.timeline.getById(preserve.saved.id);
+  equal("explicit position: 0 was applied", afterExplicit?.position, 0);
+  equal("explicit isVisible: true was applied", afterExplicit?.isVisible, true);
+  equal(
+    "and the highlights are still untouched",
+    (await repos.timeline.listHighlights(preserve.saved.id)).length,
+    3,
+  );
+
+  // Explicit empty means clear — the other side of the distinction.
+  const explicitClear = await updateThroughBoundary(preserve.saved.id, {
+    highlights: [],
+  });
+  check("an explicit empty highlight list succeeds", explicitClear.ok);
+  equal(
+    "explicit `highlights: []` clears them",
+    (await repos.timeline.listHighlights(preserve.saved.id)).length,
+    0,
+  );
+  equal(
+    "while the parent survives",
+    (await repos.timeline.getById(preserve.saved.id))?.role,
+    "Renamed Only",
+  );
+
+  // Explicit replacement persists exactly, with contiguous positions.
+  const explicitReplace = await updateThroughBoundary(preserve.saved.id, {
+    role: "Renamed Again",
+    highlights: [{ content: "New A" }, { content: "New B" }],
+  });
+  check("an explicit replacement succeeds", explicitReplace.ok);
+  const replaced = await repos.timeline.listHighlights(preserve.saved.id);
+  equal("the replacement persisted", replaced.length, 2);
+  equal("in the submitted order", replaced[0].content, "New A");
+  equal("with positions from zero", replaced[0].position, 0);
+  equal("and contiguous", replaced[1].position, 1);
+  equal(
+    "the parent changed in the same aggregate write",
+    (await repos.timeline.getById(preserve.saved.id))?.role,
+    "Renamed Again",
+  );
+
+  // An empty patch with no highlights is a safe no-op, not malformed SQL.
+  const beforeNoop = await repos.timeline.getById(preserve.saved.id);
+  const noop = await updateThroughBoundary(preserve.saved.id, {});
+  check("an empty patch succeeds as a no-op", noop.ok);
+  const afterNoop = await repos.timeline.getById(preserve.saved.id);
+  check(
+    "the row is byte-for-byte unchanged, including updatedAt",
+    JSON.stringify(afterNoop) === JSON.stringify(beforeNoop),
+  );
+  equal(
+    "and its highlights are untouched",
+    (await repos.timeline.listHighlights(preserve.saved.id)).length,
+    2,
+  );
+
+  // Clean up the fixtures so the later groups keep their own counts.
+  await repos.timeline.delete(preserve.saved.id);
+  await repos.timeline.delete(bystander.saved.id);
 
   // =========================================================================
   startGroup("A rejected mutation leaves the aggregate intact");
