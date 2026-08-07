@@ -1281,6 +1281,154 @@ try {
   );
 
   // =========================================================================
+  // Tools (Phase 8) — a flat ordered entity with a UNIQUE name and a
+  // nullable URL, same boundary as every other.
+  // =========================================================================
+  const toolsActions = await import("../src/lib/actions/tools.ts");
+  check(
+    "the real tools action module exports all three mutations",
+    typeof toolsActions.createToolAction === "function" &&
+      typeof toolsActions.updateToolAction === "function" &&
+      typeof toolsActions.deleteToolAction === "function",
+  );
+
+  function toolPayload(overrides = {}) {
+    return { name: "Guarded Tool", ...overrides };
+  }
+
+  const toolVictim = await repos.tools.create({
+    name: "Existing Tool",
+    purpose: "Must survive every unauthenticated attempt.",
+    url: "https://example.com/existing-tool",
+    position: 4,
+    isVisible: false,
+  });
+  const toolBefore = await repos.tools.getById(toolVictim.id);
+  const toolCountBefore = (await repos.tools.list()).length;
+  const consultedBeforeTools = providerConsulted;
+
+  startGroup("Unauthenticated tool CREATE cannot insert");
+
+  clearAuthEnvironment();
+
+  const toolCreate = await invoke(
+    toolsActions.createToolAction,
+    payloadForm(toolPayload()),
+  );
+  equal("the action does not return a result", toolCreate.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    toolCreate.error?.name,
+    "AdminUnauthorizedError",
+  );
+  equal(
+    "no tool was inserted",
+    (await repos.tools.list()).length,
+    toolCountBefore,
+  );
+
+  startGroup("Tool auth wins before validation and the database");
+
+  const toolOrder = await invoke(
+    toolsActions.createToolAction,
+    payloadForm({ name: "", id: "x", position: -3 }),
+  );
+  equal("an invalid unauthenticated payload still throws", toolOrder.kind, "threw");
+  equal(
+    "it is an authorization failure, not a validation result",
+    toolOrder.error?.name,
+    "AdminUnauthorizedError",
+  );
+
+  // A hostile URL is also an authorization failure first: the URL policy is
+  // never even consulted, because there is no identity to run it for.
+  const toolHostileUrl = await invoke(
+    toolsActions.createToolAction,
+    payloadForm(toolPayload({ url: "javascript:alert(1)" })),
+  );
+  equal(
+    "an unsafe URL is rejected as unauthorized, not as validation",
+    toolHostileUrl.error?.name,
+    "AdminUnauthorizedError",
+  );
+  equal(
+    "the database was never consulted during any denied tool call",
+    providerConsulted,
+    consultedBeforeTools,
+  );
+
+  startGroup("Unauthenticated tool UPDATE cannot modify");
+
+  const toolUpdate = await invoke(
+    toolsActions.updateToolAction,
+    payloadForm(
+      { name: "Hijacked", purpose: "Hijacked", position: 0, isVisible: true },
+      toolVictim.id,
+    ),
+  );
+  equal("the action does not return a result", toolUpdate.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    toolUpdate.error?.name,
+    "AdminUnauthorizedError",
+  );
+  const toolAfterUpdate = await repos.tools.getById(toolVictim.id);
+  equal("name is unchanged", toolAfterUpdate?.name, toolBefore?.name);
+  equal("purpose is unchanged", toolAfterUpdate?.purpose, toolBefore?.purpose);
+  equal("url is unchanged", toolAfterUpdate?.url, toolBefore?.url);
+  equal("position is unchanged", toolAfterUpdate?.position, toolBefore?.position);
+  equal("isVisible is unchanged", toolAfterUpdate?.isVisible, toolBefore?.isVisible);
+  equal("updatedAt is unchanged", toolAfterUpdate?.updatedAt, toolBefore?.updatedAt);
+  check(
+    "the whole record is logically identical",
+    JSON.stringify(toolAfterUpdate) === JSON.stringify(toolBefore),
+  );
+
+  // The partial shape the timeline regression made dangerous: denied, and
+  // still byte-for-byte unchanged.
+  const toolPartial = await invoke(
+    toolsActions.updateToolAction,
+    payloadForm({ name: "Hijacked partially" }, toolVictim.id),
+  );
+  equal(
+    "an unauthenticated PARTIAL update is denied too",
+    toolPartial.error?.name,
+    "AdminUnauthorizedError",
+  );
+  check(
+    "and left the record byte-for-byte identical",
+    JSON.stringify(await repos.tools.getById(toolVictim.id)) ===
+      JSON.stringify(toolBefore),
+  );
+
+  startGroup("Unauthenticated tool DELETE cannot remove");
+
+  const toolDelete = await invoke(
+    toolsActions.deleteToolAction,
+    payloadForm({}, toolVictim.id),
+  );
+  equal("the action does not return a result", toolDelete.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    toolDelete.error?.name,
+    "AdminUnauthorizedError",
+  );
+  check(
+    "the tool still exists afterwards",
+    (await repos.tools.getById(toolVictim.id)) !== null,
+  );
+  equal(
+    "the tool count is unchanged",
+    (await repos.tools.list()).length,
+    toolCountBefore,
+  );
+  equal(
+    "the database was still never consulted for any denied tool call",
+    providerConsulted,
+    consultedBeforeTools,
+  );
+
+  // =========================================================================
   startGroup("A forged Access assertion is also rejected");
 
   // With Access configured, a caller supplying a self-signed or junk
@@ -1369,6 +1517,29 @@ try {
       JSON.stringify(categoryBefore) &&
       JSON.stringify(await repos.skills.getSkillById(skillVictim.id)) ===
         JSON.stringify(skillBefore),
+  );
+
+  // The same forged assertion against a tool mutation: development auth is
+  // enabled above and must NOT rescue it here either.
+  const forgedTool = await invoke(
+    toolsActions.updateToolAction,
+    payloadForm({ name: "Forged" }, toolVictim.id),
+  );
+  equal(
+    "a forged-assertion tool update throws",
+    forgedTool.error?.name,
+    "AdminUnauthorizedError",
+  );
+  check(
+    "development auth did not rescue the tools path either",
+    typeof forgedTool.error?.reason === "string" &&
+      forgedTool.error.reason !== "not_configured",
+    String(forgedTool.error?.reason),
+  );
+  check(
+    "the targeted tool is still byte-for-byte unchanged",
+    JSON.stringify(await repos.tools.getById(toolVictim.id)) ===
+      JSON.stringify(toolBefore),
   );
 
   // And with no assertion at all, while Access is configured.
@@ -2513,6 +2684,177 @@ try {
       missingCategory,
       missingSkill,
     ].every((outcome) => !leaksPersistenceInternals(JSON.stringify(outcome.result ?? {}))),
+  );
+
+  // =========================================================================
+  startGroup("Positive control — tool actions work when authenticated");
+
+  const authedToolCreate = await invoke(
+    toolsActions.createToolAction,
+    payloadForm(
+      toolPayload({
+        name: "Authenticated Tool",
+        purpose: "Created only when authenticated.",
+        url: "https://example.com/authenticated-tool",
+        position: 7,
+      }),
+    ),
+  );
+  equal("an authenticated create redirects on success", authedToolCreate.kind, "redirect");
+  equal("it redirects to the list", authedToolCreate.to, "/tools?created=1");
+
+  const createdTool = (await repos.tools.list()).find(
+    (row) => row.name === "Authenticated Tool",
+  );
+  check("the tool really was inserted", Boolean(createdTool));
+  equal("its position persisted", createdTool?.position, 7);
+  equal(
+    "its url persisted",
+    createdTool?.url,
+    "https://example.com/authenticated-tool",
+  );
+
+  // A duplicate name is a safe conflict, not a leak.
+  const dupTool = await invoke(
+    toolsActions.createToolAction,
+    payloadForm(toolPayload({ name: "Authenticated Tool" })),
+  );
+  equal("a duplicate name returns a result", dupTool.kind, "returned");
+  equal("it is reported as a conflict", dupTool.result?.status, "conflict");
+
+  const badTool = await invoke(
+    toolsActions.updateToolAction,
+    payloadForm({ name: "" }, createdTool.id),
+  );
+  equal("a malformed name returns a result", badTool.kind, "returned");
+  equal("it is reported as validation", badTool.result?.status, "validation");
+  check("the error is keyed to the field", Boolean(badTool.result?.fieldErrors?.name));
+
+  const badToolPosition = await invoke(
+    toolsActions.updateToolAction,
+    payloadForm({ position: -2 }, createdTool.id),
+  );
+  equal("an invalid position is rejected", badToolPosition.result?.status, "validation");
+
+  const badToolVisibility = await invoke(
+    toolsActions.updateToolAction,
+    payloadForm({ isVisible: "sometimes" }, createdTool.id),
+  );
+  equal("an invalid visibility is rejected", badToolVisibility.result?.status, "validation");
+
+  // The URL policy, enforced through the REAL exported action.
+  const badToolUrl = await invoke(
+    toolsActions.updateToolAction,
+    payloadForm({ url: "javascript:alert(1)" }, createdTool.id),
+  );
+  equal("an unsafe URL is rejected", badToolUrl.result?.status, "validation");
+  check(
+    "the URL error is keyed to url",
+    Boolean(badToolUrl.result?.fieldErrors?.url),
+  );
+  equal(
+    "no javascript: value reached the row",
+    (await repos.tools.getById(createdTool.id))?.url,
+    "https://example.com/authenticated-tool",
+  );
+
+  const managedTool = await invoke(
+    toolsActions.updateToolAction,
+    payloadForm({ id: "forced", createdAt: "2000-01-01" }, createdTool.id),
+  );
+  equal(
+    "client-supplied database-managed fields are rejected",
+    managedTool.result?.status,
+    "validation",
+  );
+
+  equal(
+    "none of the rejected patches touched the row",
+    (await repos.tools.getById(createdTool.id))?.position,
+    7,
+  );
+
+  // A partial update must not reset the fields it does not mention.
+  const partialTool = await invoke(
+    toolsActions.updateToolAction,
+    payloadForm({ purpose: "Renamed purpose" }, createdTool.id),
+  );
+  equal("an authenticated partial update redirects", partialTool.kind, "redirect");
+  const afterToolPartial = await repos.tools.getById(createdTool.id);
+  equal("the named field changed", afterToolPartial?.purpose, "Renamed purpose");
+  equal("an unmentioned name was NOT changed", afterToolPartial?.name, "Authenticated Tool");
+  equal("an unmentioned position was NOT reset", afterToolPartial?.position, 7);
+  equal("an unmentioned isVisible was NOT reset", afterToolPartial?.isVisible, true);
+  equal(
+    "an unmentioned url was NOT nulled",
+    afterToolPartial?.url,
+    "https://example.com/authenticated-tool",
+  );
+
+  // Explicit falsy values are honoured.
+  const falsyTool = await invoke(
+    toolsActions.updateToolAction,
+    payloadForm({ position: 0, isVisible: false }, createdTool.id),
+  );
+  equal("an explicit falsy patch redirects", falsyTool.kind, "redirect");
+  const afterToolFalsy = await repos.tools.getById(createdTool.id);
+  equal("explicit position 0 persisted", afterToolFalsy?.position, 0);
+  equal("explicit isVisible false persisted", afterToolFalsy?.isVisible, false);
+
+  const missingTool = await invoke(
+    toolsActions.updateToolAction,
+    payloadForm({ name: "Ghost" }, "does-not-exist"),
+  );
+  equal(
+    "updating a missing tool returns not_found",
+    missingTool.result?.status,
+    "not_found",
+  );
+
+  const authedToolDelete = await invoke(
+    toolsActions.deleteToolAction,
+    payloadForm({}, createdTool.id),
+  );
+  equal("an authenticated delete redirects on success", authedToolDelete.kind, "redirect");
+  equal("it redirects to the list", authedToolDelete.to, "/tools");
+  equal(
+    "the tool really was removed",
+    await repos.tools.getById(createdTool.id),
+    null,
+  );
+  check(
+    "the untouched target tool is still there",
+    (await repos.tools.getById(toolVictim.id)) !== null,
+  );
+
+  const missingToolDelete = await invoke(
+    toolsActions.deleteToolAction,
+    payloadForm({}, createdTool.id),
+  );
+  equal(
+    "deleting an already-deleted tool returns not_found",
+    missingToolDelete.result?.status,
+    "not_found",
+  );
+
+  check(
+    "no tool result message leaks SQL or constraint text",
+    [
+      dupTool,
+      badTool,
+      badToolPosition,
+      badToolUrl,
+      managedTool,
+      missingTool,
+    ].every((outcome) => {
+      const serialized = JSON.stringify(outcome.result ?? {});
+      return !(
+        /SQLITE_[A-Z]+/.test(serialized) ||
+        /constraint failed/i.test(serialized) ||
+        /\btools\.[a-z_]/i.test(serialized) ||
+        /UNIQUE constraint/i.test(serialized)
+      );
+    }),
   );
 
   // =========================================================================

@@ -1,6 +1,63 @@
 
 # Changelog
 
+## 2026-08-07 — Phase 8: Tools CMS (branch `feat/remaining-cms-tools`)
+
+**Status: implemented, awaiting review. Not committed. Phase 8 remains IN
+PROGRESS** — Tools is the seventh area of several, and is complete only after
+review, PR CI, merge, the post-merge `main` run, and completion
+documentation. Socials and Sections remain **not started**.
+
+### Added
+
+- **Tools CMS** — `/tools`, `/tools/new`, and `/tools/[id]`, all exported
+  through `withAdminPage` with static metadata, over **only** the columns
+  committed in migration `0001` (`name`, `purpose`, `url`, `position`,
+  `is_visible`). No field was invented and **no migration was added**.
+- `packages/schemas/src/tools.ts` — strict create/update shapes, written out
+  separately so the update shape inherits no defaults.
+- `apps/admin/src/lib/actions/tools.ts` — three Server Actions in the
+  mandatory `requireAdminIdentity()` → Zod → repository order.
+- `apps/admin/scripts/tools-tests.mjs` — **146 checks**.
+
+### Changed
+
+- The admin navigation's **Tools** entry became a real `/tools` link instead
+  of a "Phase 8" placeholder. It stays separate from Skills: nothing in the
+  schema relates the two tables.
+- `apps/admin/scripts/action-auth-tests.mjs` — 379 → **439 checks**, adding
+  the real exported tool actions: unauthenticated create/update/delete
+  denied with the row byte-for-byte unchanged, an unauthenticated *partial*
+  update denied, a forged Access assertion denied without development auth
+  rescuing it, and authenticated positive controls including a duplicate-name
+  conflict and an unsafe URL proven never to reach the row.
+- The admin foundation suite grew 104 → **111 by itself** — its recursive
+  invariant discovered the three new routes without being edited.
+
+### Not changed
+
+`migrations/0001_initial_schema.sql` (**no migration `0002`**),
+`packages/database` (`createToolRepository` already existed and its contract
+did not change, so the database subtotal stays **297**), the shared URL and
+slug helpers, projects, technologies, education, timeline, certifications,
+skills, `apps/web`, CI, and Cloudflare resources. **Socials and Sections were
+not implemented.**
+
+### Verification
+
+`pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`,
+`pnpm test` (**2017 checks**, up from 1804 with all 1804 preserved), and
+`pnpm build` all **PASS** locally. **Not yet CI-verified.**
+Browser-checked by **manual Playwright MCP verification** — not automated
+E2E, which is Phase 20 — against real local D1: create, ordering, Hidden
+badge, nullable url rendering as `—`, a duplicate-name conflict with no SQL
+leaked, required-field validation with error-summary focus, server-side
+rejection of `javascript:`, edit with reload-confirmed persistence, two-step
+delete with Cancel, and populated containment at 1280/768/375. Confidentiality
+was probed with a seeded canary across HTML, RSC, and forged-Access requests —
+all denied with no content disclosed, and with a positive control proving the
+probe detects the canary when authorized. Zero console errors.
+
 ## 2026-08-07 — Phase 8: Skills CMS
 
 **Status: merged.** Merged into `main` as `f138280 feat: add skills CMS` via

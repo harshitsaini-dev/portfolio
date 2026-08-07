@@ -3,6 +3,33 @@
 Notes on things learned while building this project that are worth
 remembering for future work.
 
+## Phase 8 — Tools CMS
+
+### A shared control earns its keep on the third consumer, not the second
+
+Extracting the http(s) allowlist for certifications was arguable at the time
+— two consumers is the threshold where "share it" and "copy it" both look
+reasonable. Tools was the third, and it cost one import line and zero
+decisions: no reasoning about which protocols to allow, no chance of
+disagreeing with the other two, and the twelve rejection cases came along
+free.
+
+The signal to extract is not the count but the *kind*: the leaf text and
+position primitives are still redeclared per module and that is still right,
+because a different length limit is a domain decision. A different protocol
+allowlist is a vulnerability.
+
+### A `UNIQUE` column has two write paths, and tests usually only cover one
+
+`tools.name` is `UNIQUE`, so a duplicate can arrive on **create** or on
+**rename**. The obvious test is the create collision; the rename collision is
+the one that silently goes untested, because it needs two rows and an update
+rather than one row and an insert.
+
+Both are asserted here, and the rename case also checks that the refused
+update left the row untouched — a conflict that half-applied would be worse
+than one that failed cleanly.
+
 ## Phase 8 — Skills CMS
 
 ### A security assertion that fails on legitimate copy is still a bug — in the assertion

@@ -46,9 +46,10 @@ something passed without running it.
   `31171449984`**. `main` is clean and synced after the merge. Both the
   implementation review and the pre-merge copy correction were accepted. See
   *Phase 8 — Skills CMS* below.
-- **Tools CMS: the next Phase 8 entity** — **not started**, and not to be
-  implemented until explicitly scoped and approved. `tools` is its own table;
-  the Skills slice deliberately did not touch it.
+- **Tools CMS: implemented, awaiting review.** On
+  `feat/remaining-cms-tools`; not committed, not pushed, and **not
+  complete** — complete only after review, PR CI, merge, the post-merge
+  `main` run, and completion documentation. See *Phase 8 — Tools CMS* below.
 - **Later Phase 8 entities** — Socials, Sections: **not started**.
 - **Phase 7:** Complete (merged to `main`, CI green).
 - **Phase 8 is NOT complete.** It is complete only when every entity it
@@ -61,8 +62,90 @@ Phase 22** (fail-closed until then).
 
 ## Active task
 
-**None.** The Skills CMS is merged and closed. Tools is the next Phase 8
-entity and is not started.
+**Tools CMS.** Implemented; awaiting review.
+
+## Phase 8 — Tools CMS (implemented, awaiting review)
+
+The simplest slice in Phase 8 so far: a flat ordered entity needing **no new
+architecture, no repository change, and no migration**.
+
+### Persisted schema — read from migration `0001`, not invented
+
+```
+tools
+  id TEXT PK | name TEXT NOT NULL UNIQUE | purpose TEXT | url TEXT
+  | position INTEGER NOT NULL DEFAULT 0 CHECK (position >= 0)
+  | is_visible INTEGER NOT NULL DEFAULT 1 CHECK (is_visible IN (0,1))
+  | created_at | updated_at
+INDEX idx_tools_visible_position ON (is_visible, position)
+```
+
+| Aspect | Column |
+| --- | --- |
+| Required | `name` (and it is **UNIQUE**) |
+| Nullable | `purpose`, `url` |
+| Ordering | `position`, non-negative |
+| Visibility | `is_visible` |
+| Timestamps | `created_at`, `updated_at` |
+
+There is **no slug, icon, category, version, or relationship column**, so the
+CMS exposes none. Nothing references `tools` and `tools` references nothing —
+no foreign keys in either direction, so a delete removes exactly one row.
+`migrations/0001_initial_schema.sql` was **not edited** and **no migration
+`0002` was created**.
+
+**`name` being UNIQUE is the one constraint that produces conflicts**, on
+both create and rename. Uniqueness stays the database's: an
+application-level "is this taken?" check is a race the constraint already
+wins, so the action passes the validated payload straight through and
+translates the resulting `ConflictError` into human wording.
+
+### Routes
+
+```
+apps/admin/src/app/(protected)/tools/
+  page.tsx        list — every tool, hidden ones badged
+  new/page.tsx    create
+  [id]/page.tsx   edit + delete
+```
+
+All three go through `withAdminPage`, so the Phase 6 recursive invariant
+discovered them automatically — the foundation suite grew 104 → **111**
+without the invariant being touched. All three use **static** metadata.
+
+Navigation gained a real `/tools` link, replacing its "Phase 8" unavailable
+entry. It stays a **separate** entry from Skills: nothing in the schema
+relates the two tables, so folding them under one label would imply a
+relationship that does not exist.
+
+### Repository — unchanged
+
+`createToolRepository` **already existed** in
+`packages/database/src/repositories/content.ts`, already decoded all eight
+committed columns, and was already exposed as `repos.tools`. **No repository
+contract changed and `packages/database` was not touched**, so the database
+subtotal is unchanged at **297** and no repository-package tests were added.
+
+### Validation
+
+`@portfolio/schemas` gained `tools.ts`. `.strict()` on both shapes, so `id`,
+`createdAt`, `updatedAt`, and unknown fields are rejected. Create applies
+defaults; update declares `.optional()` fields with **none** — the rule
+education established and the timeline regression paid for, applied from the
+outset.
+
+`url` refines against `nullableHttpUrlSchema` from `internal/url.ts` — the
+**third** consumer of the shared http(s) policy after projects and
+certifications, imported rather than copied. Blank input normalises to
+`null`, for both `purpose` and `url`.
+
+### The tool link
+
+The list renders `url` as a real anchor with `target="_blank"` and
+`rel="noopener noreferrer"`, falling back to `—`. That anchor is exactly the
+sink the protocol allowlist protects, which is why the rejection of
+`javascript:`, `data:`, `file:`, `mailto:`, `ftp:`, protocol-relative, and
+bare-hostname values is asserted at both the schema and real-action layers.
 
 ## Phase 8 — Skills CMS (COMPLETE)
 
@@ -1020,9 +1103,111 @@ fail-closed behaviour.
 
 ## Next suggested task
 
-**Tools CMS** — the next Phase 8 entity, **not started**, and not to be
-implemented until explicitly scoped and approved. Rationale is at the end of
-this file.
+Review the Tools CMS. After it merges and is formally closed, **Socials** is
+the next Phase 8 entity — **not started**, and not to be implemented until
+explicitly scoped and approved. Rationale is at the end of this file.
+
+## Phase 8 — Tools CMS: verification actually performed
+
+Locally on Windows. **Not yet CI-verified** — no PR has been opened.
+
+| Command | Result |
+| --- | --- |
+| `pnpm install --frozen-lockfile` | **PASS** — lockfile unmodified |
+| `pnpm lint` | **PASS** (exit 0) |
+| `pnpm typecheck` | **PASS** (exit 0) |
+| `pnpm test` | **PASS** — **2017 real checks** |
+| `pnpm build` | **PASS** — all three routes emitted as dynamic (`ƒ`) |
+
+| Suite | Checks | Change |
+| --- | --- | --- |
+| **Database subtotal** | **297** | **unchanged — no repository change** |
+| Admin authentication | 42 | — |
+| Admin foundation / invariant / containment | **111** | **+7** — three new protected pages, discovered automatically |
+| Admin D1 composition boundary | 34 | — |
+| Projects CMS | 96 | — |
+| Technologies CMS | 90 | — |
+| Profile CMS | 77 | — |
+| Timeline CMS | 173 | — |
+| Education CMS | 112 | — |
+| Certifications CMS | 167 | — |
+| Skills CMS | 233 | — |
+| **Tools CMS** | **146** | **new** |
+| **Server Action authorization** | **439** | **+60** — the real exported tool actions |
+| **Admin subtotal** | **1720** | — |
+| **Total** | **2017** | up from 1804 |
+
+**All 1804 previous checks still pass**, and none were weakened.
+
+### Real-D1 results
+
+Create and read-back of every column; a null round-trip proving both
+optionals come back as `null` rather than `""`; a duplicate name refused as a
+`ConflictError` with no row created; **a rename onto a taken name also
+refused, with the row left alone**; update with clearing; visibility
+filtering (`list()` shows a hidden row, `list({visibleOnly: true})` does
+not); deterministic ordering across repeated reads.
+
+A preservation fixture built with deliberately non-default values (position
+6, hidden, populated purpose and url) had **one** field changed and
+everything else survived, including `createdAt`; explicit `position: 0` and
+`isVisible` were honoured; an empty patch was proven a byte-for-byte no-op
+that does not bump `updated_at`; a bystander row was untouched throughout.
+An invalid payload and a `javascript:` URL were both proven rejected
+**before** the database with the stored row unchanged. Delete removed only
+its target; `PRAGMA foreign_key_check` clean, plus explicit NOT NULL and
+duplicate-name scans returning zero.
+
+### Browser verification (`playwright-local` MCP, real local D1)
+
+**Manual MCP verification — not automated Playwright CI tests.** Automated
+E2E remains Phase 20.
+
+The nav entry became a real link; the empty state renders. Server-side
+validation confirmed **through the real form**: an empty submit returned a
+`name` error with focus moved to the error summary (`role="alert"`), and
+`javascript:alert(1)` was rejected with "Enter a valid http(s) URL" keyed to
+`url`. A duplicate name surfaced as "Conflict — That name is already used by
+another tool." with **no SQL or constraint text**.
+
+The list showed both rows in position order with the **Hidden** badge on the
+hidden one, the URL rendered as an anchor carrying
+`rel="noopener noreferrer"`, and `—` for null purpose and url. Editing
+pre-filled correctly including `isVisible: false` and empty nulls; after
+saving, a full reload confirmed the change persisted, the badge cleared, and
+the row repositioned. Two-step delete named the tool, moved focus to the
+confirm button (44px), restored cleanly on **Cancel**, and on confirm removed
+only the target — the unrelated tool survived. All five visible controls
+resolved to a real `<label for>`.
+
+**Zero console errors and zero warnings.**
+
+### Responsive results (populated list, not an empty state)
+
+| Width | Page scrolls sideways | Wrapper | Caption / `sr-only` |
+| --- | --- | --- | --- |
+| 1280px | **no** (1280 / 1280) | no internal scroll needed | present (8 `sr-only`) |
+| 768px | **no** (768 / 768) | no internal scroll needed | present (8 `sr-only`) |
+| 375px | **no** (375 / 375) | **scrolls internally** (704 / 343) | present (8 `sr-only`) |
+
+The wrapper was confirmed `position: relative` at every width; row action
+links measured 44px. No global `overflow-x-hidden`, and no `sr-only` content
+removed.
+
+### Confidentiality results
+
+With Access configured **and `ADMIN_DEV_AUTH=enabled` at the same time** — so
+development auth would rescue the request if precedence were wrong — a canary
+tool was seeded and probed. All seven probes (HTML and RSC across `/tools`,
+`/tools/new`, the `[id]` route, and forged-assertion variants) returned
+**307** with **no canary content**.
+
+**Positive control:** the same probe against an authorized request returned
+`200` and found all three canary tokens — so "no leak" is a real result
+rather than a probe that matches nothing.
+
+Local test data, the temporary dev-auth file, and MCP artifacts were removed
+afterwards.
 
 ## Phase 8 — Skills CMS: verification actually performed
 
@@ -1609,7 +1794,7 @@ Local test data and the temporary dev-auth file were removed afterwards.
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
 | Phase 6 — Admin foundation | **Complete** (merged to `main`, CI green) |
 | Phase 7 — Projects CMS vertical slice | **Complete** (merged to `main`, CI green) |
-| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, Timeline, Education, Certifications, and Skills CMS **complete**, plus the admin list overflow and timeline partial-update regression fixes (all merged, CI green); Tools, Socials, and Sections not started |
+| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, Timeline, Education, Certifications, and Skills CMS **complete**, plus the admin list overflow and timeline partial-update regression fixes (all merged, CI green); Tools CMS implemented and awaiting review; Socials and Sections not started |
 
 Phases 9–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
@@ -1750,9 +1935,9 @@ than changed here.
 ## Phase 8 — known limitations (not blockers)
 
 - **Phase 8 is not complete.** Technologies, Profile, Timeline, Education,
-  Certifications, and Skills are six areas of several.
-- **The remaining CMS entities are not implemented** — Tools, Socials,
-  Sections.
+  Certifications, Skills, and Tools are seven areas of several, and Tools is
+  not yet reviewed or merged.
+- **The remaining CMS entities are not implemented** — Socials, Sections.
 - **A skill cannot be moved between categories in the CMS.** The repository
   patch allowlist and `SkillUpdate` have excluded `categoryId` since Phase 5,
   because a move must also resolve position and the
@@ -3519,12 +3704,21 @@ inside* `/skills` rather than a second top-level entry, and
 `ON DELETE RESTRICT` is surfaced as an explanatory conflict exactly as the
 Technologies slice established.
 
-**Phase 8, next entity: Tools.** `tools` is a flat ordered table —
-`id | name | purpose | url | position | is_visible | created_at |
-updated_at` — with no child rows and nothing referencing it, so the
-Certifications slice should transfer almost verbatim and the repository
-(`createToolRepository`) already exists unchanged. Its `url` is nullable and
-should reuse `nullableHttpUrlSchema` from `internal/url.ts` directly rather
-than declaring a second policy. It needs no migration.
+**Done, awaiting review: Tools CMS.** It transferred the certifications slice
+almost verbatim, with `createOrderedRepository`, `createToolRepository`, and
+the committed migration all unchanged — the first slice since Profile to
+need *nothing* new anywhere. Its `url` became the third consumer of the
+shared http(s) policy, and its `UNIQUE` name surfaces as a safe conflict.
+
+**Phase 8, next entity: Socials.** `social_links` is another flat ordered
+table — `id | label | platform | url | position | is_visible | created_at |
+updated_at` — with no child rows and nothing referencing it, so the Tools
+slice should transfer almost verbatim and `createSocialLinkRepository`
+already exists unchanged. Two things differ from Tools and are worth
+settling before writing code: its `url` is **NOT NULL**, so it takes the
+required `httpUrlSchema` rather than the nullable variant, and `platform` is
+free text with no persisted enum — so the CMS must not invent a controlled
+vocabulary the schema does not have. It needs no migration. Sections then
+remains, and it is the last Phase 8 entity.
 
 It is not to be implemented until explicitly scoped and approved.
