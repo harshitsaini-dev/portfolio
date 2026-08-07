@@ -35,13 +35,14 @@ something passed without running it.
   `main` CI run `31155349531`**. **Timeline CMS itself remained COMPLETE
   throughout**; this was a post-merge repair, not outstanding feature work.
   See *Timeline partial-update regression* below.
-- **Certifications CMS: implemented, awaiting review.** On
-  `feat/remaining-cms-certifications`; not committed, not pushed, and **not
-  complete** — complete only after review, PR CI, merge, the post-merge
-  `main` run, and completion documentation. See *Phase 8 — Certifications
-  CMS* below.
-- **Later Phase 8 entities** — Skills, Tools, Socials, Sections: **not
-  started**.
+- **Certifications CMS: COMPLETE.** Merged into `main` as
+  `c1b153d feat: add certifications CMS`, verified by **Pull Request #26 on
+  GitHub Actions/Linux** and again by the **post-merge `main` CI run
+  `31161985127`**. `main` is clean and synced after the merge. See
+  *Phase 8 — Certifications CMS* below.
+- **Skills & tools: the next Phase 8 area** — **not started**, and not to be
+  implemented until explicitly scoped and approved.
+- **Later Phase 8 entities** — Socials, Sections: **not started**.
 - **Phase 7:** Complete (merged to `main`, CI green).
 - **Phase 8 is NOT complete.** It is complete only when every entity it
   covers is delivered and verified.
@@ -53,9 +54,10 @@ Phase 22** (fail-closed until then).
 
 ## Active task
 
-**Certifications CMS.** Implemented; awaiting review.
+**None.** The Certifications CMS is merged and closed. Skills & tools is the
+next Phase 8 area and is not started.
 
-## Phase 8 — Certifications CMS (implemented, awaiting review)
+## Phase 8 — Certifications CMS (COMPLETE)
 
 ### Persisted schema — read from migration `0001`, not invented
 
@@ -907,14 +909,14 @@ fail-closed behaviour.
 
 ## Next suggested task
 
-Review the Certifications CMS. After it merges and is formally closed,
-**Skills & tools** is the next Phase 8 area — **not started**, and not to be
+**Skills & tools** — the next Phase 8 area, **not started**, and not to be
 implemented until explicitly scoped and approved. Rationale is at the end of
 this file.
 
 ## Phase 8 — Certifications CMS: verification actually performed
 
-Locally on Windows. **Not yet CI-verified** — no PR has been opened.
+Locally on Windows, and again on **GitHub Actions/Linux** for both PR #26
+and the post-merge `main` run:
 
 | Command | Result |
 | --- | --- |
@@ -944,6 +946,13 @@ Locally on Windows. **Not yet CI-verified** — no PR has been opened.
 foundation suite's +7 came from the invariant discovering the new routes on
 its own — six protected-page assertions and one scroll-containment
 assertion — with no change to the invariant itself.
+
+### Continuous integration
+
+- **Pull Request #26 passed CI on GitHub Actions/Linux.**
+- The **post-merge `main` CI run `31161985127` passed.**
+- Linux therefore verified install, lint, typecheck, tests, and build for
+  the merged Certifications CMS state.
 
 ### Browser verification (`playwright-local` MCP, real local D1)
 
@@ -1387,7 +1396,7 @@ Local test data and the temporary dev-auth file were removed afterwards.
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
 | Phase 6 — Admin foundation | **Complete** (merged to `main`, CI green) |
 | Phase 7 — Projects CMS vertical slice | **Complete** (merged to `main`, CI green) |
-| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, Timeline, and Education CMS **complete**, plus the admin list overflow and timeline partial-update regression fixes (all merged, CI green); Certifications CMS implemented and awaiting review; Skills, Tools, Socials, and Sections not started |
+| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, Timeline, Education, and Certifications CMS **complete**, plus the admin list overflow and timeline partial-update regression fixes (all merged, CI green); Skills, Tools, Socials, and Sections not started |
 
 Phases 9–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
@@ -1528,8 +1537,7 @@ than changed here.
 ## Phase 8 — known limitations (not blockers)
 
 - **Phase 8 is not complete.** Technologies, Profile, Timeline, Education,
-  and Certifications are five entities of several, and Certifications is not
-  yet reviewed or merged.
+  and Certifications are five entities of several.
 - **The remaining CMS entities are not implemented** — Skills, Tools,
   Socials, Sections.
 - ~~A post-merge regression is outstanding in the timeline update
@@ -3277,11 +3285,11 @@ defaults, and the action distinguishes omitted highlights from an explicit
 empty list. Details in *Timeline partial-update regression* near the top of
 this file.
 
-**Done, awaiting review: Certifications CMS.** It transferred the education
-slice almost verbatim, with `createOrderedRepository` and the committed
-migration both unchanged. Its one new wrinkle — `credential_url`, the first
-URL column outside projects — was resolved by *sharing* the existing
-http(s) allowlist rather than copying it.
+**Done and merged: `c1b153d feat: add certifications CMS`.** It transferred
+the education slice almost verbatim, with `createOrderedRepository` and the
+committed migration both unchanged. Its one new wrinkle — `credential_url`,
+the first URL column outside projects — was resolved by *sharing* the
+existing http(s) allowlist rather than copying it.
 
 **Phase 8, next area: Skills & tools.** It is the last structural shape in
 Phase 8 that the ordered pattern has not yet met: `skills` is the first

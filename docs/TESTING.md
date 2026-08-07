@@ -1,12 +1,12 @@
 # Testing
 
-## Current state (Phase 8 — Certifications CMS implemented, awaiting review)
+## Current state (Phase 8 — Certifications CMS complete)
 
-`pnpm test` runs **fifteen real suites and one no-op** — **1460 checks**.
-The 1228 verified after the timeline partial-update fix all still pass on
-Windows and on GitHub Actions/Linux (PR #24 and its post-merge `main` run
-`31155349531`); the Certifications CMS added the rest and **is not yet
-CI-verified**. What each one actually proves matters, so be precise:
+`pnpm test` runs **fifteen real suites and one no-op** — **1460 checks**,
+all passing on Windows and on GitHub Actions/Linux (PR #26 and its
+post-merge `main` run `31161985127`). The 1228 verified after the timeline
+partial-update fix are all still among them and none were weakened. What
+each one actually proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
