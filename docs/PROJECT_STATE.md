@@ -29,14 +29,14 @@ something passed without running it.
   `99e59cd feat: add education CMS`, verified by **Pull Request #22 on
   GitHub Actions/Linux** and again by the **post-merge `main` CI run
   `31110395395`**.
-- **Timeline partial-update regression fix: implemented, awaiting review.**
-  On `fix/timeline-partial-update-defaults`; not committed, not pushed, and
-  **not complete** — complete only after review, PR CI, merge, the
-  post-merge `main` run, and completion documentation. **Timeline CMS
-  itself remained COMPLETE throughout**; this was a post-merge repair, not
-  outstanding feature work. See *Timeline partial-update regression* below.
-- **Certifications CMS: next entity** after that fix — **not started**, and
-  not to be implemented until explicitly scoped and approved.
+- **Timeline partial-update regression fix: COMPLETE.** Merged into `main`
+  as `c345131 fix: preserve timeline partial updates`, verified by **Pull
+  Request #24 on GitHub Actions/Linux** and again by the **post-merge
+  `main` CI run `31155349531`**. **Timeline CMS itself remained COMPLETE
+  throughout**; this was a post-merge repair, not outstanding feature work.
+  See *Timeline partial-update regression* below.
+- **Certifications CMS: the immediate next CMS entity** — **not started**,
+  and not to be implemented until explicitly scoped and approved.
 - **Later Phase 8 entities** — Skills, Tools, Socials, Sections: **not
   started**.
 - **Phase 7:** Complete (merged to `main`, CI green).
@@ -50,9 +50,10 @@ Phase 22** (fail-closed until then).
 
 ## Active task
 
-**Timeline partial-update regression fix.** Implemented; awaiting review.
+**None.** The Timeline partial-update regression fix is merged and closed.
+Certifications CMS is the next entity and is not started.
 
-## Timeline partial-update regression — FIXED (awaiting review)
+## Timeline partial-update regression — COMPLETE (merged)
 
 **Timeline CMS remains COMPLETE.** This is a post-merge repair of the
 exported update contract, not incomplete feature work.
@@ -805,12 +806,14 @@ fail-closed behaviour.
 
 ## Next suggested task
 
-Review the timeline partial-update fix. After it merges and is formally
-closed, **Certifications CMS** is the next Phase 8 entity — **not started**,
-and not to be implemented until explicitly scoped and approved. Rationale is
-at the end of this file.
+**Certifications CMS** — the next Phase 8 entity, **not started**, and not
+to be implemented until explicitly scoped and approved. Rationale is at the
+end of this file.
 
 ## Timeline partial-update fix: verification actually performed
+
+Locally on Windows, and again on **GitHub Actions/Linux** for both PR #24
+and the post-merge `main` run:
 
 | Command | Result |
 | --- | --- |
@@ -836,6 +839,13 @@ at the end of this file.
 | **Total** | **1228** | up from 1140 |
 
 **All 1140 previous checks still pass**, and none were weakened.
+
+### Continuous integration
+
+- **Pull Request #24 passed CI on GitHub Actions/Linux.**
+- The **post-merge `main` CI run `31155349531` passed.**
+- Linux therefore verified install, lint, typecheck, tests, and build for
+  the merged fix.
 
 ### Real-D1 regression result
 
@@ -1175,7 +1185,7 @@ Local test data and the temporary dev-auth file were removed afterwards.
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
 | Phase 6 — Admin foundation | **Complete** (merged to `main`, CI green) |
 | Phase 7 — Projects CMS vertical slice | **Complete** (merged to `main`, CI green) |
-| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, Timeline, and Education CMS **complete**, plus the admin list overflow regression fix (all merged, CI green); the timeline partial-update fix is implemented and awaiting review; Certifications and later entities not started |
+| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, Timeline, and Education CMS **complete**, plus the admin list overflow and timeline partial-update regression fixes (all merged, CI green); Certifications and later entities not started |
 
 Phases 9–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
@@ -1320,15 +1330,19 @@ than changed here.
 - **The remaining CMS entities are not implemented** — Certifications,
   Skills, Tools, Socials, Sections.
 - ~~A post-merge regression is outstanding in the timeline update
-  schema.~~ **Fixed** on `fix/timeline-partial-update-defaults` and
-  awaiting review — see *Timeline partial-update regression* near the top of
-  this file. **Timeline CMS remained COMPLETE throughout**; this was a
-  post-merge repair, not incomplete work, and it was **not an Education
-  defect** — Education surfaced it and shipped the correct pattern first.
+  schema.~~ **Fixed and merged** as `c345131` — see *Timeline partial-update
+  regression* near the top of this file. **Timeline CMS remained COMPLETE
+  throughout**; this was a post-merge repair, not incomplete work, and it
+  was **not an Education defect** — Education surfaced it and shipped the
+  correct pattern first.
 - **Date validation is shape-only across projects, timeline, and
   education.** `2024-13-99` matches `YYYY-MM-DD` and is accepted; a real
   calendar parser would reject it. Documented and asserted rather than
   assumed. Any tightening should be applied to all three consistently.
+  **The timeline partial-update fix did not change this**, and a one-sided
+  timeline date patch is still **not** compared against an omitted persisted
+  counterpart — a pure parser has no access to stored state. Both remain a
+  separate future validation-hardening item.
 - ~~A known responsive regression is outstanding on `/projects` and
   `/technologies`.~~ **Fixed and merged** as `6d65504` — see *Responsive
   overflow regression* near the top of this file.
@@ -3054,18 +3068,20 @@ static metadata, shared validation, the
 shared field primitives, and the existing composition boundary, with **no
 repository change**.
 
-**Done: `fix/timeline-partial-update-defaults`** (awaiting review). The
+**Done and merged: `c345131 fix: preserve timeline partial updates`.** The
 update schema is now declared explicitly with `.optional()` fields and no
 defaults, and the action distinguishes omitted highlights from an explicit
 empty list. Details in *Timeline partial-update regression* near the top of
 this file.
 
-**2. Phase 8, next entity: Certifications.** It is the closest sibling of
+**Phase 8, next entity: Certifications.** It is the closest sibling of
 education — another flat, ordered, visibility-toggleable table on the same
 `createOrderedRepository` plumbing, with no child rows — so the Education
 slice should transfer almost verbatim. Its one new wrinkle is
 `credential_url`, the first URL column in an ordered entity, which should
 reuse the http/https protocol allowlist the projects module already
-established rather than inventing a second URL rule.
+established rather than inventing a second URL rule. It should also declare
+its update schema explicitly from the outset, per the rule the timeline fix
+confirmed.
 
-Neither is to be implemented until explicitly scoped and approved.
+It is not to be implemented until explicitly scoped and approved.

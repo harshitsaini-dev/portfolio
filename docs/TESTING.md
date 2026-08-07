@@ -1,12 +1,12 @@
 # Testing
 
-## Current state (Phase 8 — Timeline CMS complete)
+## Current state (Phase 8 — Education CMS and the timeline partial-update fix complete)
 
-`pnpm test` runs **fourteen real suites and one no-op** — **1228 checks**.
-The 1140 verified after the Education CMS all still pass on Windows and on
-GitHub Actions/Linux (PR #22 and its post-merge `main` run); the timeline
-partial-update fix added the rest and is not yet CI-verified. What each one
-actually proves matters, so be precise:
+`pnpm test` runs **fourteen real suites and one no-op** — **1228 checks**,
+all passing on Windows and on GitHub Actions/Linux (PR #24 and its
+post-merge `main` run `31155349531`). The 1140 verified after the Education
+CMS are all still among them and none were weakened. What each one actually
+proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
@@ -250,8 +250,10 @@ not merely that the mutation returned without error.
 
 ## Timeline CMS tests (Phase 8)
 
-`apps/admin/scripts/timeline-tests.mjs` — **110 checks**, plus **31** in the
-repository package.
+`apps/admin/scripts/timeline-tests.mjs` — **173 checks**, plus **31** in the
+repository package. The partial-update fix took it from 110 to 173, adding
+the two regression groups described under *Partial updates must preserve
+what they omit* above; the repository package was **not** touched.
 
 **Where the split falls.** The repository suite owns the raw aggregate
 semantics, because that is where the guarantee lives: batch ordering,

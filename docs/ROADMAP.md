@@ -174,13 +174,20 @@ are separate concerns. Test coverage grew to **1140 real checks**
 (287 data/repository + 853 admin). Merged to `main` as `99e59cd` with CI
 green on Linux.
 
-**Immediate next engineering task:
-`fix/timeline-partial-update-defaults`.** Education surfaced the same
-defaults-through-`.partial()` regression in the merged timeline update
-schema. Timeline CMS remains **complete**; this is a post-merge repair, not
-outstanding feature work.
+**Timeline partial-update regression: fixed.** Education surfaced the same
+defaults-through-`.partial()` defect in the merged timeline update schema:
+a one-field patch materialised unrelated defaulted fields, and the action
+collapsed omitted `highlights` into `[]`, so an edit could reset ordering
+and visibility and delete every bullet. The update schema is now declared
+explicitly with optional fields and no defaults, and the action
+distinguishes omitted highlights (preserve) from `[]` (clear) from a
+non-empty list (replace, through the existing atomic aggregate write) —
+with **no repository change**, so the database subtotal held at 287. Test
+coverage grew to **1228 real checks**. Merged to `main` as `c345131` with
+CI green on Linux. Timeline CMS remained **complete** throughout; this was
+a post-merge repair, not outstanding feature work.
 
-**Next entity after that fix: Certifications.** Not started. The remaining
+**Immediate next entity: Certifications.** Not started. The remaining
 entities — Skills, Tools, Socials, Sections — are also not started. The
 remote database schema remains **intentionally unapplied**, and **Cloudflare
 Access dashboard configuration is still pending**.

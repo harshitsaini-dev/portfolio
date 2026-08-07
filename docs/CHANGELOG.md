@@ -1,11 +1,14 @@
 
 # Changelog
 
-## 2026-08-07 — Fix: Timeline partial-update defaults (branch `fix/timeline-partial-update-defaults`)
+## 2026-08-07 — Fix: Timeline partial-update defaults
 
-**Status: implemented, awaiting review. Not committed. Phase 8 remains IN
-PROGRESS; this is a post-merge regression fix, not a CMS entity. Timeline
-CMS itself remains COMPLETE.**
+**Status: merged.** Merged into `main` as `c345131 fix: preserve timeline
+partial updates` via **Pull Request #24**, which passed CI on GitHub
+Actions/Linux; the **post-merge `main` CI run `31155349531` passed** as
+well, covering install, lint, typecheck, tests, and build. Phase 8 remains
+IN PROGRESS; this was a post-merge regression fix, not a CMS entity, and
+Timeline CMS itself remained COMPLETE throughout.
 
 ### Fixed
 
@@ -44,10 +47,12 @@ remains a separate known hardening item and was deliberately left alone.
 
 `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`,
 `pnpm test` (**1228 checks**, up from 1140 with all 1140 preserved), and
-`pnpm build` all **PASS**. Browser-regression-checked via Playwright MCP
-against real local D1: the normal admin flows — list, pre-fill, full-form
-update, highlight reorder, two-step delete, populated 375px — are unchanged,
-with zero console errors.
+`pnpm build` all **PASS**, locally and on Linux for both PR #24 and the
+post-merge `main` run. Browser-regression-checked by **manual Playwright
+MCP verification** — not automated E2E, which is Phase 20 — against real
+local D1: the normal admin flows (list, pre-fill, full-form update,
+highlight reorder, two-step delete, populated 375px containment) are
+unchanged, with zero console errors.
 
 ## 2026-08-06 — Phase 8: Education CMS complete
 
@@ -68,12 +73,12 @@ package, migration, config, CI, or Cloudflare resource changes.
   optionality are separate concerns; education's update shape uses optional
   fields with no defaults, and a partial update is proven to preserve
   existing position and visibility.
-- **The immediate next engineering task is
-  `fix/timeline-partial-update-defaults`** — the same regression in the
-  merged timeline update schema. Timeline CMS itself remains **complete**;
-  this is a post-merge repair.
-- **Phase 8 remains IN PROGRESS.** Certifications is the next entity after
-  that fix and is not started; Skills, Tools, Socials, and Sections are not
+- **The same regression was identified in the merged timeline update
+  schema.** Timeline CMS itself remained **complete**; this was a post-merge
+  repair, **subsequently fixed and merged as `c345131`** — see the
+  2026-08-07 entry above.
+- **Phase 8 remains IN PROGRESS.** Certifications is the next entity and is
+  not started; Skills, Tools, Socials, and Sections are not
   started.
 - **Remote `portfolio-cms` schema remains intentionally unapplied**, remote
   D1 was not mutated, no `--remote` runtime path exists, and **Cloudflare
@@ -127,9 +132,9 @@ Cloudflare resources. No other Phase 8 entity was touched.
 
 ### Known follow-up
 
-The same partial-update defect exists latently in the **merged** timeline
-module and was deliberately **not** repaired here. Queued as
-`fix/timeline-partial-update-defaults`.
+The same partial-update defect existed latently in the **merged** timeline
+module and was deliberately **not** repaired here. **Subsequently fixed and
+merged as `c345131`** — see the 2026-08-07 entry above.
 
 ### Verification
 
