@@ -42,6 +42,25 @@ which is why the action passes the validated `categoryId` straight through
 rather than checking-then-writing — a read-then-write existence check is a
 race the constraint already wins.
 
+### Actionable guidance may only name operations the CMS actually has
+
+Review caught the in-use category copy telling the editor to *"move them to
+another category"* — an operation this CMS deliberately does not support.
+The contract was right; the words were wrong.
+
+The rule that came out of it: **a blocked-action message must name a
+remediation the user can actually perform here.** Suggesting a capability
+that does not exist is worse than saying nothing, because it sends the user
+hunting for a control and leaves them assuming they missed it. The final
+copy names only deletion, and adds that skills are never removed
+automatically on a category's behalf.
+
+Truthfully *documenting* an unsupported operation is different from
+*instructing* someone to use it — the edit form still says a skill cannot be
+moved between categories, which is a statement of fact rather than an action
+item. Tests enforce the distinction by stripping comments before checking
+rendered copy.
+
 ### A skill cannot be moved between categories, and the schema says so loudly
 
 `categoryId` has been absent from the repository's patch allowlist and from

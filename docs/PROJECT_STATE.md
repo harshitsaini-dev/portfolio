@@ -40,10 +40,12 @@ something passed without running it.
   GitHub Actions/Linux** and again by the **post-merge `main` CI run
   `31161985127`**. `main` is clean and synced after the merge. See
   *Phase 8 — Certifications CMS* below.
-- **Skills CMS: implemented, awaiting review.** On
-  `feat/remaining-cms-skills`; not committed, not pushed, and **not
-  complete** — complete only after review, PR CI, merge, the post-merge
-  `main` run, and completion documentation. See *Phase 8 — Skills CMS* below.
+- **Skills CMS: COMPLETE.** Merged into `main` as
+  `f138280 feat: add skills CMS`, verified by **Pull Request #28 on
+  GitHub Actions/Linux** and again by the **post-merge `main` CI run
+  `31171449984`**. `main` is clean and synced after the merge. Both the
+  implementation review and the pre-merge copy correction were accepted. See
+  *Phase 8 — Skills CMS* below.
 - **Tools CMS: the next Phase 8 entity** — **not started**, and not to be
   implemented until explicitly scoped and approved. `tools` is its own table;
   the Skills slice deliberately did not touch it.
@@ -59,9 +61,10 @@ Phase 22** (fail-closed until then).
 
 ## Active task
 
-**Skills CMS.** Implemented; awaiting review.
+**None.** The Skills CMS is merged and closed. Tools is the next Phase 8
+entity and is not started.
 
-## Phase 8 — Skills CMS (implemented, awaiting review)
+## Phase 8 — Skills CMS (COMPLETE)
 
 The first Phase 8 area with **two entities and a foreign key the editor
 chooses**.
@@ -1017,13 +1020,14 @@ fail-closed behaviour.
 
 ## Next suggested task
 
-Review the Skills CMS. After it merges and is formally closed, **Tools** is
-the next Phase 8 entity — **not started**, and not to be implemented until
-explicitly scoped and approved. Rationale is at the end of this file.
+**Tools CMS** — the next Phase 8 entity, **not started**, and not to be
+implemented until explicitly scoped and approved. Rationale is at the end of
+this file.
 
 ## Phase 8 — Skills CMS: verification actually performed
 
-Locally on Windows. **Not yet CI-verified** — no PR has been opened.
+Locally on Windows, and again on **GitHub Actions/Linux** for both PR #28
+and the post-merge `main` run:
 
 | Command | Result |
 | --- | --- |
@@ -1052,6 +1056,13 @@ Locally on Windows. **Not yet CI-verified** — no PR has been opened.
 | **Total** | **1804** | up from 1460 |
 
 **All 1460 previous checks still pass**, and none were weakened.
+
+### Continuous integration
+
+- **Pull Request #28 passed CI on GitHub Actions/Linux.**
+- The **post-merge `main` CI run `31171449984` passed.**
+- Linux therefore verified install, lint, typecheck, tests, and build for
+  the merged Skills CMS state.
 
 ### Real-D1 results
 
@@ -1598,7 +1609,7 @@ Local test data and the temporary dev-auth file were removed afterwards.
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
 | Phase 6 — Admin foundation | **Complete** (merged to `main`, CI green) |
 | Phase 7 — Projects CMS vertical slice | **Complete** (merged to `main`, CI green) |
-| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, Timeline, Education, and Certifications CMS **complete**, plus the admin list overflow and timeline partial-update regression fixes (all merged, CI green); Skills CMS implemented and awaiting review; Tools, Socials, and Sections not started |
+| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, Timeline, Education, Certifications, and Skills CMS **complete**, plus the admin list overflow and timeline partial-update regression fixes (all merged, CI green); Tools, Socials, and Sections not started |
 
 Phases 9–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
@@ -1739,8 +1750,7 @@ than changed here.
 ## Phase 8 — known limitations (not blockers)
 
 - **Phase 8 is not complete.** Technologies, Profile, Timeline, Education,
-  Certifications, and Skills are six areas of several, and Skills is not yet
-  reviewed or merged.
+  Certifications, and Skills are six areas of several.
 - **The remaining CMS entities are not implemented** — Tools, Socials,
   Sections.
 - **A skill cannot be moved between categories in the CMS.** The repository
@@ -3503,10 +3513,11 @@ committed migration both unchanged. Its one new wrinkle — `credential_url`,
 the first URL column outside projects — was resolved by *sharing* the
 existing http(s) allowlist rather than copying it.
 
-**Done, awaiting review: Skills CMS.** Both structural questions it raised
-were settled: categories got their own surface *nested inside* `/skills`
-rather than a second top-level entry, and `ON DELETE RESTRICT` is surfaced
-as an explanatory conflict exactly as the Technologies slice established.
+**Done and merged: `f138280 feat: add skills CMS`.** Both structural
+questions it raised were settled: categories got their own surface *nested
+inside* `/skills` rather than a second top-level entry, and
+`ON DELETE RESTRICT` is surfaced as an explanatory conflict exactly as the
+Technologies slice established.
 
 **Phase 8, next entity: Tools.** `tools` is a flat ordered table —
 `id | name | purpose | url | position | is_visible | created_at |
