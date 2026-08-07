@@ -1,12 +1,14 @@
 
 # Changelog
 
-## 2026-08-07 — Phase 8: Certifications CMS (branch `feat/remaining-cms-certifications`)
+## 2026-08-07 — Phase 8: Certifications CMS
 
-**Status: implemented, awaiting review. Not committed. Phase 8 remains IN
-PROGRESS** — Certifications is the sixth entity of several, and is complete
-only after review, PR CI, merge, the post-merge `main` run, and completion
-documentation.
+**Status: merged.** Merged into `main` as
+`c1b153d feat: add certifications CMS` via **Pull Request #26**, which
+passed CI on GitHub Actions/Linux; the **post-merge `main` CI run
+`31161985127` passed** as well, covering install, lint, typecheck, tests,
+and build. **Phase 8 remains IN PROGRESS** — Certifications is the sixth
+entity of several.
 
 ### Added
 
@@ -56,7 +58,8 @@ was deliberately left alone.
 
 `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`,
 `pnpm test` (**1460 checks**, up from 1228 with all 1228 preserved), and
-`pnpm build` all **PASS** locally. **Not yet CI-verified.**
+`pnpm build` all **PASS**, locally and on Linux for both PR #26 and the
+post-merge `main` run.
 Browser-checked by **manual Playwright MCP verification** — not automated
 E2E, which is Phase 20 — against real local D1: create, ordering, Hidden
 badge, edit with reload-confirmed persistence, server-side rejection of

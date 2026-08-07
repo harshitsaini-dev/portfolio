@@ -22,9 +22,10 @@ was moved to `packages/schemas/src/internal/url.ts` and both entities now
 refine against the same predicate.
 
 The rule itself did not change; this is an extraction, not a new policy.
-Projects' behaviour is identical and its 96 existing checks were the
-regression proof. **This is the single deliberate edit to the projects
-module in this task**, and it was made because "reuse the established URL
+**Projects' behaviour is identical** — not a rewrite of the projects module
+— and its 96 existing checks were the regression proof, all still green.
+This was the single deliberate edit to the projects module in the
+Certifications slice, and it was made because "reuse the established URL
 rule" cannot be satisfied by copying it.
 
 The dividing line for future entities: **share anything whose divergence is
