@@ -1,12 +1,14 @@
 
 # Changelog
 
-## 2026-08-07 — Phase 8: Socials CMS (branch `feat/remaining-cms-socials`)
+## 2026-08-07 — Phase 8: Socials CMS
 
-**Status: implemented, awaiting review. Not committed. Phase 8 remains IN
-PROGRESS** — Socials is the eighth area, and is complete only after review,
-PR CI, merge, the post-merge `main` run, and completion documentation.
-Sections remains **not started** and is the last Phase 8 entity.
+**Status: merged.** Merged into `main` as `1d26dbd feat: add socials CMS` via
+**Pull Request #32**, which passed CI on GitHub Actions/Linux; the
+**post-merge `main` CI run `31192174164` passed** as well, covering install,
+lint, typecheck, tests, and build. **Phase 8 remains IN PROGRESS** — Socials
+is the eighth area of nine, and Sections remains **not started** and is the
+last Phase 8 entity.
 
 ### Added
 
@@ -51,7 +53,11 @@ certifications, skills, tools, `apps/web`, CI, and Cloudflare resources.
 
 `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`,
 `pnpm test` (**2245 checks**, up from 2017 with all 2017 preserved), and
-`pnpm build` all **PASS** locally, each exiting `0`. **Not yet CI-verified.**
+`pnpm build` all **PASS**, each exiting `0` — locally and on Linux for both
+PR #32 and the post-merge `main` run. An earlier long-running attempt was
+interrupted and its wrapper reported success while the inner result was
+`test: -1`; that was a terminated run, not a pass, and the totals above come
+from the clean re-run that exited `0`.
 Browser-checked by **manual Playwright MCP verification** — not automated
 E2E, which is Phase 20 — against real local D1: three required-field
 rejections with error-summary focus, `javascript:` rejected, arbitrary

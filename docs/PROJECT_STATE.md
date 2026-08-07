@@ -51,11 +51,11 @@ something passed without running it.
   GitHub Actions/Linux** and again by the **post-merge `main` CI run
   `31178459051`**. `main` is clean and synced after the merge. See
   *Phase 8 — Tools CMS* below.
-- **Socials CMS: implemented, awaiting review.** On
-  `feat/remaining-cms-socials`; not committed, not pushed, and **not
-  complete** — complete only after review, PR CI, merge, the post-merge
-  `main` run, and completion documentation. See *Phase 8 — Socials CMS*
-  below.
+- **Socials CMS: COMPLETE.** Merged into `main` as
+  `1d26dbd feat: add socials CMS`, verified by **Pull Request #32 on
+  GitHub Actions/Linux** and again by the **post-merge `main` CI run
+  `31192174164`**. `main` is clean and synced after the merge. See
+  *Phase 8 — Socials CMS* below.
 - **Sections CMS: the next and last Phase 8 entity** — **not started**, and
   not to be implemented until explicitly scoped and approved.
 - **Phase 7:** Complete (merged to `main`, CI green).
@@ -69,9 +69,10 @@ Phase 22** (fail-closed until then).
 
 ## Active task
 
-**Socials CMS.** Implemented; awaiting review.
+**None.** The Socials CMS is merged and closed. Sections is the next and last
+Phase 8 entity, and is not started.
 
-## Phase 8 — Socials CMS (implemented, awaiting review)
+## Phase 8 — Socials CMS (COMPLETE)
 
 ### Persisted schema — read from migration `0001`, not from prior docs
 
@@ -1184,14 +1185,14 @@ fail-closed behaviour.
 
 ## Next suggested task
 
-Review the Socials CMS. After it merges and is formally closed, **Sections**
-is the next and **last** Phase 8 entity — **not started**, and not to be
-implemented until explicitly scoped and approved. Rationale is at the end of
-this file.
+**Sections CMS** — the next and **last** Phase 8 entity, **not started**, and
+not to be implemented until explicitly scoped and approved. Rationale is at
+the end of this file.
 
 ## Phase 8 — Socials CMS: verification actually performed
 
-Locally on Windows. **Not yet CI-verified** — no PR has been opened.
+Locally on Windows, and again on **GitHub Actions/Linux** for both PR #32
+and the post-merge `main` run:
 
 | Command | Result |
 | --- | --- |
@@ -1229,6 +1230,13 @@ half of it had genuinely completed. The orphaned processes were cleared and
 the whole thing re-run clean; the numbers above come from that second run,
 which exited `0` for both commands. A task-level exit code is not the same
 as the command's own exit code, and the difference was worth catching.
+
+### Continuous integration
+
+- **Pull Request #32 passed CI on GitHub Actions/Linux.**
+- The **post-merge `main` CI run `31192174164` passed.**
+- Linux therefore verified install, lint, typecheck, tests, and build for
+  the merged Socials CMS state.
 
 ### Real-D1 results
 
@@ -2002,7 +2010,7 @@ Local test data and the temporary dev-auth file were removed afterwards.
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
 | Phase 6 — Admin foundation | **Complete** (merged to `main`, CI green) |
 | Phase 7 — Projects CMS vertical slice | **Complete** (merged to `main`, CI green) |
-| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, Timeline, Education, Certifications, Skills, and Tools CMS **complete**, plus the admin list overflow and timeline partial-update regression fixes (all merged, CI green); Socials CMS implemented and awaiting review; Sections not started |
+| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, Timeline, Education, Certifications, Skills, Tools, and Socials CMS **complete**, plus the admin list overflow and timeline partial-update regression fixes (all merged, CI green); Sections not started |
 
 Phases 9–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
@@ -2143,9 +2151,10 @@ than changed here.
 ## Phase 8 — known limitations (not blockers)
 
 - **Phase 8 is not complete.** Technologies, Profile, Timeline, Education,
-  Certifications, Skills, Tools, and Socials are eight areas, and Socials is
-  not yet reviewed or merged.
-- **The remaining CMS entity is not implemented** — Sections.
+  Certifications, Skills, Tools, and Socials are eight areas of nine.
+- **The remaining CMS entity is not implemented** — Sections, which is the
+  last one. Phase 8 closes only once it is delivered, reviewed, merged,
+  CI-verified, and formally documented.
 - **A skill cannot be moved between categories in the CMS.** The repository
   patch allowlist and `SkillUpdate` have excluded `categoryId` since Phase 5,
   because a move must also resolve position and the
@@ -3918,7 +3927,7 @@ the committed migration all unchanged — the first slice since Profile to
 need *nothing* new anywhere. Its `url` became the third consumer of the
 shared http(s) policy, and its `UNIQUE` name surfaces as a safe conflict.
 
-**Done, awaiting review: Socials CMS.** Both predictions held: `url` is
+**Done and merged: `1d26dbd feat: add socials CMS`.** Both predictions held: `url` is
 `NOT NULL` and took the required `httpUrlSchema`, and `platform` is free text
 with no persisted enum, so the CMS renders a plain text input rather than
 inventing a vocabulary. `createSocialLinkRepository` was used unchanged and

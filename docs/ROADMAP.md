@@ -224,7 +224,7 @@ database rather than a race-prone read-before-write check. Test coverage grew
 to **2017 real checks**. Merged to `main` as `3f15349` with CI green on
 Linux.
 
-**Socials CMS: implemented, awaiting review.** Three `withAdminPage` routes
+**Socials CMS: complete.** Three `withAdminPage` routes
 over only the committed columns, with `createSocialLinkRepository` and the
 migration both unchanged, so `packages/database` was untouched and the
 database subtotal held at 297. Both pre-slice predictions held: `url` is
@@ -233,7 +233,7 @@ variant, and `platform` is free text with no persisted enum, so the form
 renders a plain text input — asserted in both directions, with arbitrary
 values accepted and empty/over-long still rejected. It is also the first
 entity with **no nullable columns at all**. Test coverage grew to **2245 real
-checks**. **Not merged and not CI-verified yet.**
+checks**. Merged to `main` as `1d26dbd` with CI green on Linux.
 
 **Immediate next entity: Sections — the last one in Phase 8.** Not started.
 `sections` is flat and ordered, and `createSectionRepository` already exists

@@ -1,12 +1,12 @@
 # Testing
 
-## Current state (Phase 8 — Socials CMS implemented, awaiting review)
+## Current state (Phase 8 — Socials CMS complete)
 
-`pnpm test` runs **eighteen real suites and one no-op** — **2245 checks**.
-The 2017 verified after the Tools CMS all still pass on Windows and on
-GitHub Actions/Linux (PR #30 and its post-merge `main` run `31178459051`);
-the Socials CMS added the rest and **is not yet CI-verified**. What each one
-actually proves matters, so be precise:
+`pnpm test` runs **eighteen real suites and one no-op** — **2245 checks**,
+all passing on Windows and on GitHub Actions/Linux (PR #32 and its
+post-merge `main` run `31192174164`). The 2017 verified after the Tools CMS
+are all still among them and none were weakened. What each one actually
+proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
