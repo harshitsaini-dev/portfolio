@@ -3,6 +3,59 @@
 Notable architectural/tooling decisions and their rationale. Append new
 entries; do not delete history.
 
+## 2026-08-07 — Phase 8 Certifications CMS
+
+### A security control is shared; an editorial bound is not
+
+The entity schema modules deliberately redeclare their own leaf primitives
+(`requiredText`, `nullableText`, `nullableDate`, `positionValue`). That is
+correct for **editorial** bounds: one entity choosing a 160-character title
+and another choosing 80 is a domain decision, not a defect, and coupling
+them would make every length change a cross-entity change.
+
+A **protocol allowlist is not an editorial bound.** It is the control
+standing between stored input and `javascript:alert(1)` rendered into an
+`href`, and two copies of it are two things that can drift — with the copy
+that drifts being the vulnerability. Certifications' `credential_url` is the
+second URL column in the schema, so the rule projects established in Phase 7
+was moved to `packages/schemas/src/internal/url.ts` and both entities now
+refine against the same predicate.
+
+The rule itself did not change; this is an extraction, not a new policy.
+Projects' behaviour is identical and its 96 existing checks were the
+regression proof. **This is the single deliberate edit to the projects
+module in this task**, and it was made because "reuse the established URL
+rule" cannot be satisfied by copying it.
+
+The dividing line for future entities: **share anything whose divergence is
+a vulnerability; keep per-module anything whose divergence is a preference.**
+
+### The credential link is rendered, so the allowlist is load-bearing
+
+The certifications list renders `credential_url` as a real anchor — with
+`target="_blank"` and `rel="noopener noreferrer"` — rather than as inert
+text. That is exactly the sink the protocol allowlist exists to protect, so
+the CMS suite asserts the rejection of `javascript:`, `data:`, `file:`,
+`mailto:`, `ftp:`, protocol-relative, and bare-hostname values, and the
+action-auth suite proves an unsafe URL never reaches the row through the
+real exported action.
+
+### The update schema was written out explicitly from the start
+
+Certifications is the first entity written *after* the timeline
+partial-update regression, so it never had a `.partial()` phase to regress
+from. Create applies defaults, update applies `.optional()` and none — the
+rule education established and timeline paid for.
+
+### No repository change, and no migration
+
+`createCertificationRepository` already existed in
+`packages/database/src/repositories/content.ts`, already covered every
+committed column, and was already wired into `createRepositories()`. The
+committed `certifications` table needed nothing added. So this slice touched
+neither `packages/database` nor `migrations/`, and the database subtotal
+held at 287.
+
 ## 2026-08-06 — Admin list horizontal overflow
 
 ### Scroll wrappers are positioned containing blocks, by rule

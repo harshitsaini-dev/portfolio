@@ -271,6 +271,45 @@ Note that `skills` also has `UNIQUE (category_id, name)`, whose leading
 column already serves "skills in this category"; the additional index
 exists only for the ordered read.
 
+## Certifications in the admin (Phase 8)
+
+The certifications CMS uses the Phase 5 repository **entirely unchanged**:
+`createCertificationRepository` already existed in
+`repositories/content.ts`, already decoded all eleven committed columns, and
+was already exposed as `repos.certifications`. No method was added, so the
+repository-package suites were not extended, and **no migration was needed**
+— the committed table supported the entity as-is.
+
+The columns the CMS exposes are exactly the committed ones:
+
+```
+id | title NOT NULL | issuer NOT NULL | credential_id | credential_url
+| issued_on | expires_on
+| position NOT NULL DEFAULT 0 CHECK (position >= 0)
+| is_visible NOT NULL DEFAULT 1 CHECK (is_visible IN (0, 1))
+| created_at | updated_at
+```
+
+Three schema facts the CMS relies on:
+
+- `credential_url` is **nullable and untyped at the database level** —
+  SQLite stores whatever it is given. The protocol allowlist is therefore
+  the *only* thing preventing a `javascript:` value from being persisted and
+  later rendered into an `href`, which is why validation happens at the
+  schema boundary and is asserted at both the schema and real-action layers.
+  Blank input normalises to `NULL`, never `''`.
+- `issued_on` / `expires_on` are nullable `TEXT` dates. A null `expires_on`
+  means the credential does not expire — the common case, and the reason the
+  column is nullable rather than carrying a sentinel far-future date.
+- **Nothing references `certifications`.** There is no child table and no
+  incoming foreign key, so a delete removes exactly one row and cascades to
+  nothing — verified rather than assumed, alongside
+  `PRAGMA foreign_key_check`.
+
+`idx_certifications_visible_position` on `(is_visible, position)` already
+serves the future public read; the admin list deliberately does **not**
+filter by visibility.
+
 ## Education in the admin (Phase 8)
 
 The education CMS uses the Phase 5 repository **entirely unchanged** —
