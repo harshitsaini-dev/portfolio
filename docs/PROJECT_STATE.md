@@ -46,11 +46,14 @@ something passed without running it.
   `31171449984`**. `main` is clean and synced after the merge. Both the
   implementation review and the pre-merge copy correction were accepted. See
   *Phase 8 — Skills CMS* below.
-- **Tools CMS: implemented, awaiting review.** On
-  `feat/remaining-cms-tools`; not committed, not pushed, and **not
-  complete** — complete only after review, PR CI, merge, the post-merge
-  `main` run, and completion documentation. See *Phase 8 — Tools CMS* below.
-- **Later Phase 8 entities** — Socials, Sections: **not started**.
+- **Tools CMS: COMPLETE.** Merged into `main` as
+  `3f15349 feat: add tools CMS`, verified by **Pull Request #30 on
+  GitHub Actions/Linux** and again by the **post-merge `main` CI run
+  `31178459051`**. `main` is clean and synced after the merge. See
+  *Phase 8 — Tools CMS* below.
+- **Socials CMS: the next Phase 8 entity** — **not started**, and not to be
+  implemented until explicitly scoped and approved.
+- **Later Phase 8 entities** — Sections: **not started**.
 - **Phase 7:** Complete (merged to `main`, CI green).
 - **Phase 8 is NOT complete.** It is complete only when every entity it
   covers is delivered and verified.
@@ -62,9 +65,10 @@ Phase 22** (fail-closed until then).
 
 ## Active task
 
-**Tools CMS.** Implemented; awaiting review.
+**None.** The Tools CMS is merged and closed. Socials is the next Phase 8
+entity and is not started.
 
-## Phase 8 — Tools CMS (implemented, awaiting review)
+## Phase 8 — Tools CMS (COMPLETE)
 
 The simplest slice in Phase 8 so far: a flat ordered entity needing **no new
 architecture, no repository change, and no migration**.
@@ -1103,13 +1107,14 @@ fail-closed behaviour.
 
 ## Next suggested task
 
-Review the Tools CMS. After it merges and is formally closed, **Socials** is
-the next Phase 8 entity — **not started**, and not to be implemented until
-explicitly scoped and approved. Rationale is at the end of this file.
+**Socials CMS** — the next Phase 8 entity, **not started**, and not to be
+implemented until explicitly scoped and approved. Rationale is at the end of
+this file.
 
 ## Phase 8 — Tools CMS: verification actually performed
 
-Locally on Windows. **Not yet CI-verified** — no PR has been opened.
+Locally on Windows, and again on **GitHub Actions/Linux** for both PR #30
+and the post-merge `main` run:
 
 | Command | Result |
 | --- | --- |
@@ -1138,6 +1143,13 @@ Locally on Windows. **Not yet CI-verified** — no PR has been opened.
 | **Total** | **2017** | up from 1804 |
 
 **All 1804 previous checks still pass**, and none were weakened.
+
+### Continuous integration
+
+- **Pull Request #30 passed CI on GitHub Actions/Linux.**
+- The **post-merge `main` CI run `31178459051` passed.**
+- Linux therefore verified install, lint, typecheck, tests, and build for
+  the merged Tools CMS state.
 
 ### Real-D1 results
 
@@ -1794,7 +1806,7 @@ Local test data and the temporary dev-auth file were removed afterwards.
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
 | Phase 6 — Admin foundation | **Complete** (merged to `main`, CI green) |
 | Phase 7 — Projects CMS vertical slice | **Complete** (merged to `main`, CI green) |
-| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, Timeline, Education, Certifications, and Skills CMS **complete**, plus the admin list overflow and timeline partial-update regression fixes (all merged, CI green); Tools CMS implemented and awaiting review; Socials and Sections not started |
+| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, Timeline, Education, Certifications, Skills, and Tools CMS **complete**, plus the admin list overflow and timeline partial-update regression fixes (all merged, CI green); Socials and Sections not started |
 
 Phases 9–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
@@ -1935,8 +1947,7 @@ than changed here.
 ## Phase 8 — known limitations (not blockers)
 
 - **Phase 8 is not complete.** Technologies, Profile, Timeline, Education,
-  Certifications, Skills, and Tools are seven areas of several, and Tools is
-  not yet reviewed or merged.
+  Certifications, Skills, and Tools are seven areas of several.
 - **The remaining CMS entities are not implemented** — Socials, Sections.
 - **A skill cannot be moved between categories in the CMS.** The repository
   patch allowlist and `SkillUpdate` have excluded `categoryId` since Phase 5,
@@ -3704,7 +3715,7 @@ inside* `/skills` rather than a second top-level entry, and
 `ON DELETE RESTRICT` is surfaced as an explanatory conflict exactly as the
 Technologies slice established.
 
-**Done, awaiting review: Tools CMS.** It transferred the certifications slice
+**Done and merged: `3f15349 feat: add tools CMS`.** It transferred the certifications slice
 almost verbatim, with `createOrderedRepository`, `createToolRepository`, and
 the committed migration all unchanged — the first slice since Profile to
 need *nothing* new anywhere. Its `url` became the third consumer of the

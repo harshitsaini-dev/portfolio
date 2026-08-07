@@ -213,15 +213,16 @@ categories became its third consumer rather than its third copy;
 Test coverage grew to **1804 real checks**. Merged to `main` as `f138280`
 with CI green on Linux.
 
-**Tools CMS: implemented, awaiting review.** The first slice since Profile to
-need **nothing new anywhere** — three `withAdminPage` routes
-over only the committed columns, `createOrderedRepository` and
-`createToolRepository` both unchanged, and no migration, so
-`packages/database` was untouched and the database subtotal held at 297. Its
-nullable `url` became the **third** consumer of the shared http(s) policy,
-imported rather than copied, and its `UNIQUE` name surfaces as a safe
-conflict on both create and rename. Test coverage grew to **2017 real
-checks**. **Not merged and not CI-verified yet.**
+**Tools CMS: complete.** The first slice since Profile to need **nothing new
+anywhere** — three `withAdminPage` routes over only the committed columns,
+`createOrderedRepository` and `createToolRepository` both unchanged, and no
+migration, so `packages/database` was untouched and the database subtotal
+held at 297. Its nullable `url` became the **third** consumer of the shared
+http(s) policy, imported rather than copied, and its `UNIQUE` name surfaces
+as a safe conflict on both create and rename, with uniqueness left to the
+database rather than a race-prone read-before-write check. Test coverage grew
+to **2017 real checks**. Merged to `main` as `3f15349` with CI green on
+Linux.
 
 **Immediate next entity: Socials.** Not started. `social_links` is another
 flat ordered table, but two things differ from Tools: its `url` is **NOT

@@ -1,12 +1,13 @@
 
 # Changelog
 
-## 2026-08-07 — Phase 8: Tools CMS (branch `feat/remaining-cms-tools`)
+## 2026-08-07 — Phase 8: Tools CMS
 
-**Status: implemented, awaiting review. Not committed. Phase 8 remains IN
-PROGRESS** — Tools is the seventh area of several, and is complete only after
-review, PR CI, merge, the post-merge `main` run, and completion
-documentation. Socials and Sections remain **not started**.
+**Status: merged.** Merged into `main` as `3f15349 feat: add tools CMS` via
+**Pull Request #30**, which passed CI on GitHub Actions/Linux; the
+**post-merge `main` CI run `31178459051` passed** as well, covering install,
+lint, typecheck, tests, and build. **Phase 8 remains IN PROGRESS** — Tools is
+the seventh area of several, and Socials and Sections remain **not started**.
 
 ### Added
 
@@ -47,7 +48,8 @@ not implemented.**
 
 `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`,
 `pnpm test` (**2017 checks**, up from 1804 with all 1804 preserved), and
-`pnpm build` all **PASS** locally. **Not yet CI-verified.**
+`pnpm build` all **PASS**, locally and on Linux for both PR #30 and the
+post-merge `main` run.
 Browser-checked by **manual Playwright MCP verification** — not automated
 E2E, which is Phase 20 — against real local D1: create, ordering, Hidden
 badge, nullable url rendering as `—`, a duplicate-name conflict with no SQL
