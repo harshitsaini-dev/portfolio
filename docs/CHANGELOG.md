@@ -1,4 +1,53 @@
+
 # Changelog
+
+## 2026-08-07 — Fix: Timeline partial-update defaults (branch `fix/timeline-partial-update-defaults`)
+
+**Status: implemented, awaiting review. Not committed. Phase 8 remains IN
+PROGRESS; this is a post-merge regression fix, not a CMS entity. Timeline
+CMS itself remains COMPLETE.**
+
+### Fixed
+
+- **A partial timeline update silently reset unmentioned columns and
+  deleted every highlight.** `timelineEntryUpdateSchema` was derived with
+  `.partial()` from a create shape carrying `.default()`, and `.partial()`
+  does not neutralise a default — `parse({ summary: "" })` returned eight
+  keys. `updateTimelineEntryAction` then passed the defaulted `[]` to
+  `updateWithHighlights` as a replacement.
+
+  The update schema is now written out explicitly with `.optional()` fields
+  and **no defaults** (the pattern education established), and the action
+  distinguishes **omitted** highlights (leave them alone, via the plain
+  ordered `update()`) from an **explicit `[]`** (clear) and a non-empty list
+  (replace, via the aggregate write). Create-schema behaviour is unchanged
+  and asserted.
+
+### Changed
+
+- `apps/admin/scripts/timeline-tests.mjs` — 110 → **173 checks**: a
+  partial-update schema group plus a real-D1 group that creates an entry
+  with deliberately non-default values and proves a one-field patch
+  preserves position, visibility, every optional, and all highlights.
+- `apps/admin/scripts/action-auth-tests.mjs` — 209 → **234 checks**,
+  covering the same matrix through the **real exported action**, including
+  an unauthenticated partial update that changes nothing.
+
+### Not changed
+
+`packages/database` (both repository methods already existed, so the
+database subtotal stays **287**), migration `0001`, education, projects,
+`apps/web`, CI, and Cloudflare resources. Calendar-semantic date validation
+remains a separate known hardening item and was deliberately left alone.
+
+### Verification
+
+`pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`,
+`pnpm test` (**1228 checks**, up from 1140 with all 1140 preserved), and
+`pnpm build` all **PASS**. Browser-regression-checked via Playwright MCP
+against real local D1: the normal admin flows — list, pre-fill, full-form
+update, highlight reorder, two-step delete, populated 375px — are unchanged,
+with zero console errors.
 
 ## 2026-08-06 — Phase 8: Education CMS complete
 

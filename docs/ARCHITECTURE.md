@@ -188,6 +188,40 @@ UI components never talk to the database directly; they go through the
 service layer once it exists. Types shared between layers live in
 `packages/types` to avoid duplication and drift.
 
+## Partial-update semantics across the CMS (Phase 8)
+
+Every entity with an update action shares one contract, now enforced by
+construction rather than by convention:
+
+- **Omitted field → preserve the persisted value.** Update schemas are
+  declared independently of create schemas, with `.optional()` fields and
+  **no defaults**, so an absent key stays absent and the repository's patch
+  allowlist skips the column. Deriving the update shape with `.partial()`
+  from a defaulted create shape does *not* achieve this — the defaults are
+  still materialised, and the resulting patch rewrites columns the caller
+  never mentioned.
+- **Explicit value → apply it**, including falsy ones. `position: 0` and
+  `isVisible: false` are real edits, not absences.
+- **For entities that own child rows** (currently only timeline), *omitted*
+  and *explicitly empty* are different requests and the action must not
+  conflate them:
+  - omitted children → parent-only path, children untouched;
+  - `[]` → aggregate write that clears them;
+  - non-empty → aggregate write that replaces them.
+
+  The aggregate path is still one `db.batch()`, so parent and children
+  commit or roll back together; the parent-only path is a single statement
+  and needs no aggregate.
+- **An empty patch is a safe no-op** — the ordered repository reads the row
+  back rather than issuing an `UPDATE`, so `updated_at` is not bumped and no
+  malformed SQL is generated.
+
+Cross-field rules that need both sides (timeline's and education's
+`endedOn ≥ startedOn`) pass when either side is absent. A schema is a pure
+parser with no access to stored state, and reaching into the database from
+one would put persistence behind validation; the admin forms always submit
+both dates, so the rule binds every real edit.
+
 ## Fifth CMS entity: education — the pattern transferring unchanged (Phase 8)
 
 Education is the first entity that needed **no new architecture at all**:

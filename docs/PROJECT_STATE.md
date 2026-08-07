@@ -29,10 +29,12 @@ something passed without running it.
   `99e59cd feat: add education CMS`, verified by **Pull Request #22 on
   GitHub Actions/Linux** and again by the **post-merge `main` CI run
   `31110395395`**.
-- **Immediate next engineering task:
-  `fix/timeline-partial-update-defaults`** — a post-merge regression in the
-  timeline update schema that Education surfaced. Timeline itself remains
-  COMPLETE; see *Known limitations*.
+- **Timeline partial-update regression fix: implemented, awaiting review.**
+  On `fix/timeline-partial-update-defaults`; not committed, not pushed, and
+  **not complete** — complete only after review, PR CI, merge, the
+  post-merge `main` run, and completion documentation. **Timeline CMS
+  itself remained COMPLETE throughout**; this was a post-merge repair, not
+  outstanding feature work. See *Timeline partial-update regression* below.
 - **Certifications CMS: next entity** after that fix — **not started**, and
   not to be implemented until explicitly scoped and approved.
 - **Later Phase 8 entities** — Skills, Tools, Socials, Sections: **not
@@ -48,9 +50,102 @@ Phase 22** (fail-closed until then).
 
 ## Active task
 
-Education CMS completion documentation (documentation-only; no application,
-test, schema, repository, package, migration, config, CI, or Cloudflare
-resource changes).
+**Timeline partial-update regression fix.** Implemented; awaiting review.
+
+## Timeline partial-update regression — FIXED (awaiting review)
+
+**Timeline CMS remains COMPLETE.** This is a post-merge repair of the
+exported update contract, not incomplete feature work.
+
+### Root cause
+
+`timelineEntryUpdateSchema` was derived as `timelineEntryFields.partial()`
+from a create shape carrying `.default()`. In Zod 4, `.partial()` does
+**not** neutralise a default — an absent key is still materialised. Measured
+before the fix:
+
+```
+timelineEntryUpdateSchema.parse({ summary: "" })
+// => 8 keys: summary/location/periodLabel/startedOn/endedOn = null,
+//            position: 0, isVisible: true, highlights: []
+```
+
+The repository's patch allowlist then wrote those columns. A second defect
+compounded it: `updateTimelineEntryAction` passed `(highlights ?? [])` to
+`updateWithHighlights`, so the defaulted `[]` became a **highlight
+replacement**. A one-field partial update therefore reset the entry's
+display order, un-hid it, nulled its optional text and dates, and **deleted
+every bullet**.
+
+The admin form always submits the complete object, which is why no browser
+flow ever exposed it — but the exported Server Action contract was unsafe.
+
+### The fix
+
+**Schema** — `timelineEntryUpdateSchema` is now written out explicitly with
+`.optional()` fields and **no defaults**, mirroring the pattern education
+established. Leaf schemas are declared once without defaults; the create
+shape adds `.default(...)`, the update shape adds `.optional()`. Measured
+after: `parse({ summary: "" })` yields **exactly one key**. The **create
+schema is unchanged** and still applies all its defaults, asserted directly.
+
+**Action** — `updateTimelineEntryAction` now distinguishes the three cases
+rather than collapsing two of them:
+
+| Payload | Meaning | Path taken |
+| --- | --- | --- |
+| `highlights` omitted | leave highlights alone | `repos.timeline.update(id, patch)` |
+| `highlights: []` | intentionally clear | `updateWithHighlights(id, patch, [])` |
+| non-empty `highlights` | replace | `updateWithHighlights(id, patch, …)` |
+
+Auth order is untouched: `requireAdminIdentity()` → Zod → repository.
+
+### Semantics now guaranteed
+
+- **Omitted parent field** → the persisted value is preserved. An omitted
+  `position` does not become `0`; an omitted `isVisible` does not become
+  `true`; omitted nullable text/dates do not become `null`.
+- **Explicit value** → applied, including falsy ones. `position: 0` sets
+  zero, `isVisible: false` sets false, `summary: ""` still normalises to
+  `null`.
+- **Omitted highlights** → existing highlights preserved.
+- **Explicit `highlights: []`** → owned highlights intentionally cleared.
+- **Explicit non-empty highlights** → replaced, renumbered contiguously
+  from zero, through the existing aggregate write.
+
+### Empty patch
+
+An update with no mutable fields and no highlights is a **safe no-op**,
+which is the ordered repository's existing behaviour: `buildPatch` reports
+an empty clause, so it reads the row back rather than issuing an `UPDATE`.
+No malformed SQL, and `updated_at` is deliberately not bumped. Asserted
+byte-for-byte at both the CMS-boundary and real-action layers.
+
+### Date cross-field behaviour — unchanged, and documented
+
+`datesAreOrdered` passes when either date is absent, so a patch supplying
+only `startedOn` is **not** compared against the persisted `endedOn`. A pure
+parser has no access to stored state, and reaching into the database from a
+schema would put persistence behind validation. The admin form always
+submits both, so the rule still binds every real edit. Cross-checking a
+one-sided patch against stored data would belong in the action layer and was
+deliberately **not** added — this fix stays minimal.
+
+**Calendar-semantic date validation remains a separate known hardening
+item** across projects, timeline, and education. Not touched here.
+
+### Repository — unchanged
+
+No repository API changed and `packages/database` was not touched. Both
+methods the fix needs already existed: `update()` from the ordered base for
+the parent-only path, and `updateWithHighlights()` for the aggregate path.
+The database subtotal is therefore unchanged at **287**, and no repository
+tests were added.
+
+Aggregate atomicity is preserved exactly where it applied before: whenever
+highlights are supplied, parent and children still go through the single
+`db.batch()` write, and the existing forced-failure rollback coverage still
+passes.
 
 ## Phase 8 — Education CMS (COMPLETE)
 
@@ -710,14 +805,80 @@ fail-closed behaviour.
 
 ## Next suggested task
 
-**1. `fix/timeline-partial-update-defaults`** — the immediate next
-engineering task, ahead of the next entity.
+Review the timeline partial-update fix. After it merges and is formally
+closed, **Certifications CMS** is the next Phase 8 entity — **not started**,
+and not to be implemented until explicitly scoped and approved. Rationale is
+at the end of this file.
 
-**2. Certifications CMS** — the next Phase 8 entity, after that fix. Not
-started.
+## Timeline partial-update fix: verification actually performed
 
-Neither is to be implemented until explicitly scoped and approved.
-Rationale for both is at the end of this file.
+| Command | Result |
+| --- | --- |
+| `pnpm install --frozen-lockfile` | **PASS** — lockfile unmodified |
+| `pnpm lint` | **PASS** (exit 0) |
+| `pnpm typecheck` | **PASS** (exit 0) |
+| `pnpm test` | **PASS** — **1228 real checks** |
+| `pnpm build` | **PASS** |
+
+| Suite | Checks | Change |
+| --- | --- | --- |
+| **Database subtotal** | **287** | **unchanged — no repository change** |
+| Admin authentication | 42 | — |
+| Admin foundation / invariant / containment | 83 | — |
+| Admin D1 composition boundary | 34 | — |
+| Projects CMS | 96 | — |
+| Technologies CMS | 90 | — |
+| Profile CMS | 77 | — |
+| **Timeline CMS** | **173** | **+63** — partial-update schema and real-D1 regression |
+| Education CMS | 112 | — |
+| **Server Action authorization** | **234** | **+25** — the real exported action, partial payloads |
+| **Admin subtotal** | **941** | — |
+| **Total** | **1228** | up from 1140 |
+
+**All 1140 previous checks still pass**, and none were weakened.
+
+### Real-D1 regression result
+
+A fixture entry was created with deliberately non-default values — position
+`6`, `isVisible: false`, populated summary/location/periodLabel/both dates,
+and three highlights — so any leaked default would be visible. Changing
+**one** parent field then preserved: position 6, visibility false, all four
+optional text/date fields, `createdAt`, and all three highlights
+byte-for-byte in order. A bystander entry (position 9, its own highlight)
+was untouched throughout. Explicit `position: 0` / `isVisible: true` were
+applied; explicit `[]` cleared the highlights; an explicit replacement
+persisted in order with contiguous positions; and an empty patch left the
+row byte-for-byte identical.
+
+### Action-auth regression result
+
+An **unauthenticated partial** update — the exact shape the regression made
+dangerous — throws `AdminUnauthorizedError`, leaves the entry
+byte-for-byte identical, leaves its highlights identical, and never
+consults the database provider. Authenticated controls prove the full
+matrix through the **real exported action**: partial preserves omitted
+fields and highlights, explicit falsy values are honoured, `[]` clears,
+a list replaces, and an empty patch is a safe no-op.
+
+### Browser verification (`playwright-local` MCP, real local D1)
+
+Manual MCP verification — **not** automated Playwright CI tests. The bug
+lives in the exported partial-update contract, which the admin UI never
+exercises, so this pass regression-checks the **real UI** rather than
+pretending to reproduce the exploit; the partial-patch behaviour is proven
+by the schema, action, and local-D1 tests above.
+
+Populated list loads with position, Hidden badge, and highlight counts; the
+edit page pre-fills correctly including `isVisible: false` and position 2; a
+normal full-form update still works and left all three highlights intact; a
+highlight reorder still persisted (verified in D1 as contiguous positions
+0/1/2) with position, visibility, and summary all preserved; two-step delete
+still names the entry and its highlight count, moves focus to the confirm
+button, and Cancel restores. Populated list at 375px: **no page-level
+horizontal scrolling**, wrapper scrolling internally, caption present.
+**Zero console errors.**
+
+Local test data and the temporary dev-auth file were removed afterwards.
 
 ## Phase 8 — Education CMS: verification actually performed
 
@@ -1014,7 +1175,7 @@ Local test data and the temporary dev-auth file were removed afterwards.
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
 | Phase 6 — Admin foundation | **Complete** (merged to `main`, CI green) |
 | Phase 7 — Projects CMS vertical slice | **Complete** (merged to `main`, CI green) |
-| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, Timeline, and Education CMS **complete**, plus the admin list overflow regression fix (all merged, CI green); timeline partial-update fix is the next engineering task; Certifications and later entities not started |
+| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, Timeline, and Education CMS **complete**, plus the admin list overflow regression fix (all merged, CI green); the timeline partial-update fix is implemented and awaiting review; Certifications and later entities not started |
 
 Phases 9–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
@@ -1158,26 +1319,12 @@ than changed here.
   Education are four entities of several.
 - **The remaining CMS entities are not implemented** — Certifications,
   Skills, Tools, Socials, Sections.
-- **A post-merge regression is outstanding in the timeline update schema.**
-  **Timeline CMS itself remains COMPLETE**; this is a defect to repair in
-  its own branch, not incomplete work.
-
-  `timelineEntryUpdateSchema` derives from a defaulted create schema using
-  `.partial()`. In Zod 4, defaults can still be materialised during a
-  partial parse, so a patch that omits a field still carries
-  `position: 0`, `isVisible: true`, `highlights: []`, and `null` for every
-  optional. Verified directly:
-  `timelineEntryUpdateSchema.safeParse({ summary: "" })` returns all of
-  those keys. Because `updateTimelineEntryAction` passes
-  `highlights ?? []` to `updateWithHighlights`, a partial payload would
-  **wipe an entry's highlights** and reset its order and visibility.
-
-  The current admin UI always submits the complete object, so the normal
-  browser flow does not expose it — but the **exported action contract**
-  should still be corrected. **This is not an Education defect**; Education
-  surfaced it and shipped the correct pattern. Queued as
-  `fix/timeline-partial-update-defaults`, the immediate next engineering
-  task.
+- ~~A post-merge regression is outstanding in the timeline update
+  schema.~~ **Fixed** on `fix/timeline-partial-update-defaults` and
+  awaiting review — see *Timeline partial-update regression* near the top of
+  this file. **Timeline CMS remained COMPLETE throughout**; this was a
+  post-merge repair, not incomplete work, and it was **not an Education
+  defect** — Education surfaced it and shipped the correct pattern first.
 - **Date validation is shape-only across projects, timeline, and
   education.** `2024-13-99` matches `YYYY-MM-DD` and is accepted; a real
   calendar parser would reject it. Documented and asserted rather than
@@ -2907,13 +3054,11 @@ static metadata, shared validation, the
 shared field primitives, and the existing composition boundary, with **no
 repository change**.
 
-**1. `fix/timeline-partial-update-defaults`** — a focused fix for the
-partial-update regression Education surfaced, described in *Phase 8 — known
-limitations*. Timeline is a merged slice, so it belongs in its own branch
-with its own verification rather than inside a feature. The fix is known:
-declare `timelineEntryUpdateSchema` with plain `.optional()` fields and no
-defaults, exactly as `educationEntryUpdateSchema` now does, and assert that
-a single-field patch parses to a single key.
+**Done: `fix/timeline-partial-update-defaults`** (awaiting review). The
+update schema is now declared explicitly with `.optional()` fields and no
+defaults, and the action distinguishes omitted highlights from an explicit
+empty list. Details in *Timeline partial-update regression* near the top of
+this file.
 
 **2. Phase 8, next entity: Certifications.** It is the closest sibling of
 education — another flat, ordered, visibility-toggleable table on the same

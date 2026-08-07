@@ -745,6 +745,38 @@ try {
       JSON.stringify(timelineHighlightsBefore),
   );
 
+  // A *partial* unauthenticated payload — the exact shape the regression
+  // made dangerous — must also be denied and change nothing.
+  const timelinePartialDenied = await invoke(
+    timelineActions.updateTimelineEntryAction,
+    payloadForm({ role: "Partially Hijacked" }, timelineVictim.id),
+  );
+  equal(
+    "an unauthenticated partial update throws",
+    timelinePartialDenied.kind,
+    "threw",
+  );
+  equal(
+    "it throws AdminUnauthorizedError",
+    timelinePartialDenied.error?.name,
+    "AdminUnauthorizedError",
+  );
+  check(
+    "the entry is still byte-for-byte identical after the partial attempt",
+    JSON.stringify(await repos.timeline.getById(timelineVictim.id)) ===
+      JSON.stringify(timelineBefore),
+  );
+  check(
+    "and its highlights are still identical",
+    JSON.stringify(await repos.timeline.listHighlights(timelineVictim.id)) ===
+      JSON.stringify(timelineHighlightsBefore),
+  );
+  equal(
+    "the database was still never consulted",
+    providerConsulted,
+    consultedBeforeTimeline,
+  );
+
   startGroup("Unauthenticated timeline DELETE cannot remove");
 
   const timelineDelete = await invoke(
@@ -1216,6 +1248,115 @@ try {
   check("the entry really was inserted", Boolean(createdTimeline));
   equal(
     "its highlights were written in the same aggregate",
+    (await repos.timeline.listHighlights(createdTimeline.id)).length,
+    2,
+  );
+
+  // ---- Partial-update regression, through the real exported action -------
+  //
+  // The action used to collapse omitted highlights into `[]` and pass a
+  // defaults-materialised patch, so any partial payload reset the entry and
+  // deleted its bullets. These assertions run the real action, not a helper.
+  await repos.timeline.update(createdTimeline.id, {
+    position: 5,
+    isVisible: false,
+    summary: "Keep this summary",
+  });
+  const beforeActionPartial = await repos.timeline.getById(createdTimeline.id);
+  const highlightsBeforeActionPartial = await repos.timeline.listHighlights(
+    createdTimeline.id,
+  );
+
+  const actionPartial = await invoke(
+    timelineActions.updateTimelineEntryAction,
+    payloadForm({ role: "Partially Renamed" }, createdTimeline.id),
+  );
+  equal("a partial update redirects on success", actionPartial.kind, "redirect");
+
+  const afterActionPartial = await repos.timeline.getById(createdTimeline.id);
+  equal("the named field changed", afterActionPartial?.role, "Partially Renamed");
+  equal("an omitted position was preserved", afterActionPartial?.position, 5);
+  equal("an omitted isVisible was preserved", afterActionPartial?.isVisible, false);
+  equal(
+    "an omitted nullable field was preserved, not nulled",
+    afterActionPartial?.summary,
+    "Keep this summary",
+  );
+  const highlightsAfterActionPartial = await repos.timeline.listHighlights(
+    createdTimeline.id,
+  );
+  equal(
+    "omitted highlights were preserved, not cleared",
+    highlightsAfterActionPartial.length,
+    highlightsBeforeActionPartial.length,
+  );
+  check(
+    "with identical content and order",
+    JSON.stringify(highlightsAfterActionPartial) ===
+      JSON.stringify(highlightsBeforeActionPartial),
+  );
+  equal(
+    "organization was preserved too",
+    afterActionPartial?.organization,
+    beforeActionPartial.organization,
+  );
+
+  // Explicit falsy values are still honoured through the action.
+  const actionExplicit = await invoke(
+    timelineActions.updateTimelineEntryAction,
+    payloadForm({ position: 0, isVisible: true }, createdTimeline.id),
+  );
+  equal("an explicit falsy patch redirects", actionExplicit.kind, "redirect");
+  equal(
+    "explicit position: 0 was applied",
+    (await repos.timeline.getById(createdTimeline.id))?.position,
+    0,
+  );
+  equal(
+    "explicit isVisible: true was applied",
+    (await repos.timeline.getById(createdTimeline.id))?.isVisible,
+    true,
+  );
+
+  // Explicit empty clears; explicit list replaces.
+  const actionClear = await invoke(
+    timelineActions.updateTimelineEntryAction,
+    payloadForm({ highlights: [] }, createdTimeline.id),
+  );
+  equal("an explicit empty highlight list redirects", actionClear.kind, "redirect");
+  equal(
+    "explicit `highlights: []` cleared them",
+    (await repos.timeline.listHighlights(createdTimeline.id)).length,
+    0,
+  );
+
+  const actionReplace = await invoke(
+    timelineActions.updateTimelineEntryAction,
+    payloadForm(
+      { highlights: [{ content: "Action A" }, { content: "Action B" }] },
+      createdTimeline.id,
+    ),
+  );
+  equal("an explicit replacement redirects", actionReplace.kind, "redirect");
+  const actionReplaced = await repos.timeline.listHighlights(createdTimeline.id);
+  equal("the replacement persisted", actionReplaced.length, 2);
+  equal("in the submitted order", actionReplaced[0].content, "Action A");
+  equal("with contiguous positions", actionReplaced[1].position, 1);
+
+  // An empty patch through the action is a safe no-op.
+  const beforeActionNoop = await repos.timeline.getById(createdTimeline.id);
+  const actionNoop = await invoke(
+    timelineActions.updateTimelineEntryAction,
+    payloadForm({}, createdTimeline.id),
+  );
+  equal("an empty patch redirects rather than erroring", actionNoop.kind, "redirect");
+  check(
+    "and leaves the row byte-for-byte unchanged",
+    JSON.stringify(await repos.timeline.getById(createdTimeline.id)) ===
+      JSON.stringify(beforeActionNoop),
+  );
+  equal(
+    "with its highlights intact",
     (await repos.timeline.listHighlights(createdTimeline.id)).length,
     2,
   );

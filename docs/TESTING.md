@@ -2,10 +2,11 @@
 
 ## Current state (Phase 8 — Timeline CMS complete)
 
-`pnpm test` runs **fourteen real suites and one no-op** — **1140 checks**,
-verified on Windows and on GitHub Actions/Linux (PR #22 and its post-merge
-`main` run). The 980 verified after the responsive fix all still pass. What
-each one actually proves matters, so be precise:
+`pnpm test` runs **fourteen real suites and one no-op** — **1228 checks**.
+The 1140 verified after the Education CMS all still pass on Windows and on
+GitHub Actions/Linux (PR #22 and its post-merge `main` run); the timeline
+partial-update fix added the rest and is not yet CI-verified. What each one
+actually proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
@@ -15,13 +16,13 @@ each one actually proves matters, so be precise:
 | **Projects CMS** | **96** | the real schemas, and **real local D1** via `getPlatformProxy()` | The validation boundary and the full CRUD + relationship path |
 | **Technologies CMS** | **90** | the real schemas, and **real local D1** | The validation boundary, CRUD, the page-level usage composition, and `ON DELETE RESTRICT` |
 | **Profile CMS** | **77** | the real schema, and **real local D1** | The validation boundary and the singleton create-then-update lifecycle |
-| **Timeline CMS** | **110** | the real schemas, and **real local D1** | The validation boundary and the parent/child aggregate lifecycle |
+| **Timeline CMS** | **173** | the real schemas, and **real local D1** | The validation boundary, partial-patch safety, and the parent/child aggregate lifecycle |
 | **Education CMS** | **112** | the real schemas, and **real local D1** | The validation boundary, partial-patch safety, and the ordered CRUD lifecycle |
-| **Server Action authorization** | **209** | the **real exported action functions** for all five entities, against real local D1 | Unauthenticated mutations are denied and change nothing |
+| **Server Action authorization** | **234** | the **real exported action functions** for all five entities, against real local D1 | Unauthenticated mutations are denied and change nothing; partial updates preserve what they omit |
 
-Subtotals: **admin 853** (42 + 83 + 34 + 96 + 90 + 77 + 110 + 112 + 209)
+Subtotals: **admin 941** (42 + 83 + 34 + 96 + 90 + 77 + 173 + 112 + 234)
 and **database 287** (26 + 59 + 157 + 41 + 4, detailed below) —
-**1140 total**.
+**1228 total**.
 
 The database subtotal is **unchanged** by the Education CMS: education
 already used `createOrderedRepository` with everything the CMS needed, so
@@ -215,6 +216,37 @@ hidden entry still listed in the admin but excluded from `visibleOnly`;
 database with the row byte-identical; a second entry ordered correctly by
 position; delete removing only the target with the other surviving; and
 `PRAGMA foreign_key_check`.
+
+## Partial updates must preserve what they omit
+
+A rule now asserted for every entity whose update schema exists, because it
+has bitten twice — once in education (caught before merge) and once in
+timeline (caught after).
+
+**Deriving an update schema as `createSchema.partial()` is unsafe when any
+field carries `.default()`.** `.partial()` makes the key optional but does
+not remove the default, so an absent key is still materialised. The patch
+then arrives carrying values the caller never sent, and the repository's
+patch allowlist writes them — silently resetting columns and, for timeline,
+deleting owned child rows.
+
+Declare the two shapes independently: shared leaf schemas with no defaults,
+a create shape that adds `.default(...)`, and an update shape that adds
+`.optional()`.
+
+The assertion that catches it is **not** "does a partial patch parse?" — it
+always did. It is:
+
+- a single-field patch produces **exactly one key**;
+- every unmentioned field is **absent**, not defaulted;
+- an empty patch produces **no keys**;
+- explicit falsy values (`position: 0`, `isVisible: false`) survive;
+- and, at the persistence layer, a one-field update against a row with
+  deliberately non-default values leaves everything else byte-for-byte
+  identical.
+
+That last one is the important shape: assert the **state after the write**,
+not merely that the mutation returned without error.
 
 ## Timeline CMS tests (Phase 8)
 

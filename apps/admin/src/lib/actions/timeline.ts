@@ -153,11 +153,27 @@ export async function updateTimelineEntryAction(
     // `id`, `createdAt`, and `updatedAt` are absent from the schema and from
     // the repository's patch allowlist, so there is no path by which this
     // call could rewrite them.
-    const updated = await repos.timeline.updateWithHighlights(
-      idResult.data,
-      patch,
-      (highlights ?? []).map((highlight) => highlight.content),
-    );
+    //
+    // Omitted highlights and an empty highlight list are different requests
+    // and must not be conflated. This previously read
+    // `(highlights ?? []).map(...)`, which turned "the caller said nothing
+    // about highlights" into "replace them with none" — silently deleting
+    // every bullet on any partial update.
+    const updated =
+      highlights === undefined
+        ? // Parent-only patch. The plain ordered update touches exactly the
+          // supplied columns and leaves the owned highlights untouched;
+          // there is only one statement, so there is no aggregate to keep
+          // atomic.
+          await repos.timeline.update(idResult.data, patch)
+        : // Highlights were supplied — `[]` to clear, or a replacement list.
+          // Either way the parent and children go through the aggregate
+          // write so they commit or roll back together.
+          await repos.timeline.updateWithHighlights(
+            idResult.data,
+            patch,
+            highlights.map((highlight) => highlight.content),
+          );
     updatedId = updated.id;
   } catch (error) {
     return toActionResult(error);
