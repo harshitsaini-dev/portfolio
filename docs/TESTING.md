@@ -1,12 +1,12 @@
 # Testing
 
-## Current state (Phase 8 — Tools CMS implemented, awaiting review)
+## Current state (Phase 8 — Tools CMS complete)
 
-`pnpm test` runs **seventeen real suites and one no-op** — **2017 checks**.
-The 1804 verified after the Skills CMS all still pass on Windows and on
-GitHub Actions/Linux (PR #28 and its post-merge `main` run `31171449984`);
-the Tools CMS added the rest and **is not yet CI-verified**. What each one
-actually proves matters, so be precise:
+`pnpm test` runs **seventeen real suites and one no-op** — **2017 checks**,
+all passing on Windows and on GitHub Actions/Linux (PR #30 and its
+post-merge `main` run `31178459051`). The 1804 verified after the Skills CMS
+are all still among them and none were weakened. What each one actually
+proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
