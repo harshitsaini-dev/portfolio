@@ -1,17 +1,17 @@
 # Testing
 
-## Current state (Phase 8 — Socials CMS complete)
+## Current state (Phase 8 — Sections CMS implemented, awaiting review)
 
-`pnpm test` runs **eighteen real suites and one no-op** — **2245 checks**,
-all passing on Windows and on GitHub Actions/Linux (PR #32 and its
-post-merge `main` run `31192174164`). The 2017 verified after the Tools CMS
-are all still among them and none were weakened. What each one actually
-proves matters, so be precise:
+`pnpm test` runs **nineteen real suites and one no-op** — **2488 checks**.
+The 2245 verified after the Socials CMS all still pass on Windows and on
+GitHub Actions/Linux (PR #32 and its post-merge `main` run `31192174164`);
+the Sections CMS added the rest and **is not yet CI-verified**. What each one
+actually proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
 | Admin authentication | **42** | real `jose` verification, locally minted tokens | The Access JWT boundary and the development-auth guard |
-| Admin foundation | **118** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, the protected-page invariant, and horizontal scroll containment |
+| Admin foundation | **125** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, the protected-page invariant, and horizontal scroll containment |
 | **D1 composition boundary** | **34** | the real `binding.ts`, the **working tree**, plus `tsc` over Wrangler-generated Cloudflare types | Production fails closed, the provider seam composes, and Phase 22's provider already type-checks |
 | **Projects CMS** | **96** | the real schemas, and **real local D1** via `getPlatformProxy()` | The validation boundary and the full CRUD + relationship path |
 | **Technologies CMS** | **90** | the real schemas, and **real local D1** | The validation boundary, CRUD, the page-level usage composition, and `ON DELETE RESTRICT` |
@@ -22,11 +22,12 @@ proves matters, so be precise:
 | **Skills CMS** | **233** | the real schemas, **real local D1**, and the shipped UI strings | Two entities, the canonical slug grammar, partial-patch safety, that `ON DELETE RESTRICT` actually protects child skills, and that user-facing guidance names only operations the CMS supports |
 | **Tools CMS** | **146** | the real schemas, and **real local D1** | The validation boundary, the shared URL policy, the `UNIQUE` name constraint on both create and rename, partial-patch safety, and the ordered CRUD lifecycle |
 | **Socials CMS** | **161** | the real schemas, and **real local D1** | The validation boundary, the **required** URL policy, that `platform` is free text rather than an enum, partial-patch safety, and the ordered CRUD lifecycle |
-| **Server Action authorization** | **499** | the **real exported action functions** for all ten entities, against real local D1 | Unauthenticated mutations are denied and change nothing; partial updates preserve what they omit; unsafe URLs never reach a row; an in-use category cannot be deleted, leaks no SQL, and does not advertise moving skills |
+| **Sections CMS** | **173** | the real schemas, and **real local D1** | The validation boundary, the canonical machine-key grammar, that **`key` cannot be renamed after creation**, partial-patch safety, and the ordered CRUD lifecycle |
+| **Server Action authorization** | **562** | the **real exported action functions** for all eleven entities, against real local D1 | Unauthenticated mutations are denied and change nothing; partial updates preserve what they omit; unsafe URLs never reach a row; an in-use category cannot be deleted; a section key cannot be renamed; nothing leaks SQL |
 
-Subtotals: **admin 1948** (42 + 118 + 34 + 96 + 90 + 77 + 173 + 112 + 167 +
-233 + 146 + 161 + 499) and **database 297** (26 + 59 + 167 + 41 + 4, detailed
-below) — **2245 total**.
+Subtotals: **admin 2191** (42 + 125 + 34 + 96 + 90 + 77 + 173 + 112 + 167 +
+233 + 146 + 161 + 173 + 562) and **database 297** (26 + 59 + 167 + 41 + 4,
+detailed below) — **2488 total**.
 
 The database subtotal moved 287 → **297** for the first time since the
 Technologies slice: Skills needed `getSkillById()` on the repository
@@ -260,6 +261,45 @@ always did. It is:
 
 That last one is the important shape: assert the **state after the write**,
 not merely that the mutation returned without error.
+
+## Sections CMS tests (Phase 8)
+
+`apps/admin/scripts/sections-tests.mjs` — **173 checks**, and **none** in the
+repository package: `createSectionRepository` already existed, already
+provided `getByKey()`, and its contract did not change.
+
+**Validation.** Accepted input with trimming and blank → `null` for both
+nullable columns; 16 rejection cases; `.strict()` rejection of `id`,
+`createdAt`, `updatedAt`, and unknown fields — plus explicit rejection of
+eight fields the table does **not** have (`route`, `component`, `icon`,
+`slug`, `anchor`, `layout`, `variant`, `theme`), so a future "helpful"
+addition cannot slip in unvalidated.
+
+**Key grammar** reuses the canonical `slugSchema`: seven accepted shapes and
+ten rejected ones, with a mixed-case key **normalised** rather than
+rejected. One check exists purely to prevent a future enum — a key for a
+component that does not exist yet **must** still be accepted, because the
+schema defines no closed set.
+
+**Key immutability gets its own group**, and it is the reason this suite is
+larger than its siblings. At the schema layer: an update containing `key` is
+rejected — alone, alongside valid fields, and **even when the key equals the
+stored value**, because "unchanged" is still a field the update contract
+does not accept. At the D1 layer: a rename attempt never reaches the
+database, the stored key is unchanged, the section is still addressable by
+its original key, and the new key was never created. A key smuggled beside a
+legitimate `title` change refuses the **whole patch** — asserted explicitly,
+because a partially-applied strict rejection would be worse than either
+outcome alone.
+
+**Lifecycle against real local D1.** Create and read-back including
+`getByKey()` addressing; null round-trips; a duplicate key refused as a
+`ConflictError`; update with clearing; visibility filtering; a preservation
+fixture proving a one-field patch leaves key, subtitle, eyebrow, position,
+visibility and `createdAt` intact; an empty patch proven a byte-for-byte
+no-op; a bystander untouched; deterministic ordering; delete removing only
+its target, after which **the freed key stops resolving and can be claimed
+again**; `PRAGMA foreign_key_check` plus NOT NULL and duplicate-key scans.
 
 ## Socials CMS tests (Phase 8)
 

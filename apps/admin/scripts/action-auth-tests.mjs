@@ -1588,6 +1588,154 @@ try {
   );
 
   // =========================================================================
+  // Sections (Phase 8) — a flat ordered entity whose `key` is an immutable
+  // machine identifier, same boundary as every other.
+  // =========================================================================
+  const sectionsActions = await import("../src/lib/actions/sections.ts");
+  check(
+    "the real sections action module exports all three mutations",
+    typeof sectionsActions.createSectionAction === "function" &&
+      typeof sectionsActions.updateSectionAction === "function" &&
+      typeof sectionsActions.deleteSectionAction === "function",
+  );
+
+  function sectionPayload(overrides = {}) {
+    return { key: "guarded-section", title: "Guarded Section", ...overrides };
+  }
+
+  const sectionVictim = await repos.sections.create({
+    key: "existing-section",
+    title: "Existing Section",
+    subtitle: "Must survive every unauthenticated attempt.",
+    eyebrow: "Existing",
+    position: 4,
+    isVisible: false,
+  });
+  const sectionBefore = await repos.sections.getById(sectionVictim.id);
+  const sectionCountBefore = (await repos.sections.list()).length;
+  const consultedBeforeSections = providerConsulted;
+
+  startGroup("Unauthenticated section CREATE cannot insert");
+
+  clearAuthEnvironment();
+
+  const sectionCreate = await invoke(
+    sectionsActions.createSectionAction,
+    payloadForm(sectionPayload()),
+  );
+  equal("the action does not return a result", sectionCreate.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    sectionCreate.error?.name,
+    "AdminUnauthorizedError",
+  );
+  equal(
+    "no section was inserted",
+    (await repos.sections.list()).length,
+    sectionCountBefore,
+  );
+
+  startGroup("Section auth wins before validation and the database");
+
+  const sectionOrder = await invoke(
+    sectionsActions.createSectionAction,
+    payloadForm({ key: "Not A Key", title: "", id: "x", position: -3 }),
+  );
+  equal("an invalid unauthenticated payload still throws", sectionOrder.kind, "threw");
+  equal(
+    "it is an authorization failure, not a validation result",
+    sectionOrder.error?.name,
+    "AdminUnauthorizedError",
+  );
+
+  // Even the immutable-key rule is never reached without an identity.
+  const sectionKeyOrder = await invoke(
+    sectionsActions.updateSectionAction,
+    payloadForm({ key: "hijacked-key" }, sectionVictim.id),
+  );
+  equal(
+    "an unauthenticated key-rename attempt is an auth failure, not validation",
+    sectionKeyOrder.error?.name,
+    "AdminUnauthorizedError",
+  );
+  equal(
+    "the database was never consulted during any denied section call",
+    providerConsulted,
+    consultedBeforeSections,
+  );
+
+  startGroup("Unauthenticated section UPDATE cannot modify");
+
+  const sectionUpdate = await invoke(
+    sectionsActions.updateSectionAction,
+    payloadForm(
+      { title: "Hijacked", subtitle: "Hijacked", position: 0, isVisible: true },
+      sectionVictim.id,
+    ),
+  );
+  equal("the action does not return a result", sectionUpdate.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    sectionUpdate.error?.name,
+    "AdminUnauthorizedError",
+  );
+  const sectionAfterUpdate = await repos.sections.getById(sectionVictim.id);
+  equal("key is unchanged", sectionAfterUpdate?.key, sectionBefore?.key);
+  equal("title is unchanged", sectionAfterUpdate?.title, sectionBefore?.title);
+  equal("subtitle is unchanged", sectionAfterUpdate?.subtitle, sectionBefore?.subtitle);
+  equal("position is unchanged", sectionAfterUpdate?.position, sectionBefore?.position);
+  equal("isVisible is unchanged", sectionAfterUpdate?.isVisible, sectionBefore?.isVisible);
+  equal("updatedAt is unchanged", sectionAfterUpdate?.updatedAt, sectionBefore?.updatedAt);
+  check(
+    "the whole record is logically identical",
+    JSON.stringify(sectionAfterUpdate) === JSON.stringify(sectionBefore),
+  );
+
+  // The partial shape the timeline regression made dangerous: denied, and
+  // still byte-for-byte unchanged.
+  const sectionPartial = await invoke(
+    sectionsActions.updateSectionAction,
+    payloadForm({ title: "Hijacked partially" }, sectionVictim.id),
+  );
+  equal(
+    "an unauthenticated PARTIAL update is denied too",
+    sectionPartial.error?.name,
+    "AdminUnauthorizedError",
+  );
+  check(
+    "and left the record byte-for-byte identical",
+    JSON.stringify(await repos.sections.getById(sectionVictim.id)) ===
+      JSON.stringify(sectionBefore),
+  );
+
+  startGroup("Unauthenticated section DELETE cannot remove");
+
+  const sectionDelete = await invoke(
+    sectionsActions.deleteSectionAction,
+    payloadForm({}, sectionVictim.id),
+  );
+  equal("the action does not return a result", sectionDelete.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    sectionDelete.error?.name,
+    "AdminUnauthorizedError",
+  );
+  check(
+    "the section still exists afterwards",
+    (await repos.sections.getById(sectionVictim.id)) !== null,
+  );
+  equal(
+    "and is still addressable by its key",
+    (await repos.sections.getByKey("existing-section"))?.id,
+    sectionVictim.id,
+  );
+  equal(
+    "the database was still never consulted for any denied section call",
+    providerConsulted,
+    consultedBeforeSections,
+  );
+
+  // =========================================================================
   startGroup("A forged Access assertion is also rejected");
 
   // With Access configured, a caller supplying a self-signed or junk
@@ -1722,6 +1870,29 @@ try {
     "the targeted social link is still byte-for-byte unchanged",
     JSON.stringify(await repos.socialLinks.getById(socialVictim.id)) ===
       JSON.stringify(socialBefore),
+  );
+
+  // The same forged assertion against a section mutation: development auth
+  // is enabled above and must NOT rescue it here either.
+  const forgedSection = await invoke(
+    sectionsActions.updateSectionAction,
+    payloadForm({ title: "Forged" }, sectionVictim.id),
+  );
+  equal(
+    "a forged-assertion section update throws",
+    forgedSection.error?.name,
+    "AdminUnauthorizedError",
+  );
+  check(
+    "development auth did not rescue the sections path either",
+    typeof forgedSection.error?.reason === "string" &&
+      forgedSection.error.reason !== "not_configured",
+    String(forgedSection.error?.reason),
+  );
+  check(
+    "the targeted section is still byte-for-byte unchanged",
+    JSON.stringify(await repos.sections.getById(sectionVictim.id)) ===
+      JSON.stringify(sectionBefore),
   );
 
   // And with no assertion at all, while Access is configured.
@@ -3217,6 +3388,188 @@ try {
         /constraint failed/i.test(serialized) ||
         /\bsocial_links\.[a-z_]/i.test(serialized) ||
         /\bCHECK\s*\(/i.test(serialized)
+      );
+    }),
+  );
+
+  // =========================================================================
+  startGroup("Positive control — section actions work when authenticated");
+
+  const authedSectionCreate = await invoke(
+    sectionsActions.createSectionAction,
+    payloadForm(
+      sectionPayload({
+        key: "authenticated-section",
+        title: "Authenticated Section",
+        subtitle: "Created only when authenticated.",
+        eyebrow: "Auth",
+        position: 7,
+      }),
+    ),
+  );
+  equal("an authenticated create redirects on success", authedSectionCreate.kind, "redirect");
+  equal("it redirects to the list", authedSectionCreate.to, "/sections?created=1");
+
+  const createdSection = (await repos.sections.list()).find(
+    (row) => row.key === "authenticated-section",
+  );
+  check("the section really was inserted", Boolean(createdSection));
+  equal("its position persisted", createdSection?.position, 7);
+  equal("its eyebrow persisted", createdSection?.eyebrow, "Auth");
+
+  // A duplicate key is a safe conflict, not a leak.
+  const dupSection = await invoke(
+    sectionsActions.createSectionAction,
+    payloadForm(sectionPayload({ key: "authenticated-section", title: "Duplicate" })),
+  );
+  equal("a duplicate key returns a result", dupSection.kind, "returned");
+  equal("it is reported as a conflict", dupSection.result?.status, "conflict");
+
+  const badSection = await invoke(
+    sectionsActions.updateSectionAction,
+    payloadForm({ title: "" }, createdSection.id),
+  );
+  equal("a malformed title returns a result", badSection.kind, "returned");
+  equal("it is reported as validation", badSection.result?.status, "validation");
+  check("the error is keyed to the field", Boolean(badSection.result?.fieldErrors?.title));
+
+  const badSectionPosition = await invoke(
+    sectionsActions.updateSectionAction,
+    payloadForm({ position: -2 }, createdSection.id),
+  );
+  equal("an invalid position is rejected", badSectionPosition.result?.status, "validation");
+
+  // THE key rule, enforced through the REAL exported action.
+  const renameSection = await invoke(
+    sectionsActions.updateSectionAction,
+    payloadForm({ key: "renamed-key" }, createdSection.id),
+  );
+  equal("an attempted key rename returns a result", renameSection.kind, "returned");
+  equal(
+    "it is rejected as validation, not silently ignored",
+    renameSection.result?.status,
+    "validation",
+  );
+  equal(
+    "the persisted key is unchanged",
+    (await repos.sections.getById(createdSection.id))?.key,
+    "authenticated-section",
+  );
+  equal(
+    "and the renamed key was never created",
+    await repos.sections.getByKey("renamed-key"),
+    null,
+  );
+
+  // Smuggled beside a valid field, the whole patch is refused.
+  const smuggledSection = await invoke(
+    sectionsActions.updateSectionAction,
+    payloadForm({ title: "Should not apply", key: "smuggled" }, createdSection.id),
+  );
+  equal(
+    "a key smuggled beside a valid field is rejected",
+    smuggledSection.result?.status,
+    "validation",
+  );
+  equal(
+    "the title did not change either",
+    (await repos.sections.getById(createdSection.id))?.title,
+    "Authenticated Section",
+  );
+
+  const managedSection = await invoke(
+    sectionsActions.updateSectionAction,
+    payloadForm({ id: "forced", createdAt: "2000-01-01" }, createdSection.id),
+  );
+  equal(
+    "client-supplied database-managed fields are rejected",
+    managedSection.result?.status,
+    "validation",
+  );
+
+  equal(
+    "none of the rejected patches touched the row",
+    (await repos.sections.getById(createdSection.id))?.position,
+    7,
+  );
+
+  // A partial update must not reset the fields it does not mention.
+  const partialSection = await invoke(
+    sectionsActions.updateSectionAction,
+    payloadForm({ subtitle: "Renamed subtitle" }, createdSection.id),
+  );
+  equal("an authenticated partial update redirects", partialSection.kind, "redirect");
+  const afterSectionPartial = await repos.sections.getById(createdSection.id);
+  equal("the named field changed", afterSectionPartial?.subtitle, "Renamed subtitle");
+  equal("an unmentioned key was NOT changed", afterSectionPartial?.key, "authenticated-section");
+  equal("an unmentioned title was NOT changed", afterSectionPartial?.title, "Authenticated Section");
+  equal("an unmentioned eyebrow was NOT nulled", afterSectionPartial?.eyebrow, "Auth");
+  equal("an unmentioned position was NOT reset", afterSectionPartial?.position, 7);
+  equal("an unmentioned isVisible was NOT reset", afterSectionPartial?.isVisible, true);
+
+  // Explicit falsy values are honoured.
+  const falsySection = await invoke(
+    sectionsActions.updateSectionAction,
+    payloadForm({ position: 0, isVisible: false }, createdSection.id),
+  );
+  equal("an explicit falsy patch redirects", falsySection.kind, "redirect");
+  const afterSectionFalsy = await repos.sections.getById(createdSection.id);
+  equal("explicit position 0 persisted", afterSectionFalsy?.position, 0);
+  equal("explicit isVisible false persisted", afterSectionFalsy?.isVisible, false);
+
+  const missingSection = await invoke(
+    sectionsActions.updateSectionAction,
+    payloadForm({ title: "Ghost" }, "does-not-exist"),
+  );
+  equal(
+    "updating a missing section returns not_found",
+    missingSection.result?.status,
+    "not_found",
+  );
+
+  const authedSectionDelete = await invoke(
+    sectionsActions.deleteSectionAction,
+    payloadForm({}, createdSection.id),
+  );
+  equal("an authenticated delete redirects on success", authedSectionDelete.kind, "redirect");
+  equal("it redirects to the list", authedSectionDelete.to, "/sections");
+  equal(
+    "the section really was removed",
+    await repos.sections.getById(createdSection.id),
+    null,
+  );
+  check(
+    "the untouched target section is still there",
+    (await repos.sections.getById(sectionVictim.id)) !== null,
+  );
+
+  const missingSectionDelete = await invoke(
+    sectionsActions.deleteSectionAction,
+    payloadForm({}, createdSection.id),
+  );
+  equal(
+    "deleting an already-deleted section returns not_found",
+    missingSectionDelete.result?.status,
+    "not_found",
+  );
+
+  check(
+    "no section result message leaks SQL or constraint text",
+    [
+      dupSection,
+      badSection,
+      badSectionPosition,
+      renameSection,
+      smuggledSection,
+      managedSection,
+      missingSection,
+    ].every((outcome) => {
+      const serialized = JSON.stringify(outcome.result ?? {});
+      return !(
+        /SQLITE_[A-Z]+/.test(serialized) ||
+        /constraint failed/i.test(serialized) ||
+        /\bsections\.[a-z_]/i.test(serialized) ||
+        /UNIQUE constraint/i.test(serialized)
       );
     }),
   );

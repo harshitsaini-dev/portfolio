@@ -3,6 +3,53 @@
 Notable architectural/tooling decisions and their rationale. Append new
 entries; do not delete history.
 
+## 2026-08-07 — Phase 8 Sections CMS
+
+### The section key reuses the canonical slug grammar, and defines no enum
+
+Two things could have been invented here and were not.
+
+**A new grammar.** `sections.key` is a machine-facing `NOT NULL UNIQUE`
+identifier whose migration example is `projects`, and `docs/DATABASE.md`
+already lists it under its **Slugs** heading beside `projects`,
+`technologies`, and `skill_categories`. That is three existing consumers of
+one grammar plus documentation grouping the fourth with them, so it reuses
+`slugSchema` from `internal/slug.ts`.
+
+**An enum.** It would be tempting to restrict keys to the components that
+exist today — it would even catch typos. But the schema defines no closed
+set: no CHECK, no lookup table. Encoding one in the CMS would invent a
+constraint the database does not have, and would make it impossible to
+create a section *before* building its component, which is the natural
+order of work. Typos are caught by the editor noticing nothing renders, not
+by a vocabulary that has to be maintained in a second place.
+
+### An immutable field is presented as text, not as a disabled input
+
+`key` cannot change after creation — the repository has excluded it from the
+patch allowlist since Phase 5, and `sectionUpdateSchema` now rejects it.
+
+The edit form renders it in a `<dl>` rather than `<input disabled>` or
+`<input readonly>`. Both of those still read as form controls: *disabled*
+suggests "temporarily unavailable, perhaps I can enable this", and
+*readonly* is focusable and copyable but still looks like a field someone
+might try to type in. Neither is honest about a value this UI cannot change
+at all. A definition list says "this is information about the record",
+which is what it is, and it keeps the label/value relationship semantic.
+
+The tests follow the presentation: assert there is no input named `key`
+anywhere on the edit route, and **no disabled or readonly input at all** —
+both being things a future contributor might reach for while "improving"
+the form.
+
+### The rejection is total, not partial
+
+An update carrying `key` alongside a valid `title` refuses the **whole
+patch**. The alternative — apply the title, drop the key — hands back a
+success for a request that was half-ignored. `.strict()` already behaves
+this way, but it is asserted explicitly rather than trusted, because it is
+exactly the kind of behaviour a well-meaning refactor loosens.
+
 ## 2026-08-07 — Phase 8 Skills CMS
 
 ### Categories live inside `/skills`, not beside it

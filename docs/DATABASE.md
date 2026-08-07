@@ -271,6 +271,45 @@ Note that `skills` also has `UNIQUE (category_id, name)`, whose leading
 column already serves "skills in this category"; the additional index
 exists only for the ordered read.
 
+## Sections in the admin (Phase 8)
+
+The sections CMS uses the Phase 5 repository **entirely unchanged**:
+`createSectionRepository` already existed, already decoded all nine
+committed columns, already provided `getByKey()`, and was already exposed as
+**`repos.sections`**. No method was added, so the repository-package suites
+were not extended, and **no migration was needed**.
+
+```
+sections
+  id | key NOT NULL UNIQUE | title NOT NULL | subtitle | eyebrow
+  | position NOT NULL DEFAULT 0 CHECK (position >= 0)
+  | is_visible NOT NULL DEFAULT 1 CHECK (is_visible IN (0, 1))
+  | created_at | updated_at
+```
+
+Four schema facts the CMS relies on:
+
+- **`key` is the stable machine identifier the public UI maps to a
+  component**, and it is **immutable after creation**. Three layers already
+  enforced that before the CMS existed — the migration comment,
+  `SectionUpdate` omitting it, and the repository's patch allowlist omitting
+  it with the note *"renaming it silently would break rendering"*. The CMS
+  adds the fourth: `sectionUpdateSchema` has no `key` member and is
+  `.strict()`, so an update carrying it is **rejected**, not discarded.
+- **`key` is `UNIQUE`, and uniqueness stays the database's.** A duplicate on
+  create surfaces as a `ConflictError`; there is no duplicate-on-update path
+  because the column cannot be updated at all. Deleting a section frees its
+  key for reuse, which is asserted.
+- **`subtitle` and `eyebrow` are nullable**; blank editor input normalises
+  to `NULL`, never `''`.
+- **No foreign keys in either direction.** Nothing references `sections` and
+  it references nothing, so a delete removes exactly one row.
+
+`idx_sections_visible_position` on `(is_visible, position)` serves the future
+public read; the admin list deliberately does **not** filter by visibility.
+**No public section rendering exists yet** — the CMS manages the rows, and
+the `key` contract is what will let a future phase map them to components.
+
 ## Social links in the admin (Phase 8)
 
 The socials CMS uses the Phase 5 repository **entirely unchanged**:

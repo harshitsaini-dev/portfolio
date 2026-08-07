@@ -56,8 +56,12 @@ something passed without running it.
   GitHub Actions/Linux** and again by the **post-merge `main` CI run
   `31192174164`**. `main` is clean and synced after the merge. See
   *Phase 8 — Socials CMS* below.
-- **Sections CMS: the next and last Phase 8 entity** — **not started**, and
-  not to be implemented until explicitly scoped and approved.
+- **Sections CMS: implemented, awaiting review.** On
+  `feat/remaining-cms-sections`; not committed, not pushed, and **not
+  complete** — complete only after review, PR CI, merge, the post-merge
+  `main` run, and completion documentation. It is the **last Phase 8
+  entity**, but **Phase 8 does not close until it is formally closed**. See
+  *Phase 8 — Sections CMS* below.
 - **Phase 7:** Complete (merged to `main`, CI green).
 - **Phase 8 is NOT complete.** It is complete only when every entity it
   covers is delivered and verified.
@@ -69,8 +73,96 @@ Phase 22** (fail-closed until then).
 
 ## Active task
 
-**None.** The Socials CMS is merged and closed. Sections is the next and last
-Phase 8 entity, and is not started.
+**Sections CMS.** Implemented; awaiting review.
+
+## Phase 8 — Sections CMS (implemented, awaiting review)
+
+The last Phase 8 entity, and the only one whose primary key-like column is
+**immutable after creation**.
+
+### Persisted schema — read from migration `0001`
+
+```
+sections
+  id TEXT PK
+  | key TEXT NOT NULL UNIQUE      -- "Stable machine key the UI maps to a
+  |                                   component, e.g. 'projects'"
+  | title TEXT NOT NULL
+  | subtitle TEXT | eyebrow TEXT
+  | position INTEGER NOT NULL DEFAULT 0 CHECK (position >= 0)
+  | is_visible INTEGER NOT NULL DEFAULT 1 CHECK (is_visible IN (0,1))
+  | created_at | updated_at
+INDEX idx_sections_visible_position ON (is_visible, position)
+```
+
+**No foreign keys in either direction** — nothing references `sections` and
+it references nothing, so a delete removes exactly one row. There is **no
+route, component, icon, page, slug, anchor, description, layout, variant,
+theme, animation, background, 3D-settings, or media column**, so the CMS
+exposes none. Migration `0001` was **not edited** and **no `0002` created**.
+
+### The machine-key contract — the defining constraint of this slice
+
+`key` is what the public UI maps to a component. Three layers already agreed
+on that before this slice existed, and none of them was changed:
+
+| Layer | How it enforces immutability |
+| --- | --- |
+| Migration | `key TEXT NOT NULL UNIQUE`, with the comment naming its purpose |
+| `SectionUpdate` (`@portfolio/types`) | omits `key` entirely |
+| `createSectionRepository` patch allowlist | omits `key`, commented *"renaming it silently would break rendering"* |
+
+The CMS adds the fourth layer: **`sectionUpdateSchema` has no `key` member
+and is `.strict()`, so an update carrying `key` is rejected**, not
+accepted-and-discarded. That distinction is the whole point — a silently
+dropped field reads to the caller as a rename that succeeded and did
+nothing. Same stance the Skills slice took with `categoryId`.
+
+The edit UI renders the key in a `<dl>` as read-only context with a sentence
+explaining why it cannot change — **not** a disabled or `readonly` input,
+which would still look like a control that could be enabled. The edit
+payload omits `key` entirely.
+
+**Key grammar is reused, not invented.** `docs/DATABASE.md` lists
+`sections.key` under its **Slugs** heading beside `projects`,
+`technologies`, and `skill_categories`, and the migration's own example
+(`projects`) is that exact shape — so it uses the shared `slugSchema` rather
+than a fourth grammar. **No enum**: the schema defines no closed set, so
+restricting the CMS to today's components would invent a constraint the
+database does not have and block adding a section before its component
+ships. Uniqueness stays the database's; a duplicate create surfaces as a
+safe conflict.
+
+### Routes
+
+```
+apps/admin/src/app/(protected)/sections/
+  page.tsx        list — every section, hidden ones badged
+  new/page.tsx    create (key editable, once)
+  [id]/page.tsx   edit (key read-only) + delete
+```
+
+All three go through `withAdminPage`, so the Phase 6 recursive invariant
+discovered them automatically — the foundation suite grew 118 → **125**
+without the invariant being touched. All three use **static** metadata.
+Navigation's last "Phase 8" placeholder became a real link, so every Content
+entry is now live and only Phase 9+ items remain unavailable.
+
+### Repository — unchanged
+
+`createSectionRepository` **already existed**, already decoded all nine
+committed columns, already provided `getByKey()`, and was already exposed as
+**`repos.sections`**. **No repository contract changed and
+`packages/database` was not touched**, so the database subtotal is unchanged
+at **297**. `getByKey()` is exercised by the CMS suite — a section is
+addressable by key, an unknown key returns `null`, and after a delete the
+key stops resolving and becomes claimable again.
+
+### Public rendering is NOT part of this slice
+
+This is the Admin/data CMS only. `apps/web` was not touched: no section is
+rendered publicly and no component mapping was wired. That remains future
+work, and the `key` contract is what makes it possible later.
 
 ## Phase 8 — Socials CMS (COMPLETE)
 
@@ -1185,9 +1277,125 @@ fail-closed behaviour.
 
 ## Next suggested task
 
-**Sections CMS** — the next and **last** Phase 8 entity, **not started**, and
-not to be implemented until explicitly scoped and approved. Rationale is at
-the end of this file.
+Review the Sections CMS, then close it formally (commit → PR CI → merge →
+post-merge `main` run → completion documentation). **Phase 8 becomes
+complete only after that closure**, not on the strength of this branch.
+
+## Phase 8 — Sections CMS: verification actually performed
+
+Locally on Windows. **Not yet CI-verified** — no PR has been opened.
+
+| Command | Result |
+| --- | --- |
+| `pnpm install --frozen-lockfile` | **PASS** — lockfile unmodified |
+| `pnpm lint` | **PASS** (exit 0) |
+| `pnpm typecheck` | **PASS** (exit 0) |
+| `pnpm test` | **PASS** — inner exit `0`, **2488 real checks** |
+| `pnpm build` | **PASS** — inner exit `0`, all three routes dynamic (`ƒ`) |
+
+Exit codes were read from the **commands themselves**, not from a wrapper's
+task status — the Socials slice showed those can disagree.
+
+| Suite | Checks | Change |
+| --- | --- | --- |
+| **Database subtotal** | **297** | **unchanged — no repository change** |
+| Admin authentication | 42 | — |
+| Admin foundation / invariant / containment | **125** | **+7** — three new protected pages, discovered automatically |
+| Admin D1 composition boundary | 34 | — |
+| Projects CMS | 96 | — |
+| Technologies CMS | 90 | — |
+| Profile CMS | 77 | — |
+| Timeline CMS | 173 | — |
+| Education CMS | 112 | — |
+| Certifications CMS | 167 | — |
+| Skills CMS | 233 | — |
+| Tools CMS | 146 | — |
+| Socials CMS | 161 | — |
+| **Sections CMS** | **173** | **new** |
+| **Server Action authorization** | **562** | **+63** — the real exported section actions |
+| **Admin subtotal** | **2191** | — |
+| **Total** | **2488** | up from 2245 |
+
+**All 2245 previous checks still pass**, and none were weakened.
+
+### Real-D1 results
+
+Create and read-back of every column, including `getByKey()` addressing; a
+null round-trip for both nullable columns; a duplicate key refused as a
+`ConflictError` with no row created; update with clearing; visibility
+filtering; deterministic ordering across repeated reads.
+
+**The key-immutability group is the one that matters.** A rename attempt is
+rejected before persistence, the stored key is unchanged, the section is
+still addressable by its original key, and the *new* key was never created.
+A key smuggled beside a legitimate `title` change refuses the **whole
+patch** — the title does not change either — which is the correct behaviour
+for a `.strict()` boundary and worth asserting rather than assuming. After a
+delete, the freed key stops resolving and can be claimed again.
+
+A preservation fixture with deliberately non-default values had **one** field
+changed and everything else survived, including its key and `createdAt`;
+explicit `position: 0` / `isVisible` were honoured; an empty patch was a
+byte-for-byte no-op that did not bump `updated_at`; a bystander was untouched
+throughout. `PRAGMA foreign_key_check` clean, NOT NULL scan zero, duplicate
+key scan zero.
+
+### Browser verification (`playwright-local` MCP, real local D1)
+
+**Manual MCP verification — not automated Playwright CI tests.** Automated
+E2E remains Phase 20.
+
+Nav entry resolves and the empty state renders. An empty submit rejected
+both `key` and `title` with focus on the error summary (`role="alert"`);
+`Not A Valid Key!` was rejected with "Use lowercase letters, numbers, and
+single hyphens" while the valid title beside it was accepted; a duplicate
+key surfaced as "Conflict — That key is already used by another section."
+with **no SQL or constraint text**.
+
+**The immutable key was verified structurally**, not just visually: on the
+edit route there is **no `input`/`textarea`/`select` named `key` anywhere**,
+**no disabled or readonly input at all**, the key renders in a `<dl>` as
+term "Key" / value `projects` with its explanation, and the serialized form
+payload **does not contain a `key` property**. On create it is a normal
+editable field.
+
+Two sections created (positions 0 and 2) showed deterministic ordering and
+the **Hidden** badge; both nullable columns rendered as `—` when empty;
+editing title/eyebrow/subtitle/position/visibility persisted across a full
+reload **with the key unchanged**; clearing both nullables returned them to
+`—`. Two-step delete named **both the title and the key** and explained the
+consequence, moved focus to the confirm button (44px), restored on
+**Cancel**, and removed only its target — the unrelated section survived.
+All six visible controls resolved to a real `<label for>`.
+
+**Zero console errors and zero warnings.**
+
+### Responsive results (populated list, not an empty state)
+
+| Width | Page scrolls sideways | Wrapper | Caption / `sr-only` |
+| --- | --- | --- | --- |
+| 1280px | **no** (1280 / 1280) | no internal scroll needed | present (6 `sr-only`) |
+| 768px | **no** (768 / 768) | no internal scroll needed | present (6 `sr-only`) |
+| 375px | **no** (375 / 375) | **scrolls internally** (704 / 343) | present (6 `sr-only`) |
+
+The wrapper was `position: relative` at every width; row actions 44px. No
+global `overflow-x-hidden`, no `sr-only` removed.
+
+### Confidentiality results
+
+Canaries were seeded in the **editorial content** — title, subtitle, and
+eyebrow — deliberately not the row id or the key, either of which appears
+legitimately in a URL. With Access configured **and `ADMIN_DEV_AUTH=enabled`
+at the same time**, all eight probes (HTML list, `/sections/new`, the direct
+edit route, RSC list, RSC edit, and forged-assertion variants of both HTML
+routes and RSC) returned **307** with **no canary content**.
+
+**Positive control:** the same probe against authorized requests returned
+`200` and found all three canaries on both the list and the edit route.
+
+Local test data was removed **by explicit id** after confirming the table
+held only rows this task created (it was verified empty beforehand); the
+dev-auth file and MCP artifacts were removed too.
 
 ## Phase 8 — Socials CMS: verification actually performed
 
@@ -2010,7 +2218,7 @@ Local test data and the temporary dev-auth file were removed afterwards.
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
 | Phase 6 — Admin foundation | **Complete** (merged to `main`, CI green) |
 | Phase 7 — Projects CMS vertical slice | **Complete** (merged to `main`, CI green) |
-| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, Timeline, Education, Certifications, Skills, Tools, and Socials CMS **complete**, plus the admin list overflow and timeline partial-update regression fixes (all merged, CI green); Sections not started |
+| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, Timeline, Education, Certifications, Skills, Tools, and Socials CMS **complete**, plus the admin list overflow and timeline partial-update regression fixes (all merged, CI green); Sections CMS — the last entity — implemented and awaiting review |
 
 Phases 9–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
@@ -2150,11 +2358,14 @@ than changed here.
 
 ## Phase 8 — known limitations (not blockers)
 
-- **Phase 8 is not complete.** Technologies, Profile, Timeline, Education,
-  Certifications, Skills, Tools, and Socials are eight areas of nine.
-- **The remaining CMS entity is not implemented** — Sections, which is the
-  last one. Phase 8 closes only once it is delivered, reviewed, merged,
-  CI-verified, and formally documented.
+- **Phase 8 is not complete.** All nine areas now have an implementation,
+  but **Sections is not yet reviewed or merged**. Phase 8 closes only once
+  Sections is reviewed, merged, CI-verified, and formally documented — an
+  implemented branch is not a closed phase.
+- **A skill cannot be moved between categories, and a section key cannot be
+  renamed.** Both are deliberate contracts enforced at the schema, type, and
+  repository layers, and both reject the attempted mutation rather than
+  silently discarding it.
 - **A skill cannot be moved between categories in the CMS.** The repository
   patch allowlist and `SkillUpdate` have excluded `categoryId` since Phase 5,
   because a move must also resolve position and the
@@ -3933,16 +4144,18 @@ with no persisted enum, so the CMS renders a plain text input rather than
 inventing a vocabulary. `createSocialLinkRepository` was used unchanged and
 no migration was needed.
 
-**Phase 8, next and last entity: Sections.** `sections` is a flat ordered
-table — `id | key (UNIQUE) | title | subtitle | eyebrow | position |
-is_visible | created_at | updated_at` — and `createSectionRepository`
-already exists, with one method the ordered base does not provide:
-`getByKey()`. One thing genuinely differs from every entity so far: **`key`
-is the stable machine identifier the UI maps to a component**, and the Phase
-5 repository deliberately **excludes it from the patch allowlist** so a
-rename cannot silently break rendering. So the CMS should let `key` be set
-on create and then treat it as immutable — the same "reject rather than
-silently ignore" stance the Skills slice took with `categoryId`. `subtitle`
-and `eyebrow` are nullable; it needs no migration.
+**Done, awaiting review: Sections CMS.** The prediction held exactly: `key`
+is the stable machine identifier, the Phase 5 repository already excluded it
+from the patch allowlist, and the CMS added the matching schema-level
+refusal so a rename is **rejected** rather than silently ignored.
+`createSectionRepository` and `getByKey()` were used unchanged, and no
+migration was needed.
 
-It is not to be implemented until explicitly scoped and approved.
+**Immediate next task: close Sections formally.** Review it, commit, open the
+PR, let CI pass, merge, confirm the post-merge `main` run, then do the
+documentation-only completion pass. **Phase 8 becomes COMPLETE at that
+point, and not before** — every one of its nine areas will then be delivered
+and verified.
+
+**After that, Phase 9 — R2/media.** Not started, and out of scope until
+Phase 8 is formally closed.

@@ -1,6 +1,70 @@
 
 # Changelog
 
+## 2026-08-07 — Phase 8: Sections CMS (branch `feat/remaining-cms-sections`)
+
+**Status: implemented, awaiting review. Not committed. Phase 8 remains IN
+PROGRESS** — Sections is the **last** of the nine Phase 8 areas, but Phase 8
+closes only after this is reviewed, merged, CI-verified, and formally
+documented. An implemented branch is not a closed phase.
+
+### Added
+
+- **Sections CMS** — `/sections`, `/sections/new`, and `/sections/[id]`, all
+  exported through `withAdminPage` with static metadata, over **only** the
+  columns committed in migration `0001` (`key`, `title`, `subtitle`,
+  `eyebrow`, `position`, `is_visible`). No field was invented and **no
+  migration was added**.
+- `packages/schemas/src/sections.ts` — strict create/update shapes written
+  out separately. `key` appears in create **only**; the update shape has no
+  `key` member and is `.strict()`, so an update carrying it is **rejected**.
+- `apps/admin/src/lib/actions/sections.ts` — three Server Actions in the
+  mandatory `requireAdminIdentity()` → Zod → repository order.
+- `apps/admin/scripts/sections-tests.mjs` — **173 checks**, including a
+  dedicated key-immutability group at both the schema and D1 layers.
+- A **Sections** navigation entry, replacing the last "Phase 8" placeholder.
+
+### Changed
+
+- `apps/admin/scripts/action-auth-tests.mjs` — 499 → **562 checks**, adding
+  the real exported section actions: unauthenticated create/update/delete
+  denied with the row byte-for-byte unchanged, an unauthenticated *partial*
+  update denied, a forged Access assertion denied without development auth
+  rescuing it, and authenticated positive controls including a duplicate-key
+  conflict and an attempted key rename proven rejected with the persisted
+  key unchanged.
+- The admin foundation suite grew 118 → **125 by itself** — its recursive
+  invariant discovered the three new routes without being edited.
+
+### Not changed
+
+`migrations/0001_initial_schema.sql` (**no migration `0002`**),
+`packages/database` (`createSectionRepository` already existed with
+`getByKey()` and its contract did not change, so the database subtotal stays
+**297**), the shared URL and slug helpers, projects, technologies, timeline,
+education, certifications, skills, tools, socials, `apps/web`, CI, and
+Cloudflare resources. **No public section rendering was implemented** — this
+is the Admin/data slice only.
+
+### Verification
+
+`pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`,
+`pnpm test` (**2488 checks**, up from 2245 with all 2245 preserved), and
+`pnpm build` all **PASS**, with exit codes read from the commands themselves
+rather than a wrapper's task status. **Not yet CI-verified.**
+Browser-checked by **manual Playwright MCP verification** — not automated
+E2E, which is Phase 20 — against real local D1: required key and title
+validation with error-summary focus, key-grammar rejection, a duplicate-key
+conflict with no SQL leaked, ordering, Hidden badge, nullable clearing, edit
+with reload-confirmed persistence and the key unchanged, two-step delete
+naming both title and key, and populated containment at 1280/768/375. The
+immutable key was verified structurally: **no key input exists on the edit
+route, no disabled or readonly input exists at all, and the form payload
+omits `key`**. Confidentiality was probed with canaries in title, subtitle
+and eyebrow — never the id or key — across HTML, RSC, direct-edit and
+forged-Access requests, all denied, with a positive control proving probe
+sensitivity. Zero console errors.
+
 ## 2026-08-07 — Phase 8: Socials CMS
 
 **Status: merged.** Merged into `main` as `1d26dbd feat: add socials CMS` via

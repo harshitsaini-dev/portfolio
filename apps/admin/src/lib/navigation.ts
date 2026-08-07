@@ -57,7 +57,10 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
       // `social_links` is its own flat table with no relationship to any
       // other entity, so it gets its own entry like the rest.
       { label: "Social links", href: "/socials" },
-      { label: "Sections", availableIn: "Phase 8" },
+      // `sections` controls the public page's ordering, headings, and
+      // visibility. Each row carries a stable `key` the site maps to a
+      // component; the CMS manages the rows, not the components.
+      { label: "Sections", href: "/sections" },
     ],
   },
   {
