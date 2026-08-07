@@ -1,32 +1,40 @@
 # Testing
 
-## Current state (Phase 8 — Education CMS and the timeline partial-update fix complete)
+## Current state (Phase 8 — Certifications CMS implemented, awaiting review)
 
-`pnpm test` runs **fourteen real suites and one no-op** — **1228 checks**,
-all passing on Windows and on GitHub Actions/Linux (PR #24 and its
-post-merge `main` run `31155349531`). The 1140 verified after the Education
-CMS are all still among them and none were weakened. What each one actually
-proves matters, so be precise:
+`pnpm test` runs **fifteen real suites and one no-op** — **1460 checks**.
+The 1228 verified after the timeline partial-update fix all still pass on
+Windows and on GitHub Actions/Linux (PR #24 and its post-merge `main` run
+`31155349531`); the Certifications CMS added the rest and **is not yet
+CI-verified**. What each one actually proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
 | Admin authentication | **42** | real `jose` verification, locally minted tokens | The Access JWT boundary and the development-auth guard |
-| Admin foundation | **83** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, the protected-page invariant, and horizontal scroll containment |
+| Admin foundation | **90** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, the protected-page invariant, and horizontal scroll containment |
 | **D1 composition boundary** | **34** | the real `binding.ts`, the **working tree**, plus `tsc` over Wrangler-generated Cloudflare types | Production fails closed, the provider seam composes, and Phase 22's provider already type-checks |
 | **Projects CMS** | **96** | the real schemas, and **real local D1** via `getPlatformProxy()` | The validation boundary and the full CRUD + relationship path |
 | **Technologies CMS** | **90** | the real schemas, and **real local D1** | The validation boundary, CRUD, the page-level usage composition, and `ON DELETE RESTRICT` |
 | **Profile CMS** | **77** | the real schema, and **real local D1** | The validation boundary and the singleton create-then-update lifecycle |
 | **Timeline CMS** | **173** | the real schemas, and **real local D1** | The validation boundary, partial-patch safety, and the parent/child aggregate lifecycle |
 | **Education CMS** | **112** | the real schemas, and **real local D1** | The validation boundary, partial-patch safety, and the ordered CRUD lifecycle |
-| **Server Action authorization** | **234** | the **real exported action functions** for all five entities, against real local D1 | Unauthenticated mutations are denied and change nothing; partial updates preserve what they omit |
+| **Certifications CMS** | **167** | the real schemas, and **real local D1** | The validation boundary, the shared URL policy, partial-patch safety, and the ordered CRUD lifecycle |
+| **Server Action authorization** | **292** | the **real exported action functions** for all six entities, against real local D1 | Unauthenticated mutations are denied and change nothing; partial updates preserve what they omit; unsafe URLs never reach a row |
 
-Subtotals: **admin 941** (42 + 83 + 34 + 96 + 90 + 77 + 173 + 112 + 234)
-and **database 287** (26 + 59 + 157 + 41 + 4, detailed below) —
-**1228 total**.
+Subtotals: **admin 1173** (42 + 90 + 34 + 96 + 90 + 77 + 173 + 112 + 167 +
+292) and **database 287** (26 + 59 + 157 + 41 + 4, detailed below) —
+**1460 total**.
 
-The database subtotal is **unchanged** by the Education CMS: education
-already used `createOrderedRepository` with everything the CMS needed, so
-no repository contract changed and no repository-package tests were added.
+The database subtotal is **unchanged** by the Education and Certifications
+CMS slices: both already used `createOrderedRepository` with everything the
+CMS needed, so no repository contract changed and no repository-package
+tests were added.
+
+The admin foundation suite grew 83 → **90 on its own** when the three
+certification routes appeared. It walks the working tree for
+`(protected)/**/page.tsx` and asserts two things per page plus scroll
+containment per list page, so a new route is covered the moment it exists —
+the invariant was not edited, and adding routes cannot quietly skip it.
 
 The database subtotal moves only when a **repository contract** changes.
 Profile added none, because the Phase 5 singleton contract already
@@ -247,6 +255,49 @@ always did. It is:
 
 That last one is the important shape: assert the **state after the write**,
 not merely that the mutation returned without error.
+
+## Certifications CMS tests (Phase 8)
+
+`apps/admin/scripts/certifications-tests.mjs` — **167 checks**, and **none**
+in the repository package: `createCertificationRepository` already existed
+and its contract did not change.
+
+**Validation.** Accepted input with trimming and blank → `null` for all four
+optionals; 20 rejection cases (empty/over-long required fields, malformed
+dates, an expiry before the issue date, negative/fractional/absurd/
+non-numeric positions, non-object payloads); `.strict()` rejection of `id`,
+`createdAt`, `updatedAt`, and unknown fields on both shapes; and proof the
+date-order error is keyed to `expiresOn`, the field the user can actually
+fix.
+
+**The URL policy gets its own group**, because it is a security control
+rather than a formatting rule. Four accepted shapes (https, http, query
+string, explicit port) and **twelve rejected** ones — `javascript:`,
+`JavaScript:` (case), `data:`, `file:`, `mailto:`, `ftp:`,
+protocol-relative, bare hostname, relative path, non-URL text, over-long,
+and non-string. The update schema is proven to apply the same policy, and
+clearing the URL is proven to yield `null` rather than `""`.
+
+**Partial updates stay partial** — the timeline regression, asserted before
+it can recur: a single-field patch carries exactly one key, seven named
+fields are proven absent rather than defaulted, an empty patch produces zero
+keys, and explicit `position: 0` / `isVisible: false` are proven *present*
+with their falsy values. The create schema is separately proven to still
+apply its defaults, so the two shapes cannot be conflated.
+
+**Lifecycle against real local D1.** Create and read-back of every column;
+a null round-trip proving all four optionals come back as `null` rather than
+`""`; update with clearing; visibility filtering (`list()` shows a hidden
+row, `list({visibleOnly: true})` does not); a preservation fixture built
+with deliberately non-default values where **one** field is changed and
+everything else — including `credentialUrl`, both dates, position 6, and
+`isVisible: false` — is proven to survive; an empty patch proven to be a
+byte-for-byte no-op that does not bump `updated_at`; a bystander row proven
+untouched throughout; deterministic ordering across repeated reads;
+`NotFoundError` on a missing update against `null` on a missing read; an
+invalid payload and a `javascript:` URL both proven rejected **before** the
+database with the stored row unchanged; delete removing only its target; and
+`PRAGMA foreign_key_check`.
 
 ## Timeline CMS tests (Phase 8)
 

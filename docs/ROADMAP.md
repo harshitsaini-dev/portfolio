@@ -187,10 +187,21 @@ coverage grew to **1228 real checks**. Merged to `main` as `c345131` with
 CI green on Linux. Timeline CMS remained **complete** throughout; this was
 a post-merge repair, not outstanding feature work.
 
-**Immediate next entity: Certifications.** Not started. The remaining
-entities — Skills, Tools, Socials, Sections — are also not started. The
-remote database schema remains **intentionally unapplied**, and **Cloudflare
-Access dashboard configuration is still pending**.
+**Certifications CMS: implemented, awaiting review.** The sixth entity, and
+the second to need no new architecture: three `withAdminPage` routes over
+only the committed columns, `createOrderedRepository` **unchanged**, and no
+migration — so `packages/database` was untouched and the database subtotal
+held at 287. Its one new problem was `credential_url`, the first URL column
+outside projects, resolved by moving the existing http(s) protocol
+allowlist into a shared internal module so both entities refine against one
+predicate rather than two copies of a security control. Test coverage grew
+to **1460 real checks**. **Not merged and not CI-verified yet.**
+
+**Next area after that: Skills & tools.** Not started, and the first Phase 8
+entity with a parent category table (`skill_categories`), so it introduces a
+foreign key the editor must choose. Socials and Sections are also not
+started. The remote database schema remains **intentionally unapplied**, and
+**Cloudflare Access dashboard configuration is still pending**.
 
 ## Phase 9 — R2/media
 

@@ -1,6 +1,72 @@
 
 # Changelog
 
+## 2026-08-07 — Phase 8: Certifications CMS (branch `feat/remaining-cms-certifications`)
+
+**Status: implemented, awaiting review. Not committed. Phase 8 remains IN
+PROGRESS** — Certifications is the sixth entity of several, and is complete
+only after review, PR CI, merge, the post-merge `main` run, and completion
+documentation.
+
+### Added
+
+- **Certifications CMS** — `/certifications`, `/certifications/new`, and
+  `/certifications/[id]`, all exported through `withAdminPage` with static
+  metadata, over **only** the columns committed in migration `0001`
+  (`title`, `issuer`, `credential_id`, `credential_url`, `issued_on`,
+  `expires_on`, `position`, `is_visible`). No field was invented.
+- `packages/schemas/src/certifications.ts` — strict create/update shapes,
+  written out separately from the start so the update shape inherits no
+  defaults.
+- `apps/admin/src/lib/actions/certifications.ts` — three Server Actions in
+  the mandatory `requireAdminIdentity()` → Zod → repository order.
+- `apps/admin/scripts/certifications-tests.mjs` — **167 checks**.
+- A **Certifications** entry in the admin navigation.
+
+### Changed
+
+- `packages/schemas/src/internal/url.ts` (new) now holds the project's
+  single http(s) protocol allowlist, and **`packages/schemas/src/projects.ts`
+  imports it instead of declaring its own copy**. This is an extraction, not
+  a new policy: the rule is byte-for-byte the same one projects established
+  in Phase 7, and the Projects CMS suite's 96 checks are unchanged and still
+  pass. It was done because certifications' `credential_url` is the second
+  URL column in the schema, and a duplicated security control is a control
+  that can drift. Rationale in `DECISIONS.md`.
+- `apps/admin/scripts/action-auth-tests.mjs` — 234 → **292 checks**, adding
+  the real exported certification actions: unauthenticated create/update/
+  delete denied with the row byte-for-byte unchanged, an unauthenticated
+  *partial* update denied, a forged Access assertion denied without
+  development auth rescuing it, and authenticated positive controls
+  including an unsafe URL proven never to reach the row.
+- The admin foundation suite grew 83 → **90 by itself** — its recursive
+  invariant discovered the three new routes without being edited.
+
+### Not changed
+
+`migrations/0001_initial_schema.sql` (the committed schema already supported
+the entity, so **no migration `0002` was created**), `packages/database`
+(`createCertificationRepository` already existed and its contract did not
+change, so the database subtotal stays **287**), education, timeline,
+`apps/web`, CI, and Cloudflare resources. Calendar-semantic date validation
+remains a separate known hardening item — now spanning four entities — and
+was deliberately left alone.
+
+### Verification
+
+`pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`,
+`pnpm test` (**1460 checks**, up from 1228 with all 1228 preserved), and
+`pnpm build` all **PASS** locally. **Not yet CI-verified.**
+Browser-checked by **manual Playwright MCP verification** — not automated
+E2E, which is Phase 20 — against real local D1: create, ordering, Hidden
+badge, edit with reload-confirmed persistence, server-side rejection of
+`javascript:` and of an inverted date pair, error-summary focus, two-step
+delete with Cancel, and populated-list containment at 1280/768/375 with no
+page-level horizontal scrolling. Confidentiality was probed with a seeded
+canary against unauthenticated HTML, unauthenticated RSC, and forged-Access
+requests — all denied with no content disclosed, and with a positive control
+proving the probe detects the canary when authorized. Zero console errors.
+
 ## 2026-08-07 — Fix: Timeline partial-update defaults
 
 **Status: merged.** Merged into `main` as `c345131 fix: preserve timeline

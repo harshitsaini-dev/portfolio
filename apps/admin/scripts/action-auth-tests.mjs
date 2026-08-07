@@ -924,6 +924,178 @@ try {
   );
 
   // =========================================================================
+  // Certifications (Phase 8) — a flat ordered entity, same boundary, plus
+  // the first entity outside projects storing a URL.
+  // =========================================================================
+  const certificationActions = await import("../src/lib/actions/certifications.ts");
+  check(
+    "the real certification action module exports all three mutations",
+    typeof certificationActions.createCertificationAction === "function" &&
+      typeof certificationActions.updateCertificationAction === "function" &&
+      typeof certificationActions.deleteCertificationAction === "function",
+  );
+
+  function certificationPayload(overrides = {}) {
+    return {
+      title: "Guarded Certification",
+      issuer: "Guarded Authority",
+      ...overrides,
+    };
+  }
+
+  const certificationVictim = await repos.certifications.create({
+    title: "Existing Certification",
+    issuer: "Existing Authority",
+    credentialId: "EXIST-1",
+    credentialUrl: "https://example.com/verify/EXIST-1",
+    issuedOn: "2023-05-01",
+    expiresOn: "2026-05-01",
+    position: 4,
+    isVisible: false,
+  });
+  const certificationBefore = await repos.certifications.getById(certificationVictim.id);
+  const certificationCountBefore = (await repos.certifications.list()).length;
+  const consultedBeforeCertifications = providerConsulted;
+
+  startGroup("Unauthenticated certification CREATE cannot insert");
+
+  clearAuthEnvironment();
+
+  const certificationCreate = await invoke(
+    certificationActions.createCertificationAction,
+    payloadForm(certificationPayload()),
+  );
+  equal("the action does not return a result", certificationCreate.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    certificationCreate.error?.name,
+    "AdminUnauthorizedError",
+  );
+  equal(
+    "no certification was inserted",
+    (await repos.certifications.list()).length,
+    certificationCountBefore,
+  );
+
+  startGroup("Certification auth wins before validation and the database");
+
+  const certificationOrder = await invoke(
+    certificationActions.createCertificationAction,
+    payloadForm({ title: "", issuer: "", id: "x", position: -3 }),
+  );
+  equal("an invalid unauthenticated payload still throws", certificationOrder.kind, "threw");
+  equal(
+    "it is an authorization failure, not a validation result",
+    certificationOrder.error?.name,
+    "AdminUnauthorizedError",
+  );
+
+  // A hostile URL is also an authorization failure first: the URL policy is
+  // never even consulted, because there is no identity to run it for.
+  const certificationHostileUrl = await invoke(
+    certificationActions.createCertificationAction,
+    payloadForm(certificationPayload({ credentialUrl: "javascript:alert(1)" })),
+  );
+  equal(
+    "an unsafe URL is rejected as unauthorized, not as validation",
+    certificationHostileUrl.error?.name,
+    "AdminUnauthorizedError",
+  );
+  equal(
+    "the database was never consulted during any denied certification call",
+    providerConsulted,
+    consultedBeforeCertifications,
+  );
+
+  startGroup("Unauthenticated certification UPDATE cannot modify");
+
+  const certificationUpdate = await invoke(
+    certificationActions.updateCertificationAction,
+    payloadForm(
+      { title: "Hijacked", issuer: "Hijacked", position: 0, isVisible: true },
+      certificationVictim.id,
+    ),
+  );
+  equal("the action does not return a result", certificationUpdate.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    certificationUpdate.error?.name,
+    "AdminUnauthorizedError",
+  );
+  const certificationAfterUpdate = await repos.certifications.getById(
+    certificationVictim.id,
+  );
+  equal("title is unchanged", certificationAfterUpdate?.title, certificationBefore?.title);
+  equal(
+    "position is unchanged",
+    certificationAfterUpdate?.position,
+    certificationBefore?.position,
+  );
+  equal(
+    "isVisible is unchanged",
+    certificationAfterUpdate?.isVisible,
+    certificationBefore?.isVisible,
+  );
+  equal(
+    "credentialUrl is unchanged",
+    certificationAfterUpdate?.credentialUrl,
+    certificationBefore?.credentialUrl,
+  );
+  equal(
+    "updatedAt is unchanged",
+    certificationAfterUpdate?.updatedAt,
+    certificationBefore?.updatedAt,
+  );
+  check(
+    "the whole record is logically identical",
+    JSON.stringify(certificationAfterUpdate) === JSON.stringify(certificationBefore),
+  );
+
+  // The partial shape the timeline regression made dangerous: denied, and
+  // still byte-for-byte unchanged.
+  const certificationPartial = await invoke(
+    certificationActions.updateCertificationAction,
+    payloadForm({ title: "Hijacked partially" }, certificationVictim.id),
+  );
+  equal(
+    "an unauthenticated PARTIAL update is denied too",
+    certificationPartial.error?.name,
+    "AdminUnauthorizedError",
+  );
+  check(
+    "and left the record byte-for-byte identical",
+    JSON.stringify(await repos.certifications.getById(certificationVictim.id)) ===
+      JSON.stringify(certificationBefore),
+  );
+
+  startGroup("Unauthenticated certification DELETE cannot remove");
+
+  const certificationDelete = await invoke(
+    certificationActions.deleteCertificationAction,
+    payloadForm({}, certificationVictim.id),
+  );
+  equal("the action does not return a result", certificationDelete.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    certificationDelete.error?.name,
+    "AdminUnauthorizedError",
+  );
+  check(
+    "the certification still exists afterwards",
+    (await repos.certifications.getById(certificationVictim.id)) !== null,
+  );
+  equal(
+    "the certification count is unchanged",
+    (await repos.certifications.list()).length,
+    certificationCountBefore,
+  );
+  equal(
+    "the database was still never consulted for any denied certification call",
+    providerConsulted,
+    consultedBeforeCertifications,
+  );
+
+  // =========================================================================
   startGroup("A forged Access assertion is also rejected");
 
   // With Access configured, a caller supplying a self-signed or junk
@@ -949,6 +1121,29 @@ try {
     "development auth did not rescue it — the denial is a verification failure",
     typeof forged.error?.reason === "string" && forged.error.reason !== "not_configured",
     String(forged.error?.reason),
+  );
+
+  // The same forged assertion against a certification mutation: development
+  // auth is enabled above and must NOT rescue it here either.
+  const forgedCertification = await invoke(
+    certificationActions.updateCertificationAction,
+    payloadForm({ title: "Forged" }, certificationVictim.id),
+  );
+  equal(
+    "a forged-assertion certification update throws",
+    forgedCertification.error?.name,
+    "AdminUnauthorizedError",
+  );
+  check(
+    "development auth did not rescue the certification path either",
+    typeof forgedCertification.error?.reason === "string" &&
+      forgedCertification.error.reason !== "not_configured",
+    String(forgedCertification.error?.reason),
+  );
+  check(
+    "the targeted certification is still byte-for-byte unchanged",
+    JSON.stringify(await repos.certifications.getById(certificationVictim.id)) ===
+      JSON.stringify(certificationBefore),
   );
 
   // And with no assertion at all, while Access is configured.
@@ -1591,6 +1786,205 @@ try {
         return !/SQLITE|constraint|education\.|CHECK/i.test(serialized);
       },
     ),
+  );
+
+  // =========================================================================
+  startGroup("Positive control — certification actions work when authenticated");
+
+  const authedCertificationCreate = await invoke(
+    certificationActions.createCertificationAction,
+    payloadForm(
+      certificationPayload({
+        title: "Authenticated Certification",
+        credentialId: "AUTH-1",
+        credentialUrl: "https://example.com/verify/AUTH-1",
+        issuedOn: "2024-02-01",
+        expiresOn: "2027-02-01",
+        position: 7,
+      }),
+    ),
+  );
+  equal(
+    "an authenticated create redirects on success",
+    authedCertificationCreate.kind,
+    "redirect",
+  );
+  equal(
+    "it redirects to the list",
+    authedCertificationCreate.to,
+    "/certifications?created=1",
+  );
+
+  const createdCertification = (await repos.certifications.list()).find(
+    (row) => row.title === "Authenticated Certification",
+  );
+  check("the certification really was inserted", Boolean(createdCertification));
+  equal("its position persisted", createdCertification?.position, 7);
+  equal(
+    "its credential URL persisted",
+    createdCertification?.credentialUrl,
+    "https://example.com/verify/AUTH-1",
+  );
+
+  // Invalid field → validation, nothing written.
+  const badCertification = await invoke(
+    certificationActions.updateCertificationAction,
+    payloadForm({ title: "" }, createdCertification.id),
+  );
+  equal("a malformed field returns a result", badCertification.kind, "returned");
+  equal("it is reported as validation", badCertification.result?.status, "validation");
+  check(
+    "the error is keyed to the field",
+    Boolean(badCertification.result?.fieldErrors?.title),
+  );
+
+  const badCertPosition = await invoke(
+    certificationActions.updateCertificationAction,
+    payloadForm({ position: -2 }, createdCertification.id),
+  );
+  equal("an invalid position is rejected", badCertPosition.result?.status, "validation");
+
+  const badCertVisibility = await invoke(
+    certificationActions.updateCertificationAction,
+    payloadForm({ isVisible: "sometimes" }, createdCertification.id),
+  );
+  equal("an invalid visibility is rejected", badCertVisibility.result?.status, "validation");
+
+  const badCertDate = await invoke(
+    certificationActions.updateCertificationAction,
+    payloadForm({ issuedOn: "01/03/2024" }, createdCertification.id),
+  );
+  equal("a malformed date is rejected", badCertDate.result?.status, "validation");
+
+  const badCertDateOrder = await invoke(
+    certificationActions.updateCertificationAction,
+    payloadForm(
+      { issuedOn: "2027-01-01", expiresOn: "2024-01-01" },
+      createdCertification.id,
+    ),
+  );
+  equal(
+    "an expiry before the issue date is rejected",
+    badCertDateOrder.result?.status,
+    "validation",
+  );
+
+  // The URL policy, enforced through the REAL exported action.
+  const badCertUrl = await invoke(
+    certificationActions.updateCertificationAction,
+    payloadForm({ credentialUrl: "javascript:alert(1)" }, createdCertification.id),
+  );
+  equal("an unsafe URL is rejected", badCertUrl.result?.status, "validation");
+  check(
+    "the URL error is keyed to credentialUrl",
+    Boolean(badCertUrl.result?.fieldErrors?.credentialUrl),
+  );
+  equal(
+    "no javascript: value reached the row",
+    (await repos.certifications.getById(createdCertification.id))?.credentialUrl,
+    "https://example.com/verify/AUTH-1",
+  );
+
+  const managedCertification = await invoke(
+    certificationActions.updateCertificationAction,
+    payloadForm({ id: "forced", createdAt: "2000-01-01" }, createdCertification.id),
+  );
+  equal(
+    "client-supplied database-managed fields are rejected",
+    managedCertification.result?.status,
+    "validation",
+  );
+
+  equal(
+    "none of the rejected patches touched the row",
+    (await repos.certifications.getById(createdCertification.id))?.position,
+    7,
+  );
+
+  // A partial update must not reset the fields it does not mention.
+  const partialCertification = await invoke(
+    certificationActions.updateCertificationAction,
+    payloadForm({ issuer: "Renamed Authority" }, createdCertification.id),
+  );
+  equal(
+    "an authenticated partial update redirects",
+    partialCertification.kind,
+    "redirect",
+  );
+  const afterCertPartial = await repos.certifications.getById(createdCertification.id);
+  equal("the named field changed", afterCertPartial?.issuer, "Renamed Authority");
+  equal("an unmentioned position was NOT reset to its default", afterCertPartial?.position, 7);
+  equal(
+    "an unmentioned isVisible was NOT reset to its default",
+    afterCertPartial?.isVisible,
+    true,
+  );
+  equal(
+    "an unmentioned credentialUrl was NOT nulled",
+    afterCertPartial?.credentialUrl,
+    "https://example.com/verify/AUTH-1",
+  );
+  equal(
+    "an unmentioned credentialId was NOT nulled",
+    afterCertPartial?.credentialId,
+    "AUTH-1",
+  );
+  equal("an unmentioned issuedOn was NOT nulled", afterCertPartial?.issuedOn, "2024-02-01");
+  equal("an unmentioned expiresOn was NOT nulled", afterCertPartial?.expiresOn, "2027-02-01");
+
+  const missingCertification = await invoke(
+    certificationActions.updateCertificationAction,
+    payloadForm({ title: "Ghost" }, "does-not-exist"),
+  );
+  equal(
+    "updating a missing certification returns not_found",
+    missingCertification.result?.status,
+    "not_found",
+  );
+
+  const authedCertificationDelete = await invoke(
+    certificationActions.deleteCertificationAction,
+    payloadForm({}, createdCertification.id),
+  );
+  equal(
+    "an authenticated delete redirects on success",
+    authedCertificationDelete.kind,
+    "redirect",
+  );
+  equal("it redirects to the list", authedCertificationDelete.to, "/certifications");
+  equal(
+    "the certification really was removed",
+    await repos.certifications.getById(createdCertification.id),
+    null,
+  );
+  check(
+    "the untouched target certification is still there",
+    (await repos.certifications.getById(certificationVictim.id)) !== null,
+  );
+
+  const missingCertDelete = await invoke(
+    certificationActions.deleteCertificationAction,
+    payloadForm({}, createdCertification.id),
+  );
+  equal(
+    "deleting an already-deleted certification returns not_found",
+    missingCertDelete.result?.status,
+    "not_found",
+  );
+
+  check(
+    "no certification result message leaks SQL or constraint text",
+    [
+      badCertification,
+      badCertPosition,
+      badCertDate,
+      badCertUrl,
+      managedCertification,
+      missingCertification,
+    ].every((outcome) => {
+      const serialized = JSON.stringify(outcome.result ?? {});
+      return !/SQLITE|constraint|certifications\.|CHECK/i.test(serialized);
+    }),
   );
 
   // =========================================================================

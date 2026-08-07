@@ -19,14 +19,10 @@ import { z } from "zod";
 
 import { PROJECT_LINK_KINDS, PROJECT_STATUSES } from "@portfolio/types";
 
-/**
- * `URL` is a Web API global — present in Workers, Node 18+, and browsers.
- * Declared minimally rather than pulling in the DOM lib, which would drag
- * hundreds of browser globals into a validation package.
- */
-declare const URL: {
-  new (input: string): { readonly protocol: string };
-};
+// The http(s) allowlist this module established in Phase 7, now shared so
+// certifications' `credential_url` refines against the same predicate rather
+// than a second copy. The rule itself is unchanged — see `internal/url.ts`.
+import { httpUrlSchema } from "./internal/url.ts";
 
 /** Ids are application-generated UUIDv7 strings; accept any non-empty id. */
 const idSchema = z
@@ -34,31 +30,6 @@ const idSchema = z
   .trim()
   .min(1, "Required")
   .max(64, "Too long");
-
-/**
- * URL policy: http(s) only.
- *
- * `z.url()` alone would accept `javascript:alert(1)` and `data:` URLs,
- * which become stored XSS the moment a link is rendered with `href`. The
- * protocol allowlist is the control that matters here; the admin and public
- * UIs additionally render external links with `rel="noopener noreferrer"`.
- */
-const httpUrlSchema = z
-  .string()
-  .trim()
-  .min(1, "Required")
-  .max(2048, "Too long")
-  .refine(
-    (value) => {
-      try {
-        const parsed = new URL(value);
-        return parsed.protocol === "https:" || parsed.protocol === "http:";
-      } catch {
-        return false;
-      }
-    },
-    { message: "Enter a valid http(s) URL" },
-  );
 
 /**
  * Slugs are lowercase, hyphen-separated, and must not start or end with a

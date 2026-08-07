@@ -238,8 +238,38 @@ The one thing it did change is a shared validation rule:
   `.default()`.** Zod still materialises defaults for absent keys, so the
   patch arrives carrying values the caller never sent, and the repository's
   patch allowlist writes them. Education declares its update shape with
-  plain `.optional()` fields and no defaults. The same defect is latent in
-  the merged timeline module and is queued as its own fix.
+  plain `.optional()` fields and no defaults. The same defect was latent in
+  the merged timeline module and was subsequently fixed in `c345131`.
+
+## Sixth CMS entity: certifications — one shared security control (Phase 8)
+
+Certifications confirmed the ordered pattern a second time — three
+`withAdminPage` routes, static metadata, the same mutation order and
+`ActionResult`, the same field primitives, `createOrderedRepository`
+**unchanged**, and no migration — so the only architectural question it
+raised was about *validation reuse*.
+
+`credential_url` is the second URL column in the schema. The entity modules
+otherwise redeclare their leaf primitives on purpose, because differing
+length limits are a domain decision. A **protocol allowlist is different**:
+it is a security control, and a second copy is a second thing that can
+drift into accepting `javascript:`. So the rule projects established in
+Phase 7 now lives once, in `packages/schemas/src/internal/url.ts`, and both
+modules refine against it:
+
+```
+internal/url.ts        isHttpUrl()  ·  httpUrlSchema  ·  nullableHttpUrlSchema
+   ├── projects.ts     project link url   (required)
+   └── certifications.ts  credentialUrl   (nullable — blank becomes null)
+```
+
+The rule is unchanged; it was moved, not rewritten. The line for future
+entities is: **share what is dangerous when it diverges, keep per-module
+what is merely a preference.**
+
+The allowlist is load-bearing rather than theoretical here, because the
+certifications list renders the stored URL as a real anchor (with
+`rel="noopener noreferrer"`) — the exact sink the control exists for.
 
 ## Fourth CMS entity: timeline — the parent/child aggregate (Phase 8)
 

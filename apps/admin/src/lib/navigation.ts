@@ -45,6 +45,7 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
       // `timeline_entries` table; the route keeps the table's name.
       { label: "Experience", href: "/timeline" },
       { label: "Education", href: "/education" },
+      { label: "Certifications", href: "/certifications" },
       { label: "Skills & tools", availableIn: "Phase 8" },
       { label: "Sections", availableIn: "Phase 8" },
     ],

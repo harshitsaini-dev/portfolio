@@ -3,6 +3,45 @@
 Notes on things learned while building this project that are worth
 remembering for future work.
 
+## Phase 8 — Certifications CMS
+
+### "Don't duplicate" and "don't touch that file" can genuinely conflict
+
+The brief said to reuse the projects URL rule *and* not to change projects.
+The symbol was not exported, so both could not be literally true. The
+resolution was to ask which instruction protected something real: the
+"don't touch" guard exists to prevent behaviour changes and scope creep, and
+a pure extraction changes neither, whereas copying a protocol allowlist
+creates a second control that can drift into accepting `javascript:`. So the
+rule moved to a shared module, projects' behaviour stayed identical, its 96
+checks acted as the regression proof, and the deviation was reported
+explicitly rather than quietly.
+
+The generalisable line: **share what is dangerous when it diverges, keep
+per-module what is merely a preference.** Length limits are preferences.
+Protocol allowlists are not.
+
+### A canary probe can pass for the wrong reason — and fail for one too
+
+The first confidentiality run reported a leak. It had not leaked: the canary
+token was grepped case-insensitively and matched the *row id in the request
+URL*, which the redirect body echoed. The real content was never disclosed.
+
+Two lessons, and the second is the one that matters more. First, a canary
+token must not overlap anything that legitimately appears in a URL, header,
+or id. Second, the reason the false positive was caught at all is that the
+probe was paired with a **positive control** — the same probe against an
+authorized request, which found all four tokens and returned 200. Without
+that control, "no canary found" is indistinguishable from "the grep was
+broken", and a confidentiality test that can only ever pass is not a test.
+
+### The invariant paid for itself again
+
+Adding three routes moved the foundation suite 83 → 90 with **no test
+edited**. It walks the working tree rather than a hand-maintained list, so
+new routes are covered the moment they exist. Coverage that grows by
+construction is worth more than coverage that grows when someone remembers.
+
 ## Phase 8 — Timeline partial-update fix
 
 ### The same bug twice, because the pattern propagated it

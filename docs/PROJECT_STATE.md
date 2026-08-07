@@ -35,8 +35,11 @@ something passed without running it.
   `main` CI run `31155349531`**. **Timeline CMS itself remained COMPLETE
   throughout**; this was a post-merge repair, not outstanding feature work.
   See *Timeline partial-update regression* below.
-- **Certifications CMS: the immediate next CMS entity** — **not started**,
-  and not to be implemented until explicitly scoped and approved.
+- **Certifications CMS: implemented, awaiting review.** On
+  `feat/remaining-cms-certifications`; not committed, not pushed, and **not
+  complete** — complete only after review, PR CI, merge, the post-merge
+  `main` run, and completion documentation. See *Phase 8 — Certifications
+  CMS* below.
 - **Later Phase 8 entities** — Skills, Tools, Socials, Sections: **not
   started**.
 - **Phase 7:** Complete (merged to `main`, CI green).
@@ -50,8 +53,106 @@ Phase 22** (fail-closed until then).
 
 ## Active task
 
-**None.** The Timeline partial-update regression fix is merged and closed.
-Certifications CMS is the next entity and is not started.
+**Certifications CMS.** Implemented; awaiting review.
+
+## Phase 8 — Certifications CMS (implemented, awaiting review)
+
+### Persisted schema — read from migration `0001`, not invented
+
+```
+certifications
+  id TEXT PK | title NOT NULL | issuer NOT NULL | credential_id
+  | credential_url | issued_on | expires_on
+  | position NOT NULL DEFAULT 0 CHECK (position >= 0)
+  | is_visible NOT NULL DEFAULT 1 CHECK (is_visible IN (0,1))
+  | created_at | updated_at
+
+INDEX idx_certifications_visible_position ON (is_visible, position)
+```
+
+There is **no issuer logo, media, category, or relationship column**, so the
+CMS exposes none. `migrations/0001_initial_schema.sql` was **not edited** and
+**no migration `0002` was needed** — the committed schema already supported
+the entity completely.
+
+Nothing in the schema references `certifications`, so a delete removes
+exactly one row and cascades to nothing.
+
+### Routes
+
+```
+apps/admin/src/app/(protected)/certifications/
+  page.tsx            list — every certification, hidden ones badged
+  new/page.tsx        create
+  [id]/page.tsx       edit + delete
+```
+
+All three go through `withAdminPage`, so the Phase 6 recursive invariant
+discovered them automatically — the foundation suite grew 83 → **90** without
+the invariant being touched or special-cased. All three use **static**
+metadata; none reads certification data during metadata evaluation.
+
+### Repository — unchanged
+
+`createCertificationRepository` **already existed** in
+`packages/database/src/repositories/content.ts`, already decoded every
+committed column, and was already wired into `createRepositories()` as
+`repos.certifications`. **No repository contract changed and
+`packages/database` was not touched**, so the database subtotal is unchanged
+at **287** and no repository-package tests were added.
+
+### Validation — and the one shared control
+
+`@portfolio/schemas` gained `certifications.ts`. `.strict()` on both shapes,
+so `id`, `createdAt`, `updatedAt`, and unknown fields are rejected. Dates are
+`YYYY-MM-DD` with a cross-field rule that `expiresOn` must not precede
+`issuedOn`; `position` is a non-negative integer; `isVisible` is a strict
+boolean.
+
+**Create and update are written out separately from the start.** This is the
+first entity authored after the timeline partial-update regression, so it
+never had a `.partial()` phase: create applies defaults, update declares
+plain `.optional()` fields with none. Asserted directly — a single-field
+patch parses to exactly one key, each unmentioned field is proven absent
+rather than defaulted, and explicit `position: 0` / `isVisible: false`
+survive as real values.
+
+**The URL rule is shared, not copied.** `credential_url` is the second URL
+column in the schema. The http(s) protocol allowlist projects established in
+Phase 7 was moved to `packages/schemas/src/internal/url.ts`, and both
+modules now refine against the same predicate. **This is the single
+deliberate edit to the projects module in this task** — an extraction with
+no behavioural change, made because "reuse the established URL rule" cannot
+be satisfied by writing a second copy of it. Projects' 96 existing checks
+are the regression proof and all still pass. Rationale in `DECISIONS.md`.
+
+Blank optional input normalises to `null` consistently, including the URL.
+
+### Server mutations
+
+Three actions — create, update, delete — each following
+`requireAdminIdentity()` → Zod → repository → typed `ActionResult` /
+`redirect()`, reusing the existing result model verbatim. Certifications own
+no child table and nothing references them, so there is no aggregate write.
+
+### Ordering and visibility
+
+Ordering uses the persisted `position` column via the existing ordered
+repository — an explicit validated numeric field. **No drag-and-drop.**
+
+`is_visible` is an explicit labelled checkbox. Hidden certifications stay
+listed in the admin with a **Hidden** badge rather than being filtered out;
+`visibleOnly` remains for future public reads. **No public rendering was
+added** — `apps/web` is untouched, matching every sibling entity.
+
+### The credential link
+
+The list renders `credential_url` as a real anchor with `target="_blank"`
+and `rel="noopener noreferrer"`, falling back to the credential ID and then
+to `—`. That anchor is precisely the sink the protocol allowlist protects,
+which is why the rejection of `javascript:`, `data:`, `file:`, `mailto:`,
+`ftp:`, protocol-relative, and bare-hostname values is asserted at both the
+schema and real-action layers.
 
 ## Timeline partial-update regression — COMPLETE (merged)
 
@@ -806,9 +907,110 @@ fail-closed behaviour.
 
 ## Next suggested task
 
-**Certifications CMS** — the next Phase 8 entity, **not started**, and not
-to be implemented until explicitly scoped and approved. Rationale is at the
-end of this file.
+Review the Certifications CMS. After it merges and is formally closed,
+**Skills & tools** is the next Phase 8 area — **not started**, and not to be
+implemented until explicitly scoped and approved. Rationale is at the end of
+this file.
+
+## Phase 8 — Certifications CMS: verification actually performed
+
+Locally on Windows. **Not yet CI-verified** — no PR has been opened.
+
+| Command | Result |
+| --- | --- |
+| `pnpm install --frozen-lockfile` | **PASS** — lockfile unmodified |
+| `pnpm lint` | **PASS** (exit 0) |
+| `pnpm typecheck` | **PASS** (exit 0) |
+| `pnpm test` | **PASS** — **1460 real checks** |
+| `pnpm build` | **PASS** — all three routes emitted as dynamic (`ƒ`) |
+
+| Suite | Checks | Change |
+| --- | --- | --- |
+| **Database subtotal** | **287** | **unchanged — no repository change** |
+| Admin authentication | 42 | — |
+| Admin foundation / invariant / containment | **90** | **+7** — three new protected pages, discovered automatically |
+| Admin D1 composition boundary | 34 | — |
+| Projects CMS | 96 | — (unchanged by the URL extraction) |
+| Technologies CMS | 90 | — |
+| Profile CMS | 77 | — |
+| Timeline CMS | 173 | — |
+| Education CMS | 112 | — |
+| **Certifications CMS** | **167** | **new** |
+| **Server Action authorization** | **292** | **+58** — the real exported certification actions |
+| **Admin subtotal** | **1173** | — |
+| **Total** | **1460** | up from 1228 |
+
+**All 1228 previous checks still pass**, and none were weakened. The
+foundation suite's +7 came from the invariant discovering the new routes on
+its own — six protected-page assertions and one scroll-containment
+assertion — with no change to the invariant itself.
+
+### Browser verification (`playwright-local` MCP, real local D1)
+
+**Manual MCP verification — not automated Playwright CI tests.** Automated
+E2E remains Phase 20. Run against real local D1 with development auth.
+
+Empty state, nav entry, and both create flows verified; a second
+certification created hidden at position 2 to exercise ordering and the
+badge. Server-side validation confirmed **through the real form**: a fully
+empty submit returned field errors on `title` and `issuer` with focus moved
+to the error summary (`role="alert"`), `javascript:alert(1)` was rejected
+with "Enter a valid http(s) URL" keyed to `credentialUrl`, and an expiry
+before the issue date was rejected keyed to `expiresOn`.
+
+The list showed both rows in position order (0, 2) with the **Hidden** badge
+on the hidden one, the credential rendered as an anchor carrying
+`rel="noopener noreferrer"`, and `—` for null dates. Editing pre-filled
+correctly including `isVisible: false` and empty nulls; after saving, a full
+page reload confirmed the change persisted and the badge cleared. Two-step
+delete named the certification, moved focus to the confirm button, restored
+cleanly on **Cancel**, and on confirm removed only the target — the
+unrelated certification survived. Row action links measured 44px and are
+keyboard focusable.
+
+**Zero console errors and zero warnings** across the entire session.
+
+### Responsive results (populated list, not an empty state)
+
+| Width | Page scrolls sideways | Wrapper | Caption / `sr-only` |
+| --- | --- | --- | --- |
+| 1280px | **no** (1280 / 1280) | no internal scroll needed | present (8 `sr-only`) |
+| 768px | **no** (768 / 768) | no internal scroll needed | present (8 `sr-only`) |
+| 375px | **no** (375 / 375) | **scrolls internally** (704 / 343) | present (8 `sr-only`) |
+
+The form at 375px also produced no document-level horizontal overflow, all
+eight visible controls resolved to a real `<label for>`, and the submit
+button measured 44px. No global `overflow-x-hidden` was used and no
+`sr-only` content was removed.
+
+### Confidentiality results
+
+With Access configured **and `ADMIN_DEV_AUTH=enabled` at the same time** —
+so development auth would rescue the request if the precedence were wrong —
+a canary certification was seeded and probed:
+
+| Request | Status | Canary content |
+| --- | --- | --- |
+| Unauthenticated HTML list | 307 → `/denied` | **not present** |
+| Unauthenticated HTML edit | 307 → `/denied` | **not present** |
+| Unauthenticated RSC list | 307 | **not present** (0 bytes) |
+| Unauthenticated RSC edit | 307 | **not present** (0 bytes) |
+| Forged `Cf-Access-Jwt-Assertion` (HTML) | 307 → `/denied` | **not present** |
+| Forged `Cf-Access-Jwt-Assertion` (RSC) | 307 | **not present** |
+
+**Positive control:** the same probe against an authorized request returned
+`200` and found all four canary tokens, and the canary row was confirmed
+present in D1 — so "no leak" is a real result rather than a probe that
+matches nothing.
+
+One methodological note worth recording: the first probe run reported a
+false positive because the canary token was grepped case-insensitively and
+matched the *row id in the request URL* echoed by the redirect body, not any
+disclosed content. The probe was corrected to match only content tokens
+(never the id) before the result above was accepted.
+
+Local test data, the temporary dev-auth file, and MCP artifacts were removed
+afterwards.
 
 ## Timeline partial-update fix: verification actually performed
 
@@ -1185,7 +1387,7 @@ Local test data and the temporary dev-auth file were removed afterwards.
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
 | Phase 6 — Admin foundation | **Complete** (merged to `main`, CI green) |
 | Phase 7 — Projects CMS vertical slice | **Complete** (merged to `main`, CI green) |
-| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, Timeline, and Education CMS **complete**, plus the admin list overflow and timeline partial-update regression fixes (all merged, CI green); Certifications and later entities not started |
+| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, Timeline, and Education CMS **complete**, plus the admin list overflow and timeline partial-update regression fixes (all merged, CI green); Certifications CMS implemented and awaiting review; Skills, Tools, Socials, and Sections not started |
 
 Phases 9–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
@@ -1325,20 +1527,21 @@ than changed here.
 
 ## Phase 8 — known limitations (not blockers)
 
-- **Phase 8 is not complete.** Technologies, Profile, Timeline, and
-  Education are four entities of several.
-- **The remaining CMS entities are not implemented** — Certifications,
-  Skills, Tools, Socials, Sections.
+- **Phase 8 is not complete.** Technologies, Profile, Timeline, Education,
+  and Certifications are five entities of several, and Certifications is not
+  yet reviewed or merged.
+- **The remaining CMS entities are not implemented** — Skills, Tools,
+  Socials, Sections.
 - ~~A post-merge regression is outstanding in the timeline update
   schema.~~ **Fixed and merged** as `c345131` — see *Timeline partial-update
   regression* near the top of this file. **Timeline CMS remained COMPLETE
   throughout**; this was a post-merge repair, not incomplete work, and it
   was **not an Education defect** — Education surfaced it and shipped the
   correct pattern first.
-- **Date validation is shape-only across projects, timeline, and
-  education.** `2024-13-99` matches `YYYY-MM-DD` and is accepted; a real
-  calendar parser would reject it. Documented and asserted rather than
-  assumed. Any tightening should be applied to all three consistently.
+- **Date validation is shape-only across projects, timeline, education, and
+  now certifications.** `2024-13-99` matches `YYYY-MM-DD` and is accepted; a
+  real calendar parser would reject it. Documented and asserted rather than
+  assumed. Any tightening should be applied to all four consistently.
   **The timeline partial-update fix did not change this**, and a one-sided
   timeline date patch is still **not** compared against an omitted persisted
   counterpart — a pure parser has no access to stored state. Both remain a
@@ -3074,14 +3277,22 @@ defaults, and the action distinguishes omitted highlights from an explicit
 empty list. Details in *Timeline partial-update regression* near the top of
 this file.
 
-**Phase 8, next entity: Certifications.** It is the closest sibling of
-education — another flat, ordered, visibility-toggleable table on the same
-`createOrderedRepository` plumbing, with no child rows — so the Education
-slice should transfer almost verbatim. Its one new wrinkle is
-`credential_url`, the first URL column in an ordered entity, which should
-reuse the http/https protocol allowlist the projects module already
-established rather than inventing a second URL rule. It should also declare
-its update schema explicitly from the outset, per the rule the timeline fix
-confirmed.
+**Done, awaiting review: Certifications CMS.** It transferred the education
+slice almost verbatim, with `createOrderedRepository` and the committed
+migration both unchanged. Its one new wrinkle — `credential_url`, the first
+URL column outside projects — was resolved by *sharing* the existing
+http(s) allowlist rather than copying it.
+
+**Phase 8, next area: Skills & tools.** It is the last structural shape in
+Phase 8 that the ordered pattern has not yet met: `skills` is the first
+entity with a **parent category table** (`skill_categories`), so unlike
+every entity so far it involves a foreign key the editor must choose. That
+raises two questions worth settling before writing code — whether categories
+get their own CMS surface or are managed inline, and what happens on delete
+of a category that still has skills (the technologies slice already
+established `ON DELETE RESTRICT` surfacing as a `ConflictError` with an
+explanatory UI, which is the precedent to follow). `tools` is a flat ordered
+entity with a nullable `url` and should reuse `nullableHttpUrlSchema`
+directly.
 
 It is not to be implemented until explicitly scoped and approved.
