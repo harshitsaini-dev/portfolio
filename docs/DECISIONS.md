@@ -3,6 +3,83 @@
 Notable architectural/tooling decisions and their rationale. Append new
 entries; do not delete history.
 
+## 2026-08-07 — Phase 8 Skills CMS
+
+### Categories live inside `/skills`, not beside it
+
+A skill cannot exist without a category, so they are one editing surface
+rather than two independent entities that happen to relate. Two sibling
+top-level nav entries would imply otherwise and would leave the editor
+guessing which one to open first. Categories are therefore reached from
+inside the Skills area, navigation gains **one** entry, and the empty state
+routes a first-time editor to create a category before offering a skill form
+that could not succeed.
+
+`tools` keeps its own separate unavailable nav entry rather than being folded
+into a "Skills & tools" label — same reasoning the Technologies slice used:
+one implemented entry under a label covering several tables implies the rest
+of that CMS exists.
+
+Next.js resolves static route segments ahead of dynamic ones, so
+`/skills/new` and `/skills/categories` are unambiguous against `/skills/[id]`.
+
+### `ON DELETE RESTRICT` is surfaced, never worked around
+
+Deleting a category that still holds skills fails at the database. The CMS
+reports that and tells the editor what to change; it does **not** delete the
+child skills to make the parent deletion succeed. Deleting children on a
+user's behalf is exactly the data loss the constraint exists to prevent, and
+a CMS that does it has converted a safety rail into a trap.
+
+The chain matches the Technologies precedent exactly: database integrity is
+real → repository raises a typed `ConflictError` → the action returns a safe
+conflict result → the UI explains what to change. The skill count only
+decides what the UI *says*; the authority is the constraint, enforced even if
+the component were bypassed.
+
+The same constraint rejects a skill created under a nonexistent category,
+which is why the action passes the validated `categoryId` straight through
+rather than checking-then-writing — a read-then-write existence check is a
+race the constraint already wins.
+
+### A skill cannot be moved between categories, and the schema says so loudly
+
+`categoryId` has been absent from the repository's patch allowlist and from
+`SkillUpdate` since Phase 5, because a move must also resolve the skill's
+position in the destination and its `UNIQUE (category_id, name)` collision
+there. That is a distinct operation, not a column write, so the Skills CMS
+preserved the restriction rather than quietly widening the contract.
+
+The update schema is `.strict()` and therefore **rejects** a `categoryId`
+rather than accepting and ignoring it. That distinction matters: an
+accepted-but-discarded field looks to the caller like a move that succeeded
+and did nothing. The edit page shows the owning category as read-only text
+and explains why, instead of rendering a control whose only outcome is a
+rejection.
+
+Supporting moves later is a deliberate repository extension, not a form
+change.
+
+### `getSkillById` was worth adding; nothing else was
+
+The admin edit route addresses a skill by id and has no category in hand. The
+alternative available on the existing interface — `listWithSkills()` then a
+linear scan — reads every category and every skill to return one row. The
+private helper already existed inside the repository, so exposing it was the
+smallest possible change, and it earned canonical tests in
+`packages/database` because a repository contract changed. That is what moved
+the database subtotal off 287 for the first time since Technologies.
+
+### Null proficiency means "not rated", not "lowest"
+
+The column is `CHECK (proficiency IS NULL OR proficiency BETWEEN 1 AND 5)`
+and the schema comment already said null means unrated. The CMS preserves
+that: the picker's default option is "Not rated", the list renders "Not
+rated" rather than `0 / 5`, and an explicit null in an update *clears* the
+rating rather than being treated as an omission. Collapsing unrated into a
+score would fabricate editorial data the database deliberately declined to
+assert.
+
 ## 2026-08-07 — Phase 8 Certifications CMS
 
 ### A security control is shared; an editorial bound is not

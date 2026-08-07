@@ -198,11 +198,24 @@ two copies of a security control; **Projects' behaviour did not change** and
 its tests stayed green. Test coverage grew to **1460 real checks**. Merged
 to `main` as `c1b153d` with CI green on Linux.
 
-**Immediate next area: Skills & tools.** Not started, and the first Phase 8
-entity with a parent category table (`skill_categories`), so it introduces a
-foreign key the editor must choose. Socials and Sections are also not
-started. The remote database schema remains **intentionally unapplied**, and
-**Cloudflare Access dashboard configuration is still pending**.
+**Skills CMS: implemented, awaiting review.** The seventh area, and the first
+with a **parent/child foreign key the editor chooses** — six
+`withAdminPage` routes under one nav entry, with categories nested inside
+`/skills` because a skill cannot exist without one. `ON DELETE RESTRICT` is
+surfaced as an explanatory conflict rather than worked around: **no child
+skill is ever deleted to make a category deletion succeed.** The repository
+gained exactly one method (`getSkillById`), which moved the database subtotal
+287 → **297** — its first change since Technologies. The canonical slug
+grammar was extracted to a shared internal module so skill categories became
+its third consumer rather than its third copy. Test coverage grew to
+**1804 real checks**. **Not merged and not CI-verified yet.**
+
+**Immediate next entity: Tools.** Not started. `tools` is a flat ordered
+table with a nullable `url` that should reuse the shared
+`nullableHttpUrlSchema`, and `createToolRepository` already exists unchanged.
+Socials and Sections are also not started. The remote database schema remains
+**intentionally unapplied**, and **Cloudflare Access dashboard configuration
+is still pending**.
 
 ## Phase 9 — R2/media
 

@@ -3,6 +3,47 @@
 Notes on things learned while building this project that are worth
 remembering for future work.
 
+## Phase 8 — Skills CMS
+
+### A security assertion that fails on legitimate copy is still a bug — in the assertion
+
+The leak check "no result message contains SQL or constraint text" failed on
+the message "This category still contains skills." It matched `skills\.`;
+the copy simply ends a sentence with the word. Nothing leaked.
+
+The tempting fix is to delete the pattern until the suite goes green. That
+converts a security check into decoration. The actual fix was to narrow it to
+what a real leak looks like — a table qualifier is `skills.category_id`, a
+dot followed immediately by an identifier character, which prose never is —
+and then to **prove the narrowed version still fires** with three controls:
+it must reject a genuine `SQLITE_CONSTRAINT` message and a
+`UNIQUE constraint failed` message, and accept the prose.
+
+The rule that generalises: whenever you loosen an assertion to fix a false
+positive, add the negative control in the same edit. Otherwise the next
+person cannot tell a check that passes from a check that cannot fail.
+
+### "Don't cascade" is a product decision the schema already made
+
+`ON DELETE RESTRICT` on `skills.category_id` is not an obstacle to route
+around; it is the schema stating that skills must not be destroyed as a side
+effect of tidying up categories. The CMS's job was to *explain* that, not to
+pre-delete children so the parent delete would succeed.
+
+The tell that you are about to do the wrong thing: writing a loop that
+deletes child rows before a parent delete "for a better UX". If the database
+says no, the interface should say why.
+
+### An accepted-but-ignored field is worse than a rejected one
+
+`categoryId` is not updatable. The lazy option is to let the update schema
+accept it and let the repository's allowlist silently drop it — no error, no
+crash. But the caller then sees a success response for a move that never
+happened, and the bug surfaces later as "the CMS lost my change."
+
+`.strict()` rejecting it is louder and correct. Silence is the expensive
+option when the caller's mental model is wrong.
+
 ## Phase 8 — Certifications CMS
 
 ### "Don't duplicate" and "don't touch that file" can genuinely conflict

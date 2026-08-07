@@ -1,17 +1,17 @@
 # Testing
 
-## Current state (Phase 8 — Certifications CMS complete)
+## Current state (Phase 8 — Skills CMS implemented, awaiting review)
 
-`pnpm test` runs **fifteen real suites and one no-op** — **1460 checks**,
-all passing on Windows and on GitHub Actions/Linux (PR #26 and its
-post-merge `main` run `31161985127`). The 1228 verified after the timeline
-partial-update fix are all still among them and none were weakened. What
-each one actually proves matters, so be precise:
+`pnpm test` runs **sixteen real suites and one no-op** — **1804 checks**.
+The 1460 verified after the Certifications CMS all still pass on Windows and
+on GitHub Actions/Linux (PR #26 and its post-merge `main` run
+`31161985127`); the Skills CMS added the rest and **is not yet CI-verified**.
+What each one actually proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
 | Admin authentication | **42** | real `jose` verification, locally minted tokens | The Access JWT boundary and the development-auth guard |
-| Admin foundation | **90** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, the protected-page invariant, and horizontal scroll containment |
+| Admin foundation | **104** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, the protected-page invariant, and horizontal scroll containment |
 | **D1 composition boundary** | **34** | the real `binding.ts`, the **working tree**, plus `tsc` over Wrangler-generated Cloudflare types | Production fails closed, the provider seam composes, and Phase 22's provider already type-checks |
 | **Projects CMS** | **96** | the real schemas, and **real local D1** via `getPlatformProxy()` | The validation boundary and the full CRUD + relationship path |
 | **Technologies CMS** | **90** | the real schemas, and **real local D1** | The validation boundary, CRUD, the page-level usage composition, and `ON DELETE RESTRICT` |
@@ -19,16 +19,18 @@ each one actually proves matters, so be precise:
 | **Timeline CMS** | **173** | the real schemas, and **real local D1** | The validation boundary, partial-patch safety, and the parent/child aggregate lifecycle |
 | **Education CMS** | **112** | the real schemas, and **real local D1** | The validation boundary, partial-patch safety, and the ordered CRUD lifecycle |
 | **Certifications CMS** | **167** | the real schemas, and **real local D1** | The validation boundary, the shared URL policy, partial-patch safety, and the ordered CRUD lifecycle |
-| **Server Action authorization** | **292** | the **real exported action functions** for all six entities, against real local D1 | Unauthenticated mutations are denied and change nothing; partial updates preserve what they omit; unsafe URLs never reach a row |
+| **Skills CMS** | **233** | the real schemas, **real local D1**, and the shipped UI strings | Two entities, the canonical slug grammar, partial-patch safety, that `ON DELETE RESTRICT` actually protects child skills, and that user-facing guidance names only operations the CMS supports |
+| **Server Action authorization** | **379** | the **real exported action functions** for all eight entities, against real local D1 | Unauthenticated mutations are denied and change nothing; partial updates preserve what they omit; unsafe URLs never reach a row; an in-use category cannot be deleted, leaks no SQL, and does not advertise moving skills |
 
-Subtotals: **admin 1173** (42 + 90 + 34 + 96 + 90 + 77 + 173 + 112 + 167 +
-292) and **database 287** (26 + 59 + 157 + 41 + 4, detailed below) —
-**1460 total**.
+Subtotals: **admin 1507** (42 + 104 + 34 + 96 + 90 + 77 + 173 + 112 + 167 +
+233 + 379) and **database 297** (26 + 59 + 167 + 41 + 4, detailed below) —
+**1804 total**.
 
-The database subtotal is **unchanged** by the Education and Certifications
-CMS slices: both already used `createOrderedRepository` with everything the
-CMS needed, so no repository contract changed and no repository-package
-tests were added.
+The database subtotal moved 287 → **297** for the first time since the
+Technologies slice: Skills needed `getSkillById()` on the repository
+interface, and a repository contract change gets canonical tests in the
+package that owns it. Education and Certifications added none, because both
+used `createOrderedRepository` with everything the CMS needed.
 
 The admin foundation suite grew 83 → **90 on its own** when the three
 certification routes appeared. It walks the working tree for
@@ -255,6 +257,72 @@ always did. It is:
 
 That last one is the important shape: assert the **state after the write**,
 not merely that the mutation returned without error.
+
+## Skills CMS tests (Phase 8)
+
+`apps/admin/scripts/skills-tests.mjs` — **233 checks**, plus **10** added to
+the repository package for the `getSkillById()` contract.
+
+**Validation, two entities.** Category: accepted input, slug normalisation
+(`Languages` → `languages`), five valid slug shapes and ten invalid ones
+(leading/trailing/double hyphen, spaces, underscore, punctuation, slash,
+empty, whitespace-only, over-long), fifteen rejection cases, and `.strict()`
+rejection of `id`/`createdAt`/`updatedAt`/unknown fields. Skill: required
+`categoryId` and `name`, proficiency accepted only as an integer 1–5 or
+null, nineteen rejection cases, and two specific refusals worth naming — a
+client-supplied **category name** is rejected (only the foreign key is ever
+persisted), and `categoryId` in an *update* is **rejected rather than
+ignored**, because an accepted-but-discarded field would look like a move
+that silently did nothing.
+
+**Partial updates stay partial**, asserted for both entities: a single-field
+patch carries exactly one key, every unmentioned field is proven absent
+rather than defaulted, an empty patch produces zero keys, explicit
+`position: 0` and `isVisible: false` are proven *present* with their falsy
+values, an explicit `null` proficiency is proven present (clearing a rating,
+not omitting it), and both create schemas are proven to still apply their
+defaults.
+
+**Lifecycle against real local D1.** Category create/read-back, null
+description round-trip, duplicate slug refused with no row created, partial
+update preserving everything unmentioned, visibility filtering. Skill create
+under a category with the FK persisted, unrated proficiency round-tripping as
+`null` not `0`, deterministic ordering at both levels, and
+`UNIQUE (category_id, name)` refused within a category **but the same name
+accepted in another**. A preservation fixture with deliberately non-default
+values proves a one-field patch leaves proficiency, position, visibility,
+category, and `createdAt` intact, with a bystander untouched.
+
+**Foreign key integrity is proven, not assumed:** a skill under a
+nonexistent category is refused; deleting an in-use category is refused
+**and not one of its skills is destroyed**; the category survives; an empty
+category *can* be deleted; deleting a skill leaves its category and siblings
+alone; `PRAGMA foreign_key_check` is clean and an explicit orphan scan
+returns zero.
+
+**User-facing guidance is asserted against the shipped strings.** The CMS
+cannot move a skill between categories, so a group reads
+`actions/skills.ts`, `delete-skill-category-form.tsx`, and `skill-form.tsx`
+from source and proves the in-use conflict copy tells the editor to *delete*
+the dependent skills and **never** offers moving, reassigning, or
+transferring them; that the edit form's category `SelectField` sits in the
+non-editing branch of the `isEditing` ternary; and that the edit payload
+omits `categoryId` entirely. Comments are stripped before the wording check
+so truthful notes *describing* the unsupported operation cannot fail it, and
+a negative control proves the rule still rejects the earlier
+"or move them to another category" copy.
+
+### The leak detector has its own negative controls
+
+The action-auth suite's "no skills result message leaks SQL or constraint
+text" check initially **failed on legitimate copy** — it matched any
+`skills\.`, and "This category still contains skills." ends a sentence with
+that word. The detector was narrowed to what a real leak looks like (a table
+qualifier has no whitespace after the dot) and then given three controls: it
+must still reject `SQLITE_CONSTRAINT … skills.category_id` and
+`UNIQUE constraint failed: skill_categories.slug`, and must accept the
+prose. Narrowing a security assertion without proving it still fires is how
+a check quietly becomes decorative.
 
 ## Certifications CMS tests (Phase 8)
 

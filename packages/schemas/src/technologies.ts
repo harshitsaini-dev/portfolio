@@ -19,24 +19,21 @@
 
 import { z } from "zod";
 
+import { slugSchema } from "./internal/slug.ts";
+
 /** Ids are application-generated UUIDv7 strings; accept any non-empty id. */
 const idSchema = z.string().trim().min(1, "Required").max(64, "Too long");
 
 /**
- * Same slug policy as projects: lowercase, hyphen-separated, no leading or
- * trailing hyphen. Shape is this schema's job; **uniqueness stays the
- * database's**, enforced by the table's UNIQUE constraint.
+ * The project's canonical slug grammar: lowercase, hyphen-separated, no
+ * leading or trailing hyphen. Shape is this schema's job; **uniqueness stays
+ * the database's**, enforced by the table's UNIQUE constraint.
+ *
+ * Now imported from `internal/slug.ts` rather than redeclared. The rule is
+ * byte-for-byte the one this module already applied — skill categories became
+ * its third consumer, so it was given one home instead of a third copy.
  */
-export const technologySlugSchema = z
-  .string()
-  .trim()
-  .toLowerCase()
-  .min(1, "Required")
-  .max(96, "Too long")
-  .regex(
-    /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-    "Use lowercase letters, numbers, and single hyphens",
-  );
+export const technologySlugSchema = slugSchema;
 
 /**
  * `category` is nullable in the schema, so blank input becomes `null` rather

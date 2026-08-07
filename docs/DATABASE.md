@@ -271,6 +271,59 @@ Note that `skills` also has `UNIQUE (category_id, name)`, whose leading
 column already serves "skills in this category"; the additional index
 exists only for the ordered read.
 
+## Skills and skill categories in the admin (Phase 8)
+
+The first admin area covering **two related tables**, and the first to need a
+repository change since Technologies.
+
+```
+skill_categories
+  id | name NOT NULL | slug NOT NULL UNIQUE | description
+  | position NOT NULL DEFAULT 0 CHECK (position >= 0)
+  | is_visible NOT NULL DEFAULT 1 CHECK (is_visible IN (0,1))
+  | created_at | updated_at
+
+skills
+  id | category_id NOT NULL REFERENCES skill_categories(id) ON DELETE RESTRICT
+  | name NOT NULL
+  | proficiency CHECK (proficiency IS NULL OR proficiency BETWEEN 1 AND 5)
+  | position NOT NULL DEFAULT 0 CHECK (position >= 0)
+  | is_visible NOT NULL DEFAULT 1 CHECK (is_visible IN (0,1))
+  | created_at | updated_at
+  UNIQUE (category_id, name)
+```
+
+Four schema facts the CMS relies on, each asserted rather than assumed:
+
+- **`ON DELETE RESTRICT` is the authority on category deletion.** A category
+  holding skills cannot be deleted, and the CMS **never deletes child skills
+  to make the parent delete succeed**. The admin shows the skill count and
+  withholds the delete control, but that is presentation — the constraint is
+  what actually stops it, and the action-auth suite proves the server refuses
+  even when the action is invoked directly.
+- **The same FK rejects a skill under a nonexistent category**, so the action
+  passes the validated `category_id` straight through instead of doing a
+  read-then-write existence check, which would be a race the constraint
+  already wins.
+- **`UNIQUE (category_id, name)` is scoped to the category**, not global. The
+  same skill name is legitimately allowed in two different categories, and
+  the CMS suite asserts both halves of that.
+- **`proficiency` NULL means "not rated", not "lowest".** The CHECK permits
+  1–5 or NULL; the CMS keeps unrated distinct from a score of 1 in both the
+  form and the list, and an explicit null in an update clears the rating.
+
+`idx_skills_category_position` on `(category_id, position)` serves the nested
+read; `idx_skill_categories_visible_position` serves the future public read.
+The admin lists deliberately do **not** filter by visibility.
+
+**Repository:** `createSkillsRepository` owns both tables — there is no
+separate categories repository, and no other repository reads or writes
+either table. Skills gained one method, `getSkillById(id)`, for the admin
+edit route; ordering, nesting, and visibility filtering were already
+provided. Moving a skill between categories is **not** part of the contract:
+`categoryId` is absent from the patch allowlist because a move must also
+resolve position and the uniqueness collision in the destination.
+
 ## Certifications in the admin (Phase 8)
 
 The certifications CMS uses the Phase 5 repository **entirely unchanged**:

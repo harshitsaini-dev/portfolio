@@ -1096,6 +1096,191 @@ try {
   );
 
   // =========================================================================
+  // Skills (Phase 8) — two entities behind one surface, and the first CMS
+  // area with a parent/child foreign key the editor chooses.
+  // =========================================================================
+  const skillsActions = await import("../src/lib/actions/skills.ts");
+  check(
+    "the real skills action module exports all six mutations",
+    typeof skillsActions.createSkillCategoryAction === "function" &&
+      typeof skillsActions.updateSkillCategoryAction === "function" &&
+      typeof skillsActions.deleteSkillCategoryAction === "function" &&
+      typeof skillsActions.createSkillAction === "function" &&
+      typeof skillsActions.updateSkillAction === "function" &&
+      typeof skillsActions.deleteSkillAction === "function",
+  );
+
+  const categoryVictim = await repos.skills.create({
+    name: "Existing Category",
+    slug: "existing-category",
+    description: "Must survive every unauthenticated attempt.",
+    position: 4,
+    isVisible: false,
+  });
+  const skillVictim = await repos.skills.createSkill({
+    categoryId: categoryVictim.id,
+    name: "Existing Skill",
+    proficiency: 3,
+    position: 2,
+    isVisible: false,
+  });
+  const categoryBefore = await repos.skills.getById(categoryVictim.id);
+  const skillBefore = await repos.skills.getSkillById(skillVictim.id);
+  const categoryCountBefore = (await repos.skills.list()).length;
+  const skillCountBefore = (await repos.skills.listSkills(categoryVictim.id)).length;
+  const consultedBeforeSkills = providerConsulted;
+
+  startGroup("Unauthenticated skill-category mutations cannot change anything");
+
+  clearAuthEnvironment();
+
+  const categoryCreate = await invoke(
+    skillsActions.createSkillCategoryAction,
+    payloadForm({ name: "Guarded Category", slug: "guarded-category" }),
+  );
+  equal("create does not return a result", categoryCreate.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    categoryCreate.error?.name,
+    "AdminUnauthorizedError",
+  );
+  equal(
+    "no category was inserted",
+    (await repos.skills.list()).length,
+    categoryCountBefore,
+  );
+
+  const categoryUpdate = await invoke(
+    skillsActions.updateSkillCategoryAction,
+    payloadForm(
+      { name: "Hijacked", slug: "hijacked", position: 0, isVisible: true },
+      categoryVictim.id,
+    ),
+  );
+  equal(
+    "update throws AdminUnauthorizedError",
+    categoryUpdate.error?.name,
+    "AdminUnauthorizedError",
+  );
+  check(
+    "the category is byte-for-byte identical",
+    JSON.stringify(await repos.skills.getById(categoryVictim.id)) ===
+      JSON.stringify(categoryBefore),
+  );
+
+  const categoryPartialDenied = await invoke(
+    skillsActions.updateSkillCategoryAction,
+    payloadForm({ name: "Hijacked partially" }, categoryVictim.id),
+  );
+  equal(
+    "an unauthenticated PARTIAL category update is denied too",
+    categoryPartialDenied.error?.name,
+    "AdminUnauthorizedError",
+  );
+  check(
+    "and left the category byte-for-byte identical",
+    JSON.stringify(await repos.skills.getById(categoryVictim.id)) ===
+      JSON.stringify(categoryBefore),
+  );
+
+  const categoryDelete = await invoke(
+    skillsActions.deleteSkillCategoryAction,
+    payloadForm({}, categoryVictim.id),
+  );
+  equal(
+    "delete throws AdminUnauthorizedError",
+    categoryDelete.error?.name,
+    "AdminUnauthorizedError",
+  );
+  check(
+    "the category still exists afterwards",
+    (await repos.skills.getById(categoryVictim.id)) !== null,
+  );
+
+  startGroup("Unauthenticated skill mutations cannot change anything");
+
+  const skillCreate = await invoke(
+    skillsActions.createSkillAction,
+    payloadForm({ categoryId: categoryVictim.id, name: "Guarded Skill" }),
+  );
+  equal("create does not return a result", skillCreate.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    skillCreate.error?.name,
+    "AdminUnauthorizedError",
+  );
+  equal(
+    "no skill was inserted",
+    (await repos.skills.listSkills(categoryVictim.id)).length,
+    skillCountBefore,
+  );
+
+  const skillUpdate = await invoke(
+    skillsActions.updateSkillAction,
+    payloadForm(
+      { name: "Hijacked", proficiency: 1, position: 0, isVisible: true },
+      skillVictim.id,
+    ),
+  );
+  equal(
+    "update throws AdminUnauthorizedError",
+    skillUpdate.error?.name,
+    "AdminUnauthorizedError",
+  );
+  const skillAfterUpdate = await repos.skills.getSkillById(skillVictim.id);
+  equal("name is unchanged", skillAfterUpdate?.name, skillBefore?.name);
+  equal("proficiency is unchanged", skillAfterUpdate?.proficiency, skillBefore?.proficiency);
+  equal("position is unchanged", skillAfterUpdate?.position, skillBefore?.position);
+  equal("isVisible is unchanged", skillAfterUpdate?.isVisible, skillBefore?.isVisible);
+  equal("updatedAt is unchanged", skillAfterUpdate?.updatedAt, skillBefore?.updatedAt);
+  check(
+    "the whole skill is logically identical",
+    JSON.stringify(skillAfterUpdate) === JSON.stringify(skillBefore),
+  );
+
+  const skillDelete = await invoke(
+    skillsActions.deleteSkillAction,
+    payloadForm({}, skillVictim.id),
+  );
+  equal(
+    "delete throws AdminUnauthorizedError",
+    skillDelete.error?.name,
+    "AdminUnauthorizedError",
+  );
+  check(
+    "the skill still exists afterwards",
+    (await repos.skills.getSkillById(skillVictim.id)) !== null,
+  );
+
+  startGroup("Skills auth wins before validation and the database");
+
+  // An invalid payload, a nonexistent category, and a hostile move attempt
+  // are all authorization failures first — none of them is ever validated.
+  const skillsOrder = await invoke(
+    skillsActions.createSkillCategoryAction,
+    payloadForm({ name: "", slug: "Not A Slug", id: "x", position: -3 }),
+  );
+  equal(
+    "an invalid unauthenticated category payload is an auth failure",
+    skillsOrder.error?.name,
+    "AdminUnauthorizedError",
+  );
+  const skillFkOrder = await invoke(
+    skillsActions.createSkillAction,
+    payloadForm({ categoryId: "no-such-category", name: "Ghost" }),
+  );
+  equal(
+    "a nonexistent-category skill create is an auth failure, not an FK error",
+    skillFkOrder.error?.name,
+    "AdminUnauthorizedError",
+  );
+  equal(
+    "the database was never consulted during any denied skills call",
+    providerConsulted,
+    consultedBeforeSkills,
+  );
+
+  // =========================================================================
   startGroup("A forged Access assertion is also rejected");
 
   // With Access configured, a caller supplying a self-signed or junk
@@ -1144,6 +1329,46 @@ try {
     "the targeted certification is still byte-for-byte unchanged",
     JSON.stringify(await repos.certifications.getById(certificationVictim.id)) ===
       JSON.stringify(certificationBefore),
+  );
+
+  // The same forged assertion against both skills entities: development auth
+  // is enabled above and must NOT rescue either of them.
+  const forgedCategory = await invoke(
+    skillsActions.updateSkillCategoryAction,
+    payloadForm({ name: "Forged" }, categoryVictim.id),
+  );
+  equal(
+    "a forged-assertion category update throws",
+    forgedCategory.error?.name,
+    "AdminUnauthorizedError",
+  );
+  check(
+    "development auth did not rescue the category path",
+    typeof forgedCategory.error?.reason === "string" &&
+      forgedCategory.error.reason !== "not_configured",
+    String(forgedCategory.error?.reason),
+  );
+  const forgedSkill = await invoke(
+    skillsActions.deleteSkillAction,
+    payloadForm({}, skillVictim.id),
+  );
+  equal(
+    "a forged-assertion skill delete throws",
+    forgedSkill.error?.name,
+    "AdminUnauthorizedError",
+  );
+  check(
+    "development auth did not rescue the skill path either",
+    typeof forgedSkill.error?.reason === "string" &&
+      forgedSkill.error.reason !== "not_configured",
+    String(forgedSkill.error?.reason),
+  );
+  check(
+    "both targeted rows are still byte-for-byte unchanged",
+    JSON.stringify(await repos.skills.getById(categoryVictim.id)) ===
+      JSON.stringify(categoryBefore) &&
+      JSON.stringify(await repos.skills.getSkillById(skillVictim.id)) ===
+        JSON.stringify(skillBefore),
   );
 
   // And with no assertion at all, while Access is configured.
@@ -1985,6 +2210,309 @@ try {
       const serialized = JSON.stringify(outcome.result ?? {});
       return !/SQLITE|constraint|certifications\.|CHECK/i.test(serialized);
     }),
+  );
+
+  // =========================================================================
+  startGroup("Positive control — skills actions work when authenticated");
+
+  const authedCategoryCreate = await invoke(
+    skillsActions.createSkillCategoryAction,
+    payloadForm({
+      name: "Authenticated Category",
+      slug: "authenticated-category",
+      description: "Created only when authenticated.",
+      position: 7,
+    }),
+  );
+  equal("an authenticated category create redirects", authedCategoryCreate.kind, "redirect");
+  equal(
+    "it redirects to the categories list",
+    authedCategoryCreate.to,
+    "/skills/categories?created=1",
+  );
+
+  const createdCategory = (await repos.skills.list()).find(
+    (row) => row.slug === "authenticated-category",
+  );
+  check("the category really was inserted", Boolean(createdCategory));
+  equal("its position persisted", createdCategory?.position, 7);
+
+  // A duplicate slug is a safe conflict, not a leak.
+  const dupSlug = await invoke(
+    skillsActions.createSkillCategoryAction,
+    payloadForm({ name: "Duplicate", slug: "authenticated-category" }),
+  );
+  equal("a duplicate slug returns a result", dupSlug.kind, "returned");
+  equal("it is reported as a conflict", dupSlug.result?.status, "conflict");
+
+  const badCategory = await invoke(
+    skillsActions.updateSkillCategoryAction,
+    payloadForm({ name: "" }, createdCategory.id),
+  );
+  equal("a malformed name is reported as validation", badCategory.result?.status, "validation");
+  check(
+    "the error is keyed to the field",
+    Boolean(badCategory.result?.fieldErrors?.name),
+  );
+  const badSlug = await invoke(
+    skillsActions.updateSkillCategoryAction,
+    payloadForm({ slug: "Not A Slug" }, createdCategory.id),
+  );
+  equal("a malformed slug is rejected", badSlug.result?.status, "validation");
+
+  // A partial category update must not reset what it does not mention.
+  const partialCategory = await invoke(
+    skillsActions.updateSkillCategoryAction,
+    payloadForm({ name: "Renamed Category" }, createdCategory.id),
+  );
+  equal("an authenticated partial category update redirects", partialCategory.kind, "redirect");
+  const afterCategoryPartial = await repos.skills.getById(createdCategory.id);
+  equal("the named field changed", afterCategoryPartial?.name, "Renamed Category");
+  equal("an unmentioned position was NOT reset", afterCategoryPartial?.position, 7);
+  equal("an unmentioned isVisible was NOT reset", afterCategoryPartial?.isVisible, true);
+  equal(
+    "an unmentioned slug was NOT reset",
+    afterCategoryPartial?.slug,
+    "authenticated-category",
+  );
+  equal(
+    "an unmentioned description was NOT nulled",
+    afterCategoryPartial?.description,
+    "Created only when authenticated.",
+  );
+
+  // Skills under it.
+  const authedSkillCreate = await invoke(
+    skillsActions.createSkillAction,
+    payloadForm({
+      categoryId: createdCategory.id,
+      name: "Authenticated Skill",
+      proficiency: 4,
+      position: 3,
+    }),
+  );
+  equal("an authenticated skill create redirects", authedSkillCreate.kind, "redirect");
+  equal("it redirects to the skills list", authedSkillCreate.to, "/skills?created=1");
+
+  const createdSkill = (await repos.skills.listSkills(createdCategory.id)).find(
+    (row) => row.name === "Authenticated Skill",
+  );
+  check("the skill really was inserted", Boolean(createdSkill));
+  equal("it belongs to the chosen category", createdSkill?.categoryId, createdCategory.id);
+  equal("its proficiency persisted", createdSkill?.proficiency, 4);
+  equal("its position persisted", createdSkill?.position, 3);
+
+  // A skill under a category that does not exist is a safe conflict.
+  const ghostCategory = await invoke(
+    skillsActions.createSkillAction,
+    payloadForm({ categoryId: "no-such-category", name: "Ghost" }),
+  );
+  equal("a nonexistent category returns a result", ghostCategory.kind, "returned");
+  equal("it is reported as a conflict", ghostCategory.result?.status, "conflict");
+
+  const badSkill = await invoke(
+    skillsActions.updateSkillAction,
+    payloadForm({ name: "" }, createdSkill.id),
+  );
+  equal("a malformed skill name is rejected", badSkill.result?.status, "validation");
+  const badProficiency = await invoke(
+    skillsActions.updateSkillAction,
+    payloadForm({ proficiency: 9 }, createdSkill.id),
+  );
+  equal("an out-of-range proficiency is rejected", badProficiency.result?.status, "validation");
+  const movedSkill = await invoke(
+    skillsActions.updateSkillAction,
+    payloadForm({ categoryId: categoryVictim.id }, createdSkill.id),
+  );
+  equal(
+    "an attempted category move is rejected rather than silently ignored",
+    movedSkill.result?.status,
+    "validation",
+  );
+  equal(
+    "and the skill still belongs to its original category",
+    (await repos.skills.getSkillById(createdSkill.id))?.categoryId,
+    createdCategory.id,
+  );
+
+  const managedSkill = await invoke(
+    skillsActions.updateSkillAction,
+    payloadForm({ id: "forced", createdAt: "2000-01-01" }, createdSkill.id),
+  );
+  equal(
+    "client-supplied database-managed fields are rejected",
+    managedSkill.result?.status,
+    "validation",
+  );
+
+  // A partial skill update must not reset what it does not mention.
+  const partialSkill = await invoke(
+    skillsActions.updateSkillAction,
+    payloadForm({ name: "Renamed Skill" }, createdSkill.id),
+  );
+  equal("an authenticated partial skill update redirects", partialSkill.kind, "redirect");
+  const afterSkillPartial = await repos.skills.getSkillById(createdSkill.id);
+  equal("the named field changed", afterSkillPartial?.name, "Renamed Skill");
+  equal("an unmentioned proficiency was NOT nulled", afterSkillPartial?.proficiency, 4);
+  equal("an unmentioned position was NOT reset", afterSkillPartial?.position, 3);
+  equal("an unmentioned isVisible was NOT reset", afterSkillPartial?.isVisible, true);
+
+  // Explicit falsy values are honoured.
+  const falsySkill = await invoke(
+    skillsActions.updateSkillAction,
+    payloadForm({ position: 0, isVisible: false }, createdSkill.id),
+  );
+  equal("an explicit falsy skill patch redirects", falsySkill.kind, "redirect");
+  const afterFalsy = await repos.skills.getSkillById(createdSkill.id);
+  equal("explicit position 0 persisted", afterFalsy?.position, 0);
+  equal("explicit isVisible false persisted", afterFalsy?.isVisible, false);
+
+  // Deleting an in-use category is refused, safely, and destroys nothing.
+  const inUseCategoryDelete = await invoke(
+    skillsActions.deleteSkillCategoryAction,
+    payloadForm({}, createdCategory.id),
+  );
+  equal("deleting an in-use category returns a result", inUseCategoryDelete.kind, "returned");
+  equal("it is reported as a conflict", inUseCategoryDelete.result?.status, "conflict");
+  check(
+    "the category survived the refused delete",
+    (await repos.skills.getById(createdCategory.id)) !== null,
+  );
+  equal(
+    "and NOT ONE of its skills was destroyed",
+    (await repos.skills.listSkills(createdCategory.id)).length,
+    1,
+  );
+  // The message must name an operation the CMS can actually perform.
+  const inUseMessage = String(inUseCategoryDelete.result?.message);
+  check(
+    "the conflict message tells the editor to delete the dependent skills",
+    /delete\b[^.]*\bskills\b|\bskills\b[^.]*\bdelete/i.test(inUseMessage),
+    inUseMessage,
+  );
+  check(
+    "and does NOT advertise moving, reassigning, or transferring a skill",
+    !/\bmov(e|ing)\b|\breassign/i.test(inUseMessage) &&
+      !/\btransfer/i.test(inUseMessage),
+    inUseMessage,
+  );
+  // Negative control: the wording check must actually reject the old copy.
+  check(
+    "the wording check REJECTS the previous 'Move or delete them first' copy",
+    /\bmov(e|ing)\b/i.test("This category still contains skills. Move or delete them first."),
+  );
+
+  // Once the skill is gone, the category can be deleted.
+  const authedSkillDelete = await invoke(
+    skillsActions.deleteSkillAction,
+    payloadForm({}, createdSkill.id),
+  );
+  equal("an authenticated skill delete redirects", authedSkillDelete.kind, "redirect");
+  equal("it redirects to the skills list", authedSkillDelete.to, "/skills");
+  equal(
+    "the skill really was removed",
+    await repos.skills.getSkillById(createdSkill.id),
+    null,
+  );
+  check(
+    "the untouched victim skill is still there",
+    (await repos.skills.getSkillById(skillVictim.id)) !== null,
+  );
+
+  const emptyDelete = await invoke(
+    skillsActions.deleteSkillCategoryAction,
+    payloadForm({}, createdCategory.id),
+  );
+  equal("deleting the now-empty category redirects", emptyDelete.kind, "redirect");
+  equal("it redirects to the categories list", emptyDelete.to, "/skills/categories");
+  equal(
+    "the category really was removed",
+    await repos.skills.getById(createdCategory.id),
+    null,
+  );
+
+  const missingCategory = await invoke(
+    skillsActions.updateSkillCategoryAction,
+    payloadForm({ name: "Ghost" }, "does-not-exist"),
+  );
+  equal(
+    "updating a missing category returns not_found",
+    missingCategory.result?.status,
+    "not_found",
+  );
+  const missingSkill = await invoke(
+    skillsActions.updateSkillAction,
+    payloadForm({ name: "Ghost" }, "does-not-exist"),
+  );
+  equal(
+    "updating a missing skill returns not_found",
+    missingSkill.result?.status,
+    "not_found",
+  );
+  const missingSkillDelete = await invoke(
+    skillsActions.deleteSkillAction,
+    payloadForm({}, "does-not-exist"),
+  );
+  equal(
+    "deleting a missing skill returns not_found",
+    missingSkillDelete.result?.status,
+    "not_found",
+  );
+
+  /**
+   * Does this text look like leaked persistence internals?
+   *
+   * The table qualifier pattern matters here: `skills.category_id` is a leak,
+   * but "This category still contains skills." is ordinary prose that happens
+   * to end a sentence. So a qualifier is a table name followed by a dot and
+   * an identifier character with **no whitespace** — which prose never is.
+   * The first draft of this check matched any `skills\.` and flagged the
+   * legitimate copy; narrowing it is the fix, and the negative control below
+   * proves the narrowed version still catches real leakage.
+   */
+  function leaksPersistenceInternals(text) {
+    return (
+      /SQLITE_[A-Z]+/.test(text) ||
+      /constraint failed/i.test(text) ||
+      /\b(FOREIGN KEY|ON DELETE RESTRICT|UNIQUE constraint)\b/i.test(text) ||
+      /\b(skills|skill_categories)\.[a-z_]/i.test(text) ||
+      /\bCHECK\s*\(/i.test(text)
+    );
+  }
+
+  // Negative control FIRST: a check that cannot fail proves nothing.
+  check(
+    "the leak detector REJECTS a real SQLite constraint message",
+    leaksPersistenceInternals(
+      "SQLITE_CONSTRAINT: FOREIGN KEY constraint failed on skills.category_id",
+    ),
+  );
+  check(
+    "it also rejects a bare UNIQUE constraint message",
+    leaksPersistenceInternals("UNIQUE constraint failed: skill_categories.slug"),
+  );
+  check(
+    "but ACCEPTS legitimate prose that merely ends a sentence with a table word",
+    !leaksPersistenceInternals(
+      "This category still contains skills. Delete those skills before deleting this category.",
+    ),
+  );
+
+  check(
+    "no skills result message leaks SQL or constraint text",
+    [
+      dupSlug,
+      badCategory,
+      badSlug,
+      ghostCategory,
+      badSkill,
+      badProficiency,
+      movedSkill,
+      managedSkill,
+      inUseCategoryDelete,
+      missingCategory,
+      missingSkill,
+    ].every((outcome) => !leaksPersistenceInternals(JSON.stringify(outcome.result ?? {}))),
   );
 
   // =========================================================================

@@ -40,8 +40,13 @@ something passed without running it.
   GitHub Actions/Linux** and again by the **post-merge `main` CI run
   `31161985127`**. `main` is clean and synced after the merge. See
   *Phase 8 — Certifications CMS* below.
-- **Skills & tools: the next Phase 8 area** — **not started**, and not to be
-  implemented until explicitly scoped and approved.
+- **Skills CMS: implemented, awaiting review.** On
+  `feat/remaining-cms-skills`; not committed, not pushed, and **not
+  complete** — complete only after review, PR CI, merge, the post-merge
+  `main` run, and completion documentation. See *Phase 8 — Skills CMS* below.
+- **Tools CMS: the next Phase 8 entity** — **not started**, and not to be
+  implemented until explicitly scoped and approved. `tools` is its own table;
+  the Skills slice deliberately did not touch it.
 - **Later Phase 8 entities** — Socials, Sections: **not started**.
 - **Phase 7:** Complete (merged to `main`, CI green).
 - **Phase 8 is NOT complete.** It is complete only when every entity it
@@ -54,8 +59,111 @@ Phase 22** (fail-closed until then).
 
 ## Active task
 
-**None.** The Certifications CMS is merged and closed. Skills & tools is the
-next Phase 8 area and is not started.
+**Skills CMS.** Implemented; awaiting review.
+
+## Phase 8 — Skills CMS (implemented, awaiting review)
+
+The first Phase 8 area with **two entities and a foreign key the editor
+chooses**.
+
+### Persisted schema — read from migration `0001`, not invented
+
+```
+skill_categories
+  id TEXT PK | name TEXT NOT NULL | slug TEXT NOT NULL UNIQUE
+  | description TEXT
+  | position INTEGER NOT NULL DEFAULT 0 CHECK (position >= 0)
+  | is_visible INTEGER NOT NULL DEFAULT 1 CHECK (is_visible IN (0,1))
+  | created_at | updated_at
+INDEX idx_skill_categories_visible_position ON (is_visible, position)
+
+skills
+  id TEXT PK
+  | category_id TEXT NOT NULL REFERENCES skill_categories(id) ON DELETE RESTRICT
+  | name TEXT NOT NULL
+  | proficiency INTEGER CHECK (proficiency IS NULL OR proficiency BETWEEN 1 AND 5)
+  | position INTEGER NOT NULL DEFAULT 0 CHECK (position >= 0)
+  | is_visible INTEGER NOT NULL DEFAULT 1 CHECK (is_visible IN (0,1))
+  | created_at | updated_at
+  UNIQUE (category_id, name)
+INDEX idx_skills_category_position ON (category_id, position)
+```
+
+**`skills` has no slug, description, URL, icon, or colour column**, so the
+CMS exposes none — and the module imports no URL helper, because neither
+table stores a URL. `migrations/0001_initial_schema.sql` was **not edited**
+and **no migration `0002` was created**.
+
+### Category deletion — the constraint is surfaced, never worked around
+
+`skills.category_id` is `ON DELETE RESTRICT`. Deleting a category that still
+holds skills **fails**, and the CMS surfaces that rather than defeating it:
+**no child skill is ever deleted to make a parent deletion succeed.** The
+chain follows the Technologies precedent — database integrity is real →
+repository raises a typed `ConflictError` → the action returns a safe
+conflict result → the UI explains what to change.
+
+**The guidance names only operations this CMS supports.** Because a skill
+cannot be moved between categories, the in-use copy tells the editor to
+*delete* the dependent skills; it does not suggest moving or reassigning
+them, which would advertise a control that does not exist. See
+*A skill cannot be moved between categories* under known limitations.
+
+### Routes — one coherent area, one nav entry
+
+```
+apps/admin/src/app/(protected)/skills/
+  page.tsx                     categories with their skills nested
+  new/page.tsx                 create skill
+  [id]/page.tsx                edit + delete skill
+  categories/page.tsx          category list with skill counts
+  categories/new/page.tsx      create category
+  categories/[id]/page.tsx     edit + delete category
+```
+
+**Rationale for nesting categories under `/skills`**: a skill cannot exist
+without a category, so they are one editing surface, and two sibling
+top-level entries would imply two independent areas. Next.js resolves static
+segments ahead of dynamic ones, so `/skills/new` and `/skills/categories` are
+unambiguous against `/skills/[id]`. Navigation gains **one** entry, "Skills";
+`tools` keeps its own separate unavailable entry.
+
+All six go through `withAdminPage`, so the Phase 6 recursive invariant
+discovered them automatically — the foundation suite grew 90 → **104**
+without the invariant being touched. All six use **static** metadata.
+
+### Repository — one narrow extension
+
+`createSkillsRepository` already owned both entities. One method was added:
+**`getSkillById(id)`** — the admin edit route addresses a skill directly and
+has no category in hand, and the alternative (`listWithSkills()` then a
+linear scan) reads every category and skill to return one row. The private
+helper already existed. Canonical tests live in `packages/database`, so the
+**database subtotal moved 287 → 297**.
+
+**`categoryId` was deliberately NOT made updatable.** The repository's patch
+allowlist has excluded it since Phase 5 and `SkillUpdate` omits it, because a
+move must also resolve the skill's position in the destination and its
+`UNIQUE (category_id, name)` collision there. The update schema is
+`.strict()` and **rejects** a `categoryId` rather than accepting and ignoring
+it, which would look like a move that silently did nothing. The edit page
+shows the owning category as read-only text and says so.
+
+### Validation
+
+`@portfolio/schemas` gained `skills.ts` with four shapes — category create /
+update and skill create / update — each **declared separately**, create with
+defaults and update with `.optional()` and none.
+
+`slug` uses the project's canonical grammar, moved to
+`packages/schemas/src/internal/slug.ts` so skill categories became its third
+consumer rather than its third copy; `technologies.ts` now imports it too.
+**Projects still carries its own identical copy** — out of scope, and
+consolidating it is a behaviour-neutral follow-up.
+
+`proficiency` is an integer 1–5 or null, matching the CHECK exactly. **Null
+means "not rated", kept distinct from 1 ("lowest")** — the UI renders "Not
+rated" rather than a zero.
 
 ## Phase 8 — Certifications CMS (COMPLETE)
 
@@ -909,9 +1017,103 @@ fail-closed behaviour.
 
 ## Next suggested task
 
-**Skills & tools** — the next Phase 8 area, **not started**, and not to be
-implemented until explicitly scoped and approved. Rationale is at the end of
-this file.
+Review the Skills CMS. After it merges and is formally closed, **Tools** is
+the next Phase 8 entity — **not started**, and not to be implemented until
+explicitly scoped and approved. Rationale is at the end of this file.
+
+## Phase 8 — Skills CMS: verification actually performed
+
+Locally on Windows. **Not yet CI-verified** — no PR has been opened.
+
+| Command | Result |
+| --- | --- |
+| `pnpm install --frozen-lockfile` | **PASS** — lockfile unmodified |
+| `pnpm lint` | **PASS** (exit 0) |
+| `pnpm typecheck` | **PASS** (exit 0) |
+| `pnpm test` | **PASS** — **1804 real checks** |
+| `pnpm build` | **PASS** — all six routes emitted as dynamic (`ƒ`) |
+
+| Suite | Checks | Change |
+| --- | --- | --- |
+| **Repository integration** | **167** | **+10** — `getSkillById` and skills FK/not-found coverage |
+| **Database subtotal** | **297** | **+10 — the repository contract changed** |
+| Admin authentication | 42 | — |
+| Admin foundation / invariant / containment | **104** | **+14** — six new protected pages, discovered automatically |
+| Admin D1 composition boundary | 34 | — |
+| Projects CMS | 96 | — |
+| Technologies CMS | 90 | — (unchanged by the slug extraction) |
+| Profile CMS | 77 | — |
+| Timeline CMS | 173 | — |
+| Education CMS | 112 | — |
+| Certifications CMS | 167 | — |
+| **Skills CMS** | **233** | **new** |
+| **Server Action authorization** | **379** | **+87** — the real exported category and skill actions |
+| **Admin subtotal** | **1507** | — |
+| **Total** | **1804** | up from 1460 |
+
+**All 1460 previous checks still pass**, and none were weakened.
+
+### Real-D1 results
+
+Categories: create, read-back, null `description` round-trip, duplicate slug
+refused as a `ConflictError` with no row created, partial update preserving
+everything unmentioned, hidden category still listed in the admin view but
+excluded from `visibleOnly`.
+
+Skills: create with the owning FK persisted, unrated proficiency
+round-tripping as `null` rather than `0`, deterministic ordering at both
+levels, `UNIQUE (category_id, name)` refused within a category **but the same
+name accepted in a different one**, a one-field patch preserving
+proficiency/position/visibility/category/`createdAt`, explicit `position: 0`
+and `isVisible` honoured, an explicit `null` proficiency clearing the rating,
+and an empty patch proven a byte-for-byte no-op.
+
+FK integrity: a skill under a nonexistent category is refused; deleting an
+in-use category is refused **and not one of its skills was destroyed**;
+deleting a skill removes exactly that row while its category and siblings
+survive; an empty category *can* be deleted; `PRAGMA foreign_key_check` is
+clean and an explicit orphan scan returns zero.
+
+### Browser verification (`playwright-local` MCP, real local D1)
+
+**Manual MCP verification — not automated Playwright CI tests.**
+
+Nav entry resolves; the empty state refuses to offer "New skill" with zero
+categories. Category flow: required-field validation with focus moved to the
+error summary; a mixed-case slug `Languages` **normalised to `languages`**; a
+duplicate slug surfaced as a safe conflict; edit persisted across reload.
+Skill flow: the category selector contained the **real** categories, labelled
+and keyboard reachable; Hidden badges on both a skill and a category;
+"Not rated" preserved as distinct from a score; the edit page has **no
+category selector** and explains why.
+
+Deletion: two-step confirm named the target, moved focus to the confirm
+button (44px), restored on **Cancel**, and removed only its target. The
+in-use category showed explanatory copy and **no delete control**; once
+emptied, the control appeared and the delete succeeded.
+
+**Zero console errors and zero warnings.**
+
+### Responsive results (populated lists)
+
+| Width | Page scrolls sideways | Skills list wrappers | Categories list wrapper |
+| --- | --- | --- | --- |
+| 1280px | **no** (1280 / 1280) | 2 wrappers, no internal scroll needed | no internal scroll needed |
+| 768px | **no** (768 / 768) | 2 wrappers, no internal scroll needed | no internal scroll needed |
+| 375px | **no** (375 / 375) | **both scroll internally** (576 / 328) | **scrolls internally** (704 / 343) |
+
+Every `overflow-x-auto` wrapper was `position: relative` at every width;
+captions and all `sr-only` content were retained at 375px; row actions 44px.
+
+### Confidentiality results
+
+With Access configured **and `ADMIN_DEV_AUTH=enabled` simultaneously**, a
+canary category and skill were seeded. All ten probes (HTML and RSC across
+the list, detail, and new routes, plus forged-assertion variants) returned
+**307** with **no canary content**. **Positive control:** the same probe
+against authorized requests returned `200` and found all four canary tokens.
+
+Local test data, the dev-auth file, and MCP artifacts were removed afterwards.
 
 ## Phase 8 — Certifications CMS: verification actually performed
 
@@ -1396,7 +1598,7 @@ Local test data and the temporary dev-auth file were removed afterwards.
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
 | Phase 6 — Admin foundation | **Complete** (merged to `main`, CI green) |
 | Phase 7 — Projects CMS vertical slice | **Complete** (merged to `main`, CI green) |
-| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, Timeline, Education, and Certifications CMS **complete**, plus the admin list overflow and timeline partial-update regression fixes (all merged, CI green); Skills, Tools, Socials, and Sections not started |
+| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, Timeline, Education, and Certifications CMS **complete**, plus the admin list overflow and timeline partial-update regression fixes (all merged, CI green); Skills CMS implemented and awaiting review; Tools, Socials, and Sections not started |
 
 Phases 9–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
@@ -1537,9 +1739,19 @@ than changed here.
 ## Phase 8 — known limitations (not blockers)
 
 - **Phase 8 is not complete.** Technologies, Profile, Timeline, Education,
-  and Certifications are five entities of several.
-- **The remaining CMS entities are not implemented** — Skills, Tools,
-  Socials, Sections.
+  Certifications, and Skills are six areas of several, and Skills is not yet
+  reviewed or merged.
+- **The remaining CMS entities are not implemented** — Tools, Socials,
+  Sections.
+- **A skill cannot be moved between categories in the CMS.** The repository
+  patch allowlist and `SkillUpdate` have excluded `categoryId` since Phase 5,
+  because a move must also resolve position and the
+  `UNIQUE (category_id, name)` collision in the destination. The update
+  schema rejects it explicitly rather than ignoring it, the edit page shows
+  the category read-only, and **all category-deletion guidance names only
+  deletion** — it never suggests moving skills elsewhere, because there is no
+  control that would do that. Supporting moves would be a deliberate
+  repository extension, not a form change.
 - ~~A post-merge regression is outstanding in the timeline update
   schema.~~ **Fixed and merged** as `c345131` — see *Timeline partial-update
   regression* near the top of this file. **Timeline CMS remained COMPLETE
@@ -3291,16 +3503,17 @@ committed migration both unchanged. Its one new wrinkle — `credential_url`,
 the first URL column outside projects — was resolved by *sharing* the
 existing http(s) allowlist rather than copying it.
 
-**Phase 8, next area: Skills & tools.** It is the last structural shape in
-Phase 8 that the ordered pattern has not yet met: `skills` is the first
-entity with a **parent category table** (`skill_categories`), so unlike
-every entity so far it involves a foreign key the editor must choose. That
-raises two questions worth settling before writing code — whether categories
-get their own CMS surface or are managed inline, and what happens on delete
-of a category that still has skills (the technologies slice already
-established `ON DELETE RESTRICT` surfacing as a `ConflictError` with an
-explanatory UI, which is the precedent to follow). `tools` is a flat ordered
-entity with a nullable `url` and should reuse `nullableHttpUrlSchema`
-directly.
+**Done, awaiting review: Skills CMS.** Both structural questions it raised
+were settled: categories got their own surface *nested inside* `/skills`
+rather than a second top-level entry, and `ON DELETE RESTRICT` is surfaced
+as an explanatory conflict exactly as the Technologies slice established.
+
+**Phase 8, next entity: Tools.** `tools` is a flat ordered table —
+`id | name | purpose | url | position | is_visible | created_at |
+updated_at` — with no child rows and nothing referencing it, so the
+Certifications slice should transfer almost verbatim and the repository
+(`createToolRepository`) already exists unchanged. Its `url` is nullable and
+should reuse `nullableHttpUrlSchema` from `internal/url.ts` directly rather
+than declaring a second policy. It needs no migration.
 
 It is not to be implemented until explicitly scoped and approved.
