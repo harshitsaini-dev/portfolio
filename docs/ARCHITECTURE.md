@@ -241,6 +241,44 @@ The one thing it did change is a shared validation rule:
   plain `.optional()` fields and no defaults. The same defect was latent in
   the merged timeline module and was subsequently fixed in `c345131`.
 
+## Seventh CMS area: skills — the first parent/child relationship (Phase 8)
+
+Every entity before this was either flat (education, certifications) or owned
+its children outright (timeline's highlights, which have no meaning outside
+their entry). Skills is the first where **the editor chooses a foreign key**,
+and that changed three things.
+
+**Two entities, one surface, one nav entry.** A skill cannot exist without a
+category, so categories are managed *inside* `/skills` rather than beside it.
+The nesting is deliberate: two top-level entries would imply two independent
+areas. Category fields are never flattened into a skill, and a skill row
+stores only the category's id — never its name, which would be duplicate
+state that can drift.
+
+**Referential integrity is surfaced, not routed around.**
+
+```
+ON DELETE RESTRICT          the schema's decision: skills survive
+   → ConflictError          the repository's typed translation
+   → conflict ActionResult  the action's safe result
+   → explanatory UI         "this category still contains N skills"
+```
+
+This is the Technologies chain applied to a parent/child relationship rather
+than a join table. The CMS **never deletes child rows to make a parent
+deletion succeed** — doing so would turn a safety rail into a trap.
+
+**Not every relationship edit is a field edit.** Moving a skill between
+categories must also resolve its position in the destination and its
+`UNIQUE (category_id, name)` collision there, so `categoryId` has been absent
+from the repository's patch allowlist since Phase 5. The update schema
+`.strict()`-rejects it rather than ignoring it, because an
+accepted-but-discarded field reads as a move that silently did nothing.
+
+The repository gained exactly one method — `getSkillById()`, for an edit
+route that addresses a skill directly — which is what moved the database
+subtotal off 287 for the first time since Technologies.
+
 ## Sixth CMS entity: certifications — one shared security control (Phase 8)
 
 Certifications confirmed the ordered pattern a second time — three

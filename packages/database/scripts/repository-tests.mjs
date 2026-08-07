@@ -623,6 +623,48 @@ try {
       (error) => error instanceof ConflictError,
     );
 
+    // `getSkillById` — added for the admin edit route, which addresses a
+    // skill directly and has no category in hand. Canonical coverage lives
+    // here because the contract does.
+    const nestedSql = nested[0].skills.find((skill) => skill.name === "SQL");
+    const fetchedSkill = await repos.skills.getSkillById(nestedSql.id);
+    equal("getSkillById returns the skill", fetchedSkill?.name, "SQL");
+    equal("it carries the owning category", fetchedSkill?.categoryId, category.id);
+    equal("it decodes a null proficiency", fetchedSkill?.proficiency, null);
+    equal("it decodes position", fetchedSkill?.position, 0);
+    equal("it decodes visibility", fetchedSkill?.isVisible, true);
+    equal(
+      "getSkillById returns null for an unknown id rather than throwing",
+      await repos.skills.getSkillById("no-such-skill"),
+      null,
+    );
+    const hiddenSkill = nested[0].skills.find((skill) => skill.name === "Hidden");
+    equal(
+      "it reads a hidden skill too — visibility is not an access filter here",
+      (await repos.skills.getSkillById(hiddenSkill.id))?.isVisible,
+      false,
+    );
+
+    // A skill cannot reference a category that does not exist. The FK is the
+    // authority; this proves it is actually enforced rather than assumed.
+    await expectRejection(
+      "creating a skill under a nonexistent category is a conflict",
+      repos.skills.createSkill({ categoryId: "no-such-category", name: "Ghost" }),
+      (error) => error instanceof ConflictError,
+    );
+
+    // Updating a missing skill is a NotFoundError, not a silent no-op.
+    await expectRejection(
+      "updating a missing skill raises NotFoundError",
+      repos.skills.updateSkill("no-such-skill", { name: "Ghost" }),
+      (error) => error instanceof NotFoundError,
+    );
+    equal(
+      "deleting a missing skill reports false",
+      await repos.skills.deleteSkill("no-such-skill"),
+      false,
+    );
+
     // Timeline ordering + owned highlights.
     const entry = await repos.timeline.create({
       role: "Engineer",

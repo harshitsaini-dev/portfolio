@@ -97,6 +97,17 @@ export interface SkillsRepository
     options?: OrderedListOptions,
   ): Promise<SkillCategoryWithSkills[]>;
   listSkills(categoryId: string): Promise<Skill[]>;
+  /**
+   * One skill by id, or `null`.
+   *
+   * Added for the admin edit route, which addresses a skill directly and has
+   * no category in hand. The alternative — `listWithSkills()` then a linear
+   * scan — reads every category and every skill to return one row.
+   *
+   * Returns `null` rather than throwing, matching `getById` on the ordered
+   * base so callers branch the same way for both entities.
+   */
+  getSkillById(id: string): Promise<Skill | null>;
   createSkill(input: SkillCreate): Promise<Skill>;
   updateSkill(id: string, patch: SkillUpdate): Promise<Skill>;
   deleteSkill(id: string): Promise<boolean>;
@@ -138,15 +149,21 @@ export function createSkillsRepository(
   });
 
   async function getSkillById(id: string): Promise<Skill | null> {
-    const row = await db
-      .prepare(`SELECT ${SKILL_COLUMNS} FROM skills WHERE id = ?`)
-      .bind(id)
-      .first<Row>();
-    return row ? toSkill(row) : null;
+    try {
+      const row = await db
+        .prepare(`SELECT ${SKILL_COLUMNS} FROM skills WHERE id = ?`)
+        .bind(id)
+        .first<Row>();
+      return row ? toSkill(row) : null;
+    } catch (cause) {
+      throw toDatabaseError(SKILL_ENTITY, "read", cause);
+    }
   }
 
   return {
     ...base,
+
+    getSkillById,
 
     async listWithSkills(options) {
       const categories = await base.list(options);

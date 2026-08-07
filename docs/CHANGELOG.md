@@ -1,6 +1,74 @@
 
 # Changelog
 
+## 2026-08-07 — Phase 8: Skills CMS (branch `feat/remaining-cms-skills`)
+
+**Status: implemented, awaiting review. Not committed. Phase 8 remains IN
+PROGRESS** — Skills is the sixth area of several, and is complete only after
+review, PR CI, merge, the post-merge `main` run, and completion
+documentation. Tools remains **not started**.
+
+### Added
+
+- **Skills CMS** — six routes under one coherent area (`/skills`,
+  `/skills/new`, `/skills/[id]`, `/skills/categories`,
+  `/skills/categories/new`, `/skills/categories/[id]`), all exported through
+  `withAdminPage` with static metadata, over **only** the columns committed
+  in migration `0001`. No field was invented and **no migration was added**.
+- `packages/schemas/src/skills.ts` — four strict shapes (category and skill,
+  create and update), each declared separately so no update shape inherits a
+  create default.
+- `apps/admin/src/lib/actions/skills.ts` — six Server Actions in the
+  mandatory `requireAdminIdentity()` → Zod → repository order.
+- `apps/admin/scripts/skills-tests.mjs` — **233 checks**, including a group
+  asserting that user-facing category-deletion guidance names only operations
+  the CMS supports (delete the skills; never "move" them elsewhere).
+- A single **Skills** entry in the admin navigation; `tools` keeps its own
+  separate unavailable entry.
+
+### Changed
+
+- `packages/database/src/repositories/skills.ts` — **one narrow extension**:
+  `getSkillById(id)` is now on the `SkillsRepository` interface. The admin
+  edit route addresses a skill directly and has no category in hand; the
+  alternative reads every category and skill to return one row. The private
+  helper already existed. Canonical tests were added in the database package,
+  so the database subtotal moved 287 → **297**.
+- `packages/schemas/src/internal/slug.ts` (new) now holds the project's
+  canonical slug grammar, and **`packages/schemas/src/technologies.ts`
+  imports it** instead of declaring its own copy. This is an extraction, not
+  a new rule: skill categories were about to become its third copy. Projects
+  still carries its own identical copy and was deliberately left alone.
+- `apps/admin/scripts/action-auth-tests.mjs` — 292 → **379 checks**, adding
+  the real exported category and skill actions on both sides of the auth
+  boundary, plus an in-use-category conflict and a leak detector with its own
+  negative controls.
+- The admin foundation suite grew 90 → **104 by itself** — its recursive
+  invariant discovered the six new routes without being edited.
+
+### Not changed
+
+`migrations/0001_initial_schema.sql` (**no migration `0002`**), education,
+timeline, certifications, projects, `apps/web`, CI, and Cloudflare
+resources. **`tools` was not implemented.** Moving a skill between categories
+remains unsupported by the repository contract, as it has been since Phase 5.
+
+### Verification
+
+`pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`,
+`pnpm test` (**1804 checks**, up from 1460 with all 1460 preserved), and
+`pnpm build` all **PASS** locally. **Not yet CI-verified.**
+Browser-checked by **manual Playwright MCP verification** — not automated
+E2E, which is Phase 20 — against real local D1: category and skill create,
+slug normalisation, duplicate-slug conflict, required-field validation with
+error-summary focus, a category selector holding the real categories,
+Hidden badges, edit with reload-confirmed persistence, two-step delete with
+Cancel, an in-use category showing an explanation and no delete control, and
+populated containment at 1280/768/375 on both lists. Confidentiality was
+probed with a seeded canary across HTML, RSC, and forged-Access requests —
+all denied with no content disclosed, and with a positive control proving
+the probe detects the canary when authorized. Zero console errors.
+
 ## 2026-08-07 — Phase 8: Certifications CMS
 
 **Status: merged.** Merged into `main` as
