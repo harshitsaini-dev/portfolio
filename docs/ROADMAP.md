@@ -224,14 +224,26 @@ database rather than a race-prone read-before-write check. Test coverage grew
 to **2017 real checks**. Merged to `main` as `3f15349` with CI green on
 Linux.
 
-**Immediate next entity: Socials.** Not started. `social_links` is another
-flat ordered table, but two things differ from Tools: its `url` is **NOT
-NULL**, so it takes the required `httpUrlSchema` rather than the nullable
-variant, and `platform` is free text with no persisted enum, so the CMS must
-not invent a controlled vocabulary. `createSocialLinkRepository` already
-exists unchanged. Sections is the last Phase 8 entity and is also not
-started. The remote database schema remains **intentionally unapplied**, and
-**Cloudflare Access dashboard configuration is still pending**.
+**Socials CMS: implemented, awaiting review.** Three `withAdminPage` routes
+over only the committed columns, with `createSocialLinkRepository` and the
+migration both unchanged, so `packages/database` was untouched and the
+database subtotal held at 297. Both pre-slice predictions held: `url` is
+`NOT NULL` and took the **required** `httpUrlSchema` rather than the nullable
+variant, and `platform` is free text with no persisted enum, so the form
+renders a plain text input — asserted in both directions, with arbitrary
+values accepted and empty/over-long still rejected. It is also the first
+entity with **no nullable columns at all**. Test coverage grew to **2245 real
+checks**. **Not merged and not CI-verified yet.**
+
+**Immediate next entity: Sections — the last one in Phase 8.** Not started.
+`sections` is flat and ordered, and `createSectionRepository` already exists
+with an extra `getByKey()`. One thing genuinely differs: `key` is the stable
+machine identifier the UI maps to a component, and the Phase 5 repository
+deliberately excludes it from the patch allowlist so a rename cannot silently
+break rendering — so the CMS should set it on create and treat it as
+immutable thereafter. The remote database schema remains **intentionally
+unapplied**, and **Cloudflare Access dashboard configuration is still
+pending**.
 
 ## Phase 9 — R2/media
 

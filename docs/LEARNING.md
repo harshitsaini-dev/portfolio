@@ -3,6 +3,50 @@
 Notes on things learned while building this project that are worth
 remembering for future work.
 
+## Phase 8 — Socials CMS
+
+### A wrapper's exit code is not the command's exit code
+
+A full `pnpm test` + `pnpm build` run was interrupted. The background task
+reported **exit code 0** and "completed" — but its captured output ended with
+`test: -1`. The test phase had been *terminated*; only the build had actually
+finished. Reporting that as a pass would have been a fabricated green.
+
+The habit worth keeping: when a long run is interrupted for any reason, read
+the **inner** result line, not the task's summary. And if the inner result is
+missing or negative, re-run rather than reconstruct. Orphaned processes from
+the killed run had to be cleared first, or the re-run inherits their locks.
+
+### Free text is a schema fact, not a UI shortcut
+
+`social_links.platform` is `TEXT NOT NULL` with no CHECK, no enum, no lookup
+table. A dropdown of GitHub / LinkedIn / X would have looked more polished
+and been strictly wrong: it rejects values the database accepts, and it dates
+the moment a new platform appears.
+
+What made this testable rather than a matter of taste was asserting **both**
+directions — eleven arbitrary values accepted (Cyrillic, Japanese,
+punctuation), *and* empty / whitespace-only / over-long still rejected. "Free
+text" does not mean "unvalidated", and a test suite that only proved the
+first half would have permitted an empty platform.
+
+The structural check is the one that will survive refactoring: the control is
+an `<input type="text">` with no `list` attribute, and the page contains zero
+`<select>` elements. That fails loudly if someone later adds a vocabulary.
+
+### NOT NULL changes which shared validator applies
+
+Three entities now store a URL. Certifications and Tools use
+`nullableHttpUrlSchema` because their columns are nullable; Socials uses
+`httpUrlSchema` because `url` is `NOT NULL`. Same allowlist, different
+emptiness contract — blank means "no link" in two of them and "validation
+error" in the third, and an update may clear the first two but never the
+third.
+
+Reaching for the shared helper is right; reaching for the *same variant*
+without re-reading the column definition would have quietly allowed a blank
+URL into a NOT NULL column.
+
 ## Phase 8 — Tools CMS
 
 ### A shared control earns its keep on the third consumer, not the second

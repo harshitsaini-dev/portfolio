@@ -51,9 +51,13 @@ something passed without running it.
   GitHub Actions/Linux** and again by the **post-merge `main` CI run
   `31178459051`**. `main` is clean and synced after the merge. See
   *Phase 8 — Tools CMS* below.
-- **Socials CMS: the next Phase 8 entity** — **not started**, and not to be
-  implemented until explicitly scoped and approved.
-- **Later Phase 8 entities** — Sections: **not started**.
+- **Socials CMS: implemented, awaiting review.** On
+  `feat/remaining-cms-socials`; not committed, not pushed, and **not
+  complete** — complete only after review, PR CI, merge, the post-merge
+  `main` run, and completion documentation. See *Phase 8 — Socials CMS*
+  below.
+- **Sections CMS: the next and last Phase 8 entity** — **not started**, and
+  not to be implemented until explicitly scoped and approved.
 - **Phase 7:** Complete (merged to `main`, CI green).
 - **Phase 8 is NOT complete.** It is complete only when every entity it
   covers is delivered and verified.
@@ -65,8 +69,81 @@ Phase 22** (fail-closed until then).
 
 ## Active task
 
-**None.** The Tools CMS is merged and closed. Socials is the next Phase 8
-entity and is not started.
+**Socials CMS.** Implemented; awaiting review.
+
+## Phase 8 — Socials CMS (implemented, awaiting review)
+
+### Persisted schema — read from migration `0001`, not from prior docs
+
+```
+social_links
+  id TEXT PK | label TEXT NOT NULL | platform TEXT NOT NULL
+  | url TEXT NOT NULL
+  | position INTEGER NOT NULL DEFAULT 0 CHECK (position >= 0)
+  | is_visible INTEGER NOT NULL DEFAULT 1 CHECK (is_visible IN (0,1))
+  | created_at | updated_at
+INDEX idx_social_links_visible_position ON (is_visible, position)
+```
+
+**No UNIQUE constraint, and no foreign key in either direction** — nothing
+references `social_links` and it references nothing. There is **no username,
+handle, icon, icon key, logo, colour, category, follower count,
+verification flag, or slug column**, so the CMS exposes none.
+`migrations/0001_initial_schema.sql` was **not edited** and **no migration
+`0002` was created**.
+
+This is the first CMS entity with **no nullable columns at all**: `label`,
+`platform`, and `url` are each `NOT NULL`, so nothing here normalises to
+`null`.
+
+### `platform` is free text, deliberately
+
+The column is plain `platform TEXT NOT NULL` — no CHECK, no enum, no lookup
+table. The schema validates presence and length and **nothing else**, and the
+form renders a plain labelled text input rather than a `<select>`. A
+vocabulary here (GitHub / LinkedIn / X / …) would be inventing a constraint
+the database does not have: it would reject values the schema permits and go
+stale as platforms appear and disappear. Asserted in both directions — eleven
+arbitrary values accepted (including Cyrillic, Japanese, and punctuation),
+while empty, whitespace-only, and over-long are still rejected, so "free
+text" does not mean "unvalidated".
+
+### `url` is NOT NULL, so it takes the REQUIRED shared policy
+
+`httpUrlSchema` from `internal/url.ts` — not the nullable variant
+certifications and tools use. Blank is a validation error rather than "no
+link", and an update may change the URL but **never clear it**. The shared
+helper itself was not modified.
+
+### Routes
+
+```
+apps/admin/src/app/(protected)/socials/
+  page.tsx        list — every link, hidden ones badged
+  new/page.tsx    create
+  [id]/page.tsx   edit + delete
+```
+
+All three go through `withAdminPage`, so the Phase 6 recursive invariant
+discovered them automatically — the foundation suite grew 111 → **118**
+without the invariant being touched. All three use **static** metadata.
+Navigation gained one **Social links** entry.
+
+### Repository — unchanged
+
+`createSocialLinkRepository` **already existed**, already decoded all eight
+committed columns, and was already exposed on the factory as
+**`repos.socialLinks`** (not `repos.socials` — the property name was checked
+rather than assumed). **No repository contract changed and
+`packages/database` was not touched**, so the database subtotal is unchanged
+at **297**.
+
+### External-link rendering
+
+The list renders `url` as a real anchor with `target="_blank"` and
+`rel="noopener noreferrer"`, and an accessible name that identifies the link
+and its platform. **Nothing is fetched from the stored URL server-side** — no
+favicon, no OpenGraph, no remote metadata.
 
 ## Phase 8 — Tools CMS (COMPLETE)
 
@@ -1107,9 +1184,128 @@ fail-closed behaviour.
 
 ## Next suggested task
 
-**Socials CMS** — the next Phase 8 entity, **not started**, and not to be
+Review the Socials CMS. After it merges and is formally closed, **Sections**
+is the next and **last** Phase 8 entity — **not started**, and not to be
 implemented until explicitly scoped and approved. Rationale is at the end of
 this file.
+
+## Phase 8 — Socials CMS: verification actually performed
+
+Locally on Windows. **Not yet CI-verified** — no PR has been opened.
+
+| Command | Result |
+| --- | --- |
+| `pnpm install --frozen-lockfile` | **PASS** — lockfile unmodified |
+| `pnpm lint` | **PASS** (exit 0) |
+| `pnpm typecheck` | **PASS** (exit 0) |
+| `pnpm test` | **PASS** (exit 0) — **2245 real checks** |
+| `pnpm build` | **PASS** (exit 0) — all three routes emitted as dynamic (`ƒ`) |
+
+| Suite | Checks | Change |
+| --- | --- | --- |
+| **Database subtotal** | **297** | **unchanged — no repository change** |
+| Admin authentication | 42 | — |
+| Admin foundation / invariant / containment | **118** | **+7** — three new protected pages, discovered automatically |
+| Admin D1 composition boundary | 34 | — |
+| Projects CMS | 96 | — |
+| Technologies CMS | 90 | — |
+| Profile CMS | 77 | — |
+| Timeline CMS | 173 | — |
+| Education CMS | 112 | — |
+| Certifications CMS | 167 | — |
+| Skills CMS | 233 | — |
+| Tools CMS | 146 | — |
+| **Socials CMS** | **161** | **new** |
+| **Server Action authorization** | **499** | **+60** — the real exported social link actions |
+| **Admin subtotal** | **1948** | — |
+| **Total** | **2245** | up from 2017 |
+
+**All 2017 previous checks still pass**, and none were weakened.
+
+**A note on how this total was obtained.** A first full run was interrupted
+mid-suite and its wrapper reported success while the inner result was
+`test: -1` — a *terminated* run, not a passing one. Only the `pnpm build`
+half of it had genuinely completed. The orphaned processes were cleared and
+the whole thing re-run clean; the numbers above come from that second run,
+which exited `0` for both commands. A task-level exit code is not the same
+as the command's own exit code, and the difference was worth catching.
+
+### Real-D1 results
+
+Create and read-back of every column; a platform value no vocabulary would
+have predicted (`some-brand-new-network-2031`) round-tripping verbatim and
+uncanonicalised; update changing both `platform` and `url` to other arbitrary
+valid values; visibility filtering (`list()` shows a hidden row,
+`list({visibleOnly: true})` does not); deterministic ordering across repeated
+reads.
+
+A preservation fixture built with deliberately non-default values (position
+6, hidden, its own platform and url) had **one** field changed and everything
+else survived, including `createdAt`; explicit `position: 0` and `isVisible`
+were honoured; an empty patch was proven a byte-for-byte no-op that does not
+bump `updated_at`; a bystander row was untouched throughout. An invalid
+payload and a `javascript:` URL were both proven rejected **before** the
+database with the stored row unchanged. Delete removed only its target.
+Integrity: `PRAGMA foreign_key_check` clean, a NOT NULL scan across all three
+required columns at zero, and a scan proving **every stored URL is http(s)**.
+
+### Browser verification (`playwright-local` MCP, real local D1)
+
+**Manual MCP verification — not automated Playwright CI tests.** Automated
+E2E remains Phase 20.
+
+Nav entry resolves and the empty state renders. All three required fields
+were rejected on an empty submit — `label`, `platform`, and `url` each with
+`aria-invalid="true"` — with focus moved to the error summary
+(`role="alert"`). `javascript:alert(1)` was rejected with "Enter a valid
+http(s) URL" keyed to `url` while the exotic platform beside it was accepted.
+
+**Platform freedom was proven structurally, not just behaviourally**: the
+control is an `<input type="text">` with **no `list` attribute**, and the
+page contains **zero `<select>` elements** — on both the create and edit
+views. Values exercised through the real form included
+`some-brand-new-network-2031`, `A platform with spaces & punctuation!`, and
+`Личный сайт`, all stored verbatim.
+
+Two rows created (positions 0 and 2) showed deterministic ordering and the
+**Hidden** badge; both links rendered with `target="_blank"`,
+`rel="noopener noreferrer"`, and accessible names naming the link and its
+platform. Editing pre-filled exactly (including a Japanese label and
+`isVisible: false`), changed the platform to another script, toggled
+visibility, repositioned, and persisted across a full reload. Two-step delete
+named the target, moved focus to the confirm button (44px), restored cleanly
+on **Cancel**, and on confirm removed only that row — the unrelated link
+survived. All five visible controls resolved to a real `<label for>`.
+
+**Zero console errors and zero warnings.**
+
+### Responsive results (populated list, not an empty state)
+
+| Width | Page scrolls sideways | Wrapper | Caption / `sr-only` |
+| --- | --- | --- | --- |
+| 1280px | **no** (1280 / 1280) | no internal scroll needed | present (8 `sr-only`) |
+| 768px | **no** (768 / 768) | no internal scroll needed | present (8 `sr-only`) |
+| 375px | **no** (375 / 375) | **scrolls internally** (704 / 343) | present (8 `sr-only`) |
+
+The wrapper was confirmed `position: relative` at every width; row action
+links measured 44px. No global `overflow-x-hidden`, and no `sr-only` content
+removed.
+
+### Confidentiality results
+
+Canaries were seeded in **`label`, `platform`, and `url`** — deliberately not
+the row id, which legitimately appears in a URL path. With Access configured
+**and `ADMIN_DEV_AUTH=enabled` at the same time**, all eight probes (HTML and
+RSC across the list, the direct edit route, and `/socials/new`, plus
+forged-assertion variants of both HTML routes and RSC) returned **307** with
+**no canary content**.
+
+**Positive control:** the same probe against authorized requests returned
+`200` and found all three canary tokens on both the list and the edit route —
+so "no leak" is a real result rather than a probe that matches nothing.
+
+Local test data, the temporary dev-auth file, and MCP artifacts were removed
+afterwards.
 
 ## Phase 8 — Tools CMS: verification actually performed
 
@@ -1806,7 +2002,7 @@ Local test data and the temporary dev-auth file were removed afterwards.
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
 | Phase 6 — Admin foundation | **Complete** (merged to `main`, CI green) |
 | Phase 7 — Projects CMS vertical slice | **Complete** (merged to `main`, CI green) |
-| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, Timeline, Education, Certifications, Skills, and Tools CMS **complete**, plus the admin list overflow and timeline partial-update regression fixes (all merged, CI green); Socials and Sections not started |
+| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, Timeline, Education, Certifications, Skills, and Tools CMS **complete**, plus the admin list overflow and timeline partial-update regression fixes (all merged, CI green); Socials CMS implemented and awaiting review; Sections not started |
 
 Phases 9–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
@@ -1947,8 +2143,9 @@ than changed here.
 ## Phase 8 — known limitations (not blockers)
 
 - **Phase 8 is not complete.** Technologies, Profile, Timeline, Education,
-  Certifications, Skills, and Tools are seven areas of several.
-- **The remaining CMS entities are not implemented** — Socials, Sections.
+  Certifications, Skills, Tools, and Socials are eight areas, and Socials is
+  not yet reviewed or merged.
+- **The remaining CMS entity is not implemented** — Sections.
 - **A skill cannot be moved between categories in the CMS.** The repository
   patch allowlist and `SkillUpdate` have excluded `categoryId` since Phase 5,
   because a move must also resolve position and the
@@ -3721,15 +3918,22 @@ the committed migration all unchanged — the first slice since Profile to
 need *nothing* new anywhere. Its `url` became the third consumer of the
 shared http(s) policy, and its `UNIQUE` name surfaces as a safe conflict.
 
-**Phase 8, next entity: Socials.** `social_links` is another flat ordered
-table — `id | label | platform | url | position | is_visible | created_at |
-updated_at` — with no child rows and nothing referencing it, so the Tools
-slice should transfer almost verbatim and `createSocialLinkRepository`
-already exists unchanged. Two things differ from Tools and are worth
-settling before writing code: its `url` is **NOT NULL**, so it takes the
-required `httpUrlSchema` rather than the nullable variant, and `platform` is
-free text with no persisted enum — so the CMS must not invent a controlled
-vocabulary the schema does not have. It needs no migration. Sections then
-remains, and it is the last Phase 8 entity.
+**Done, awaiting review: Socials CMS.** Both predictions held: `url` is
+`NOT NULL` and took the required `httpUrlSchema`, and `platform` is free text
+with no persisted enum, so the CMS renders a plain text input rather than
+inventing a vocabulary. `createSocialLinkRepository` was used unchanged and
+no migration was needed.
+
+**Phase 8, next and last entity: Sections.** `sections` is a flat ordered
+table — `id | key (UNIQUE) | title | subtitle | eyebrow | position |
+is_visible | created_at | updated_at` — and `createSectionRepository`
+already exists, with one method the ordered base does not provide:
+`getByKey()`. One thing genuinely differs from every entity so far: **`key`
+is the stable machine identifier the UI maps to a component**, and the Phase
+5 repository deliberately **excludes it from the patch allowlist** so a
+rename cannot silently break rendering. So the CMS should let `key` be set
+on create and then treat it as immutable — the same "reject rather than
+silently ignore" stance the Skills slice took with `categoryId`. `subtitle`
+and `eyebrow` are nullable; it needs no migration.
 
 It is not to be implemented until explicitly scoped and approved.

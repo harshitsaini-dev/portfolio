@@ -1429,6 +1429,165 @@ try {
   );
 
   // =========================================================================
+  // Social links (Phase 8) — a flat ordered entity with a REQUIRED URL and
+  // free-text platform, same boundary as every other.
+  // =========================================================================
+  const socialsActions = await import("../src/lib/actions/socials.ts");
+  check(
+    "the real socials action module exports all three mutations",
+    typeof socialsActions.createSocialLinkAction === "function" &&
+      typeof socialsActions.updateSocialLinkAction === "function" &&
+      typeof socialsActions.deleteSocialLinkAction === "function",
+  );
+
+  function socialPayload(overrides = {}) {
+    return {
+      label: "Guarded Link",
+      platform: "GuardedNet",
+      url: "https://example.com/guarded",
+      ...overrides,
+    };
+  }
+
+  const socialVictim = await repos.socialLinks.create({
+    label: "Existing Link",
+    platform: "ExistingNet",
+    url: "https://example.com/existing-link",
+    position: 4,
+    isVisible: false,
+  });
+  const socialBefore = await repos.socialLinks.getById(socialVictim.id);
+  const socialCountBefore = (await repos.socialLinks.list()).length;
+  const consultedBeforeSocials = providerConsulted;
+
+  startGroup("Unauthenticated social link CREATE cannot insert");
+
+  clearAuthEnvironment();
+
+  const socialCreate = await invoke(
+    socialsActions.createSocialLinkAction,
+    payloadForm(socialPayload()),
+  );
+  equal("the action does not return a result", socialCreate.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    socialCreate.error?.name,
+    "AdminUnauthorizedError",
+  );
+  equal(
+    "no social link was inserted",
+    (await repos.socialLinks.list()).length,
+    socialCountBefore,
+  );
+
+  startGroup("Social link auth wins before validation and the database");
+
+  const socialOrder = await invoke(
+    socialsActions.createSocialLinkAction,
+    payloadForm({ label: "", platform: "", url: "", id: "x", position: -3 }),
+  );
+  equal("an invalid unauthenticated payload still throws", socialOrder.kind, "threw");
+  equal(
+    "it is an authorization failure, not a validation result",
+    socialOrder.error?.name,
+    "AdminUnauthorizedError",
+  );
+
+  // A hostile URL is also an authorization failure first: the URL policy is
+  // never even consulted, because there is no identity to run it for.
+  const socialHostileUrl = await invoke(
+    socialsActions.createSocialLinkAction,
+    payloadForm(socialPayload({ url: "javascript:alert(1)" })),
+  );
+  equal(
+    "an unsafe URL is rejected as unauthorized, not as validation",
+    socialHostileUrl.error?.name,
+    "AdminUnauthorizedError",
+  );
+  equal(
+    "the database was never consulted during any denied social link call",
+    providerConsulted,
+    consultedBeforeSocials,
+  );
+
+  startGroup("Unauthenticated social link UPDATE cannot modify");
+
+  const socialUpdate = await invoke(
+    socialsActions.updateSocialLinkAction,
+    payloadForm(
+      {
+        label: "Hijacked",
+        platform: "Hijacked",
+        url: "https://example.com/hijacked",
+        position: 0,
+        isVisible: true,
+      },
+      socialVictim.id,
+    ),
+  );
+  equal("the action does not return a result", socialUpdate.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    socialUpdate.error?.name,
+    "AdminUnauthorizedError",
+  );
+  const socialAfterUpdate = await repos.socialLinks.getById(socialVictim.id);
+  equal("label is unchanged", socialAfterUpdate?.label, socialBefore?.label);
+  equal("platform is unchanged", socialAfterUpdate?.platform, socialBefore?.platform);
+  equal("url is unchanged", socialAfterUpdate?.url, socialBefore?.url);
+  equal("position is unchanged", socialAfterUpdate?.position, socialBefore?.position);
+  equal("isVisible is unchanged", socialAfterUpdate?.isVisible, socialBefore?.isVisible);
+  equal("updatedAt is unchanged", socialAfterUpdate?.updatedAt, socialBefore?.updatedAt);
+  check(
+    "the whole record is logically identical",
+    JSON.stringify(socialAfterUpdate) === JSON.stringify(socialBefore),
+  );
+
+  // The partial shape the timeline regression made dangerous: denied, and
+  // still byte-for-byte unchanged.
+  const socialPartial = await invoke(
+    socialsActions.updateSocialLinkAction,
+    payloadForm({ label: "Hijacked partially" }, socialVictim.id),
+  );
+  equal(
+    "an unauthenticated PARTIAL update is denied too",
+    socialPartial.error?.name,
+    "AdminUnauthorizedError",
+  );
+  check(
+    "and left the record byte-for-byte identical",
+    JSON.stringify(await repos.socialLinks.getById(socialVictim.id)) ===
+      JSON.stringify(socialBefore),
+  );
+
+  startGroup("Unauthenticated social link DELETE cannot remove");
+
+  const socialDelete = await invoke(
+    socialsActions.deleteSocialLinkAction,
+    payloadForm({}, socialVictim.id),
+  );
+  equal("the action does not return a result", socialDelete.kind, "threw");
+  equal(
+    "it throws AdminUnauthorizedError",
+    socialDelete.error?.name,
+    "AdminUnauthorizedError",
+  );
+  check(
+    "the social link still exists afterwards",
+    (await repos.socialLinks.getById(socialVictim.id)) !== null,
+  );
+  equal(
+    "the social link count is unchanged",
+    (await repos.socialLinks.list()).length,
+    socialCountBefore,
+  );
+  equal(
+    "the database was still never consulted for any denied social link call",
+    providerConsulted,
+    consultedBeforeSocials,
+  );
+
+  // =========================================================================
   startGroup("A forged Access assertion is also rejected");
 
   // With Access configured, a caller supplying a self-signed or junk
@@ -1540,6 +1699,29 @@ try {
     "the targeted tool is still byte-for-byte unchanged",
     JSON.stringify(await repos.tools.getById(toolVictim.id)) ===
       JSON.stringify(toolBefore),
+  );
+
+  // The same forged assertion against a social link mutation: development
+  // auth is enabled above and must NOT rescue it here either.
+  const forgedSocial = await invoke(
+    socialsActions.updateSocialLinkAction,
+    payloadForm({ label: "Forged" }, socialVictim.id),
+  );
+  equal(
+    "a forged-assertion social link update throws",
+    forgedSocial.error?.name,
+    "AdminUnauthorizedError",
+  );
+  check(
+    "development auth did not rescue the socials path either",
+    typeof forgedSocial.error?.reason === "string" &&
+      forgedSocial.error.reason !== "not_configured",
+    String(forgedSocial.error?.reason),
+  );
+  check(
+    "the targeted social link is still byte-for-byte unchanged",
+    JSON.stringify(await repos.socialLinks.getById(socialVictim.id)) ===
+      JSON.stringify(socialBefore),
   );
 
   // And with no assertion at all, while Access is configured.
@@ -2853,6 +3035,188 @@ try {
         /constraint failed/i.test(serialized) ||
         /\btools\.[a-z_]/i.test(serialized) ||
         /UNIQUE constraint/i.test(serialized)
+      );
+    }),
+  );
+
+  // =========================================================================
+  startGroup("Positive control — social link actions work when authenticated");
+
+  const authedSocialCreate = await invoke(
+    socialsActions.createSocialLinkAction,
+    payloadForm(
+      socialPayload({
+        label: "Authenticated Link",
+        platform: "an-unforeseen-network-2031",
+        url: "https://example.com/authenticated-link",
+        position: 7,
+      }),
+    ),
+  );
+  equal("an authenticated create redirects on success", authedSocialCreate.kind, "redirect");
+  equal("it redirects to the list", authedSocialCreate.to, "/socials?created=1");
+
+  const createdSocial = (await repos.socialLinks.list()).find(
+    (row) => row.label === "Authenticated Link",
+  );
+  check("the social link really was inserted", Boolean(createdSocial));
+  equal("its position persisted", createdSocial?.position, 7);
+  equal(
+    "its arbitrary free-text platform persisted verbatim",
+    createdSocial?.platform,
+    "an-unforeseen-network-2031",
+  );
+  equal(
+    "its url persisted",
+    createdSocial?.url,
+    "https://example.com/authenticated-link",
+  );
+
+  const badSocial = await invoke(
+    socialsActions.updateSocialLinkAction,
+    payloadForm({ label: "" }, createdSocial.id),
+  );
+  equal("a malformed label returns a result", badSocial.kind, "returned");
+  equal("it is reported as validation", badSocial.result?.status, "validation");
+  check("the error is keyed to the field", Boolean(badSocial.result?.fieldErrors?.label));
+
+  const badSocialPlatform = await invoke(
+    socialsActions.updateSocialLinkAction,
+    payloadForm({ platform: "" }, createdSocial.id),
+  );
+  equal("an empty platform is rejected", badSocialPlatform.result?.status, "validation");
+
+  const badSocialPosition = await invoke(
+    socialsActions.updateSocialLinkAction,
+    payloadForm({ position: -2 }, createdSocial.id),
+  );
+  equal("an invalid position is rejected", badSocialPosition.result?.status, "validation");
+
+  // The URL policy, enforced through the REAL exported action.
+  const badSocialUrl = await invoke(
+    socialsActions.updateSocialLinkAction,
+    payloadForm({ url: "javascript:alert(1)" }, createdSocial.id),
+  );
+  equal("an unsafe URL is rejected", badSocialUrl.result?.status, "validation");
+  check(
+    "the URL error is keyed to url",
+    Boolean(badSocialUrl.result?.fieldErrors?.url),
+  );
+  const blankSocialUrl = await invoke(
+    socialsActions.updateSocialLinkAction,
+    payloadForm({ url: "" }, createdSocial.id),
+  );
+  equal(
+    "a blank URL is rejected too — the column is NOT NULL",
+    blankSocialUrl.result?.status,
+    "validation",
+  );
+  equal(
+    "no unsafe or blank value reached the row",
+    (await repos.socialLinks.getById(createdSocial.id))?.url,
+    "https://example.com/authenticated-link",
+  );
+
+  const managedSocial = await invoke(
+    socialsActions.updateSocialLinkAction,
+    payloadForm({ id: "forced", createdAt: "2000-01-01" }, createdSocial.id),
+  );
+  equal(
+    "client-supplied database-managed fields are rejected",
+    managedSocial.result?.status,
+    "validation",
+  );
+
+  equal(
+    "none of the rejected patches touched the row",
+    (await repos.socialLinks.getById(createdSocial.id))?.position,
+    7,
+  );
+
+  // A partial update must not reset the fields it does not mention.
+  const partialSocial = await invoke(
+    socialsActions.updateSocialLinkAction,
+    payloadForm({ label: "Renamed Link" }, createdSocial.id),
+  );
+  equal("an authenticated partial update redirects", partialSocial.kind, "redirect");
+  const afterSocialPartial = await repos.socialLinks.getById(createdSocial.id);
+  equal("the named field changed", afterSocialPartial?.label, "Renamed Link");
+  equal(
+    "an unmentioned platform was NOT changed",
+    afterSocialPartial?.platform,
+    "an-unforeseen-network-2031",
+  );
+  equal(
+    "an unmentioned url was NOT changed",
+    afterSocialPartial?.url,
+    "https://example.com/authenticated-link",
+  );
+  equal("an unmentioned position was NOT reset", afterSocialPartial?.position, 7);
+  equal("an unmentioned isVisible was NOT reset", afterSocialPartial?.isVisible, true);
+
+  // Explicit falsy values are honoured.
+  const falsySocial = await invoke(
+    socialsActions.updateSocialLinkAction,
+    payloadForm({ position: 0, isVisible: false }, createdSocial.id),
+  );
+  equal("an explicit falsy patch redirects", falsySocial.kind, "redirect");
+  const afterSocialFalsy = await repos.socialLinks.getById(createdSocial.id);
+  equal("explicit position 0 persisted", afterSocialFalsy?.position, 0);
+  equal("explicit isVisible false persisted", afterSocialFalsy?.isVisible, false);
+
+  const missingSocial = await invoke(
+    socialsActions.updateSocialLinkAction,
+    payloadForm({ label: "Ghost" }, "does-not-exist"),
+  );
+  equal(
+    "updating a missing social link returns not_found",
+    missingSocial.result?.status,
+    "not_found",
+  );
+
+  const authedSocialDelete = await invoke(
+    socialsActions.deleteSocialLinkAction,
+    payloadForm({}, createdSocial.id),
+  );
+  equal("an authenticated delete redirects on success", authedSocialDelete.kind, "redirect");
+  equal("it redirects to the list", authedSocialDelete.to, "/socials");
+  equal(
+    "the social link really was removed",
+    await repos.socialLinks.getById(createdSocial.id),
+    null,
+  );
+  check(
+    "the untouched target social link is still there",
+    (await repos.socialLinks.getById(socialVictim.id)) !== null,
+  );
+
+  const missingSocialDelete = await invoke(
+    socialsActions.deleteSocialLinkAction,
+    payloadForm({}, createdSocial.id),
+  );
+  equal(
+    "deleting an already-deleted social link returns not_found",
+    missingSocialDelete.result?.status,
+    "not_found",
+  );
+
+  check(
+    "no social link result message leaks SQL or constraint text",
+    [
+      badSocial,
+      badSocialPlatform,
+      badSocialPosition,
+      badSocialUrl,
+      blankSocialUrl,
+      managedSocial,
+      missingSocial,
+    ].every((outcome) => {
+      const serialized = JSON.stringify(outcome.result ?? {});
+      return !(
+        /SQLITE_[A-Z]+/.test(serialized) ||
+        /constraint failed/i.test(serialized) ||
+        /\bsocial_links\.[a-z_]/i.test(serialized) ||
+        /\bCHECK\s*\(/i.test(serialized)
       );
     }),
   );

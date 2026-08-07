@@ -35,10 +35,10 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
     items: [
       { label: "Projects", href: "/projects" },
       // Technologies is its own table, and is what the projects picker reads.
-      // It is deliberately NOT merged into "Skills & tools": `skills`,
-      // `skill_categories`, and `tools` are separate tables that no route
-      // manages yet, and linking this one entry under that label would imply
-      // the rest of that CMS exists.
+      // It is deliberately NOT merged into a "Skills & tools" label:
+      // `technologies`, `skills`, `skill_categories`, and `tools` are four
+      // unrelated tables, and one combined entry would imply a relationship
+      // the schema does not have.
       { label: "Technologies", href: "/technologies" },
       { label: "Profile", href: "/profile" },
       // "Experience" matches the public site's and docs' wording for the
@@ -54,6 +54,9 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
       // exist in the schema.
       { label: "Skills", href: "/skills" },
       { label: "Tools", href: "/tools" },
+      // `social_links` is its own flat table with no relationship to any
+      // other entity, so it gets its own entry like the rest.
+      { label: "Social links", href: "/socials" },
       { label: "Sections", availableIn: "Phase 8" },
     ],
   },
