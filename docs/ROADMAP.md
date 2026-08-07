@@ -213,12 +213,24 @@ categories became its third consumer rather than its third copy;
 Test coverage grew to **1804 real checks**. Merged to `main` as `f138280`
 with CI green on Linux.
 
-**Immediate next entity: Tools.** Not started. `tools` is a flat ordered
-table with a nullable `url` that should reuse the shared
-`nullableHttpUrlSchema`, and `createToolRepository` already exists unchanged.
-Socials and Sections are also not started. The remote database schema remains
-**intentionally unapplied**, and **Cloudflare Access dashboard configuration
-is still pending**.
+**Tools CMS: implemented, awaiting review.** The first slice since Profile to
+need **nothing new anywhere** — three `withAdminPage` routes
+over only the committed columns, `createOrderedRepository` and
+`createToolRepository` both unchanged, and no migration, so
+`packages/database` was untouched and the database subtotal held at 297. Its
+nullable `url` became the **third** consumer of the shared http(s) policy,
+imported rather than copied, and its `UNIQUE` name surfaces as a safe
+conflict on both create and rename. Test coverage grew to **2017 real
+checks**. **Not merged and not CI-verified yet.**
+
+**Immediate next entity: Socials.** Not started. `social_links` is another
+flat ordered table, but two things differ from Tools: its `url` is **NOT
+NULL**, so it takes the required `httpUrlSchema` rather than the nullable
+variant, and `platform` is free text with no persisted enum, so the CMS must
+not invent a controlled vocabulary. `createSocialLinkRepository` already
+exists unchanged. Sections is the last Phase 8 entity and is also not
+started. The remote database schema remains **intentionally unapplied**, and
+**Cloudflare Access dashboard configuration is still pending**.
 
 ## Phase 9 — R2/media
 

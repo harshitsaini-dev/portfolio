@@ -271,6 +271,39 @@ Note that `skills` also has `UNIQUE (category_id, name)`, whose leading
 column already serves "skills in this category"; the additional index
 exists only for the ordered read.
 
+## Tools in the admin (Phase 8)
+
+The tools CMS uses the Phase 5 repository **entirely unchanged**:
+`createToolRepository` already existed, already decoded all eight committed
+columns, and was already exposed as `repos.tools`. No method was added, so
+the repository-package suites were not extended, and **no migration was
+needed**.
+
+```
+tools
+  id | name NOT NULL UNIQUE | purpose | url
+  | position NOT NULL DEFAULT 0 CHECK (position >= 0)
+  | is_visible NOT NULL DEFAULT 1 CHECK (is_visible IN (0, 1))
+  | created_at | updated_at
+```
+
+Three schema facts the CMS relies on:
+
+- **`name` is `UNIQUE`, and that constraint guards two write paths**, not
+  one: a duplicate on *create* and a rename onto a taken name on *update*.
+  Both surface as a `ConflictError` and both are asserted, including that the
+  refused rename leaves the stored row untouched. Uniqueness is never checked
+  in application code first — that would be a race the constraint wins.
+- **`url` is nullable and untyped at the database level**, so the protocol
+  allowlist is the only thing preventing a `javascript:` value from being
+  persisted and later rendered into an `href`. Blank input normalises to
+  `NULL`, never `''`.
+- **Nothing references `tools` and `tools` references nothing.** There are no
+  foreign keys in either direction, so a delete removes exactly one row.
+
+`idx_tools_visible_position` on `(is_visible, position)` serves the future
+public read; the admin list deliberately does **not** filter by visibility.
+
 ## Skills and skill categories in the admin (Phase 8)
 
 The first admin area covering **two related tables**, and the first to need a

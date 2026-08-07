@@ -49,10 +49,11 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
       // Skills and skill categories are one editing surface — a skill cannot
       // exist without a category — so they share a single nav entry, with
       // categories reached from inside the area rather than from here.
-      // `tools` is a separate table with no CMS yet, so it keeps its own
-      // unavailable entry rather than being implied by this one.
+      // `tools` is a separate table and keeps its own entry: nothing relates
+      // the two, so folding them together would imply a link that does not
+      // exist in the schema.
       { label: "Skills", href: "/skills" },
-      { label: "Tools", availableIn: "Phase 8" },
+      { label: "Tools", href: "/tools" },
       { label: "Sections", availableIn: "Phase 8" },
     ],
   },

@@ -8,7 +8,7 @@
     "start": "next start -p 3001",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "node --conditions=react-server scripts/auth-tests.mjs && node --conditions=react-server scripts/shell-tests.mjs && node --conditions=react-server scripts/db-composition-tests.mjs && node --conditions=react-server scripts/projects-tests.mjs && node --conditions=react-server scripts/technologies-tests.mjs && node --conditions=react-server scripts/profile-tests.mjs && node --conditions=react-server scripts/timeline-tests.mjs && node --conditions=react-server scripts/education-tests.mjs && node --conditions=react-server scripts/certifications-tests.mjs && node --conditions=react-server scripts/skills-tests.mjs && node --conditions=react-server scripts/action-auth-tests.mjs"
+    "test": "node --conditions=react-server scripts/auth-tests.mjs && node --conditions=react-server scripts/shell-tests.mjs && node --conditions=react-server scripts/db-composition-tests.mjs && node --conditions=react-server scripts/projects-tests.mjs && node --conditions=react-server scripts/technologies-tests.mjs && node --conditions=react-server scripts/profile-tests.mjs && node --conditions=react-server scripts/timeline-tests.mjs && node --conditions=react-server scripts/education-tests.mjs && node --conditions=react-server scripts/certifications-tests.mjs && node --conditions=react-server scripts/skills-tests.mjs && node --conditions=react-server scripts/tools-tests.mjs && node --conditions=react-server scripts/action-auth-tests.mjs"
   },
   "dependencies": {
     "@portfolio/database": "workspace:*",

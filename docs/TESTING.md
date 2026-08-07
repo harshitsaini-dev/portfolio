@@ -1,17 +1,17 @@
 # Testing
 
-## Current state (Phase 8 — Skills CMS complete)
+## Current state (Phase 8 — Tools CMS implemented, awaiting review)
 
-`pnpm test` runs **sixteen real suites and one no-op** — **1804 checks**,
-all passing on Windows and on GitHub Actions/Linux (PR #28 and its
-post-merge `main` run `31171449984`). The 1460 verified after the
-Certifications CMS are all still among them and none were weakened. What
-each one actually proves matters, so be precise:
+`pnpm test` runs **seventeen real suites and one no-op** — **2017 checks**.
+The 1804 verified after the Skills CMS all still pass on Windows and on
+GitHub Actions/Linux (PR #28 and its post-merge `main` run `31171449984`);
+the Tools CMS added the rest and **is not yet CI-verified**. What each one
+actually proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
 | Admin authentication | **42** | real `jose` verification, locally minted tokens | The Access JWT boundary and the development-auth guard |
-| Admin foundation | **104** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, the protected-page invariant, and horizontal scroll containment |
+| Admin foundation | **111** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, the protected-page invariant, and horizontal scroll containment |
 | **D1 composition boundary** | **34** | the real `binding.ts`, the **working tree**, plus `tsc` over Wrangler-generated Cloudflare types | Production fails closed, the provider seam composes, and Phase 22's provider already type-checks |
 | **Projects CMS** | **96** | the real schemas, and **real local D1** via `getPlatformProxy()` | The validation boundary and the full CRUD + relationship path |
 | **Technologies CMS** | **90** | the real schemas, and **real local D1** | The validation boundary, CRUD, the page-level usage composition, and `ON DELETE RESTRICT` |
@@ -20,17 +20,19 @@ each one actually proves matters, so be precise:
 | **Education CMS** | **112** | the real schemas, and **real local D1** | The validation boundary, partial-patch safety, and the ordered CRUD lifecycle |
 | **Certifications CMS** | **167** | the real schemas, and **real local D1** | The validation boundary, the shared URL policy, partial-patch safety, and the ordered CRUD lifecycle |
 | **Skills CMS** | **233** | the real schemas, **real local D1**, and the shipped UI strings | Two entities, the canonical slug grammar, partial-patch safety, that `ON DELETE RESTRICT` actually protects child skills, and that user-facing guidance names only operations the CMS supports |
-| **Server Action authorization** | **379** | the **real exported action functions** for all eight entities, against real local D1 | Unauthenticated mutations are denied and change nothing; partial updates preserve what they omit; unsafe URLs never reach a row; an in-use category cannot be deleted, leaks no SQL, and does not advertise moving skills |
+| **Tools CMS** | **146** | the real schemas, and **real local D1** | The validation boundary, the shared URL policy, the `UNIQUE` name constraint on both create and rename, partial-patch safety, and the ordered CRUD lifecycle |
+| **Server Action authorization** | **439** | the **real exported action functions** for all nine entities, against real local D1 | Unauthenticated mutations are denied and change nothing; partial updates preserve what they omit; unsafe URLs never reach a row; an in-use category cannot be deleted, leaks no SQL, and does not advertise moving skills |
 
-Subtotals: **admin 1507** (42 + 104 + 34 + 96 + 90 + 77 + 173 + 112 + 167 +
-233 + 379) and **database 297** (26 + 59 + 167 + 41 + 4, detailed below) —
-**1804 total**.
+Subtotals: **admin 1720** (42 + 111 + 34 + 96 + 90 + 77 + 173 + 112 + 167 +
+233 + 146 + 439) and **database 297** (26 + 59 + 167 + 41 + 4, detailed
+below) — **2017 total**.
 
 The database subtotal moved 287 → **297** for the first time since the
 Technologies slice: Skills needed `getSkillById()` on the repository
 interface, and a repository contract change gets canonical tests in the
-package that owns it. Education and Certifications added none, because both
-used `createOrderedRepository` with everything the CMS needed.
+package that owns it. Education, Certifications, and Tools added none,
+because all three used `createOrderedRepository` with everything the CMS
+needed.
 
 The admin foundation suite grew 83 → **90 on its own** when the three
 certification routes appeared. It walks the working tree for
@@ -257,6 +259,40 @@ always did. It is:
 
 That last one is the important shape: assert the **state after the write**,
 not merely that the mutation returned without error.
+
+## Tools CMS tests (Phase 8)
+
+`apps/admin/scripts/tools-tests.mjs` — **146 checks**, and **none** in the
+repository package: `createToolRepository` already existed and its contract
+did not change.
+
+**Validation.** Accepted input with trimming and blank → `null` for both
+optionals; 14 rejection cases; `.strict()` rejection of `id`, `createdAt`,
+`updatedAt`, and unknown fields on both shapes.
+
+**The URL policy gets its own group**, because it is a security control
+rather than a formatting rule — four accepted shapes and **twelve rejected**
+ones (`javascript:`, `JavaScript:` for case, `data:`, `file:`, `mailto:`,
+`ftp:`, protocol-relative, bare hostname, relative path, non-URL text,
+over-long, non-string). The update schema is proven to apply the same policy,
+and clearing the URL is proven to yield `null` rather than `""`.
+
+**Partial updates stay partial** — a single-field patch carries exactly one
+key, four named fields are proven absent rather than defaulted, an empty
+patch produces zero keys, and explicit `position: 0` / `isVisible: false` are
+proven *present* with their falsy values. The create schema is separately
+proven to still default all four.
+
+**Lifecycle against real local D1.** Create and read-back of every column; a
+null round-trip; **the `UNIQUE` name constraint asserted on both paths** — a
+duplicate create *and* a rename onto a taken name, each refused as a
+`ConflictError` with the stored row proven unchanged; update with clearing;
+visibility filtering; a preservation fixture proving a one-field patch leaves
+purpose, url, position, visibility, and `createdAt` intact; an empty patch
+proven a byte-for-byte no-op; a bystander untouched; deterministic ordering
+across repeated reads; an invalid payload and a `javascript:` URL both
+rejected **before** the database; delete removing only its target;
+`PRAGMA foreign_key_check` plus explicit NOT NULL and duplicate-name scans.
 
 ## Skills CMS tests (Phase 8)
 
