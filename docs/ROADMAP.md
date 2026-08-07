@@ -198,17 +198,20 @@ two copies of a security control; **Projects' behaviour did not change** and
 its tests stayed green. Test coverage grew to **1460 real checks**. Merged
 to `main` as `c1b153d` with CI green on Linux.
 
-**Skills CMS: implemented, awaiting review.** The seventh area, and the first
-with a **parent/child foreign key the editor chooses** — six
-`withAdminPage` routes under one nav entry, with categories nested inside
-`/skills` because a skill cannot exist without one. `ON DELETE RESTRICT` is
-surfaced as an explanatory conflict rather than worked around: **no child
-skill is ever deleted to make a category deletion succeed.** The repository
-gained exactly one method (`getSkillById`), which moved the database subtotal
-287 → **297** — its first change since Technologies. The canonical slug
-grammar was extracted to a shared internal module so skill categories became
-its third consumer rather than its third copy. Test coverage grew to
-**1804 real checks**. **Not merged and not CI-verified yet.**
+**Skills CMS: complete.** The seventh area, and the first with a
+**parent/child foreign key the editor chooses** — six `withAdminPage` routes
+under one nav entry, with categories nested inside `/skills` because a skill
+cannot exist without one. `ON DELETE RESTRICT` is surfaced as an explanatory
+conflict rather than worked around: **no child skill is ever deleted to make
+a category deletion succeed**, and the in-use guidance names only deletion,
+because moving a skill between categories is deliberately not supported. The
+repository gained exactly one method (`getSkillById`), which moved the
+database subtotal 287 → **297** — its first change since Technologies. The
+canonical slug grammar was extracted to a shared internal module so skill
+categories became its third consumer rather than its third copy;
+**Technologies' behaviour did not change** and Projects kept its own copy.
+Test coverage grew to **1804 real checks**. Merged to `main` as `f138280`
+with CI green on Linux.
 
 **Immediate next entity: Tools.** Not started. `tools` is a flat ordered
 table with a nullable `url` that should reuse the shared

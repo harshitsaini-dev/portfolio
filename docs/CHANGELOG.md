@@ -1,12 +1,15 @@
 
 # Changelog
 
-## 2026-08-07 — Phase 8: Skills CMS (branch `feat/remaining-cms-skills`)
+## 2026-08-07 — Phase 8: Skills CMS
 
-**Status: implemented, awaiting review. Not committed. Phase 8 remains IN
-PROGRESS** — Skills is the sixth area of several, and is complete only after
-review, PR CI, merge, the post-merge `main` run, and completion
-documentation. Tools remains **not started**.
+**Status: merged.** Merged into `main` as `f138280 feat: add skills CMS` via
+**Pull Request #28**, which passed CI on GitHub Actions/Linux; the
+**post-merge `main` CI run `31171449984` passed** as well, covering install,
+lint, typecheck, tests, and build. Both the implementation review and the
+pre-merge copy correction (see *Corrected before merge* below) were accepted.
+**Phase 8 remains IN PROGRESS** — Skills is the sixth area of several, and
+Tools remains **not started**.
 
 ### Added
 
@@ -46,6 +49,23 @@ documentation. Tools remains **not started**.
 - The admin foundation suite grew 90 → **104 by itself** — its recursive
   invariant discovered the six new routes without being edited.
 
+### Corrected before merge
+
+Review found the category-deletion guidance advertising an operation the CMS
+does not have. The in-use copy read *"Move or delete them first"* and *"or
+move them to another category"*, while `categoryId` is absent from
+`SkillUpdate` and the update schema rejects it — so an editor following that
+advice would have looked for a control that was never built.
+
+The **contract was kept** and the **wording fixed**: the conflict message is
+now "This category still contains skills. Delete those skills before
+deleting this category.", and the in-use panel names only deletion. The
+proactive copy adds that skills are never deleted automatically when a
+category is removed. Tests now read the shipped strings from source and
+assert that actionable guidance never advertises moving, reassigning, or
+transferring a skill, with a negative control proving the rule still rejects
+the old copy.
+
 ### Not changed
 
 `migrations/0001_initial_schema.sql` (**no migration `0002`**), education,
@@ -57,7 +77,8 @@ remains unsupported by the repository contract, as it has been since Phase 5.
 
 `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`,
 `pnpm test` (**1804 checks**, up from 1460 with all 1460 preserved), and
-`pnpm build` all **PASS** locally. **Not yet CI-verified.**
+`pnpm build` all **PASS**, locally and on Linux for both PR #28 and the
+post-merge `main` run.
 Browser-checked by **manual Playwright MCP verification** — not automated
 E2E, which is Phase 20 — against real local D1: category and skill create,
 slug normalisation, duplicate-slug conflict, required-field validation with

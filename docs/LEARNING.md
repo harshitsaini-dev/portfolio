@@ -439,6 +439,15 @@ symbol in them. Reconstructing them was possible only because the damage
 was uniform. A targeted edit would have changed the two numbers and nothing
 else.
 
+**This recurred during the Skills correction**, on the same shortcut and for
+the same reason — updating a handful of test counts. It was caught before
+commit by two signals worth remembering: the diff stat jumped from ~300
+insertions to 872/605, and the em-dash count in `PROJECT_STATE.md` collapsed
+from 527 to 24. The file was restored with `git checkout` and the edits
+re-applied one at a time. That a documented lesson repeated is the point:
+the rule needs to be *"never shell-rewrite a whole doc"*, not *"be careful
+when shell-rewriting a whole doc"*.
+
 ## Phase 7
 
 ### `redirect()` inside a try/catch is a silent footgun

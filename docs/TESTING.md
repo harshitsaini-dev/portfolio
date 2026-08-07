@@ -1,12 +1,12 @@
 # Testing
 
-## Current state (Phase 8 — Skills CMS implemented, awaiting review)
+## Current state (Phase 8 — Skills CMS complete)
 
-`pnpm test` runs **sixteen real suites and one no-op** — **1804 checks**.
-The 1460 verified after the Certifications CMS all still pass on Windows and
-on GitHub Actions/Linux (PR #26 and its post-merge `main` run
-`31161985127`); the Skills CMS added the rest and **is not yet CI-verified**.
-What each one actually proves matters, so be precise:
+`pnpm test` runs **sixteen real suites and one no-op** — **1804 checks**,
+all passing on Windows and on GitHub Actions/Linux (PR #28 and its
+post-merge `main` run `31171449984`). The 1460 verified after the
+Certifications CMS are all still among them and none were weakened. What
+each one actually proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
