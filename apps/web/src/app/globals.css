@@ -71,12 +71,15 @@ body {
   cursor: none;
 }
 
-.has-custom-cursor a,
-.has-custom-cursor button,
-.has-custom-cursor input,
-.has-custom-cursor textarea,
-.has-custom-cursor select,
-.has-custom-cursor [role="button"] {
+/*
+  Every descendant, not a list of them.
+  
+  The first version named the interactive elements. That missed anything else
+  that sets its own cursor -- a `cursor-pointer` utility on a div, a resize
+  handle, a text field's I-beam -- and the native arrow flickered back on
+  exactly those. Reported as the cursor working "sometimes".
+*/
+.has-custom-cursor * {
   cursor: none !important;
 }
 

@@ -118,18 +118,25 @@ export function CustomCursor() {
       if (!event.relatedTarget) restore();
     };
 
+    // Named rather than inline, so it can actually be removed. The first
+    // version passed an arrow function straight to `addEventListener` and
+    // then "removed" a different function object on cleanup, leaving the
+    // listener attached — one more reason the cursor behaved inconsistently.
+    const onFocus = () => {
+      if (hasPosition) show();
+    };
+
     window.addEventListener("pointermove", onMove, { passive: true });
     document.addEventListener("pointerleave", onLeave);
     window.addEventListener("blur", restore);
-    window.addEventListener("focus", () => {
-      if (hasPosition) show();
-    });
+    window.addEventListener("focus", onFocus);
     frame = requestAnimationFrame(tick);
 
     return () => {
       window.removeEventListener("pointermove", onMove);
       document.removeEventListener("pointerleave", onLeave);
       window.removeEventListener("blur", restore);
+      window.removeEventListener("focus", onFocus);
       cancelAnimationFrame(frame);
       // Never leave the page without a pointer.
       restore();
