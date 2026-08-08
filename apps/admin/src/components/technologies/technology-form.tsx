@@ -20,17 +20,24 @@ import {
 } from "@/lib/actions/result";
 import type { TechnologyMutationData } from "@/lib/actions/technologies";
 import { TextField } from "@/components/form/field";
+import {
+  MediaPickerField,
+  type MediaOption,
+} from "@/components/media/media-picker-field";
 
 export interface TechnologyFormValues {
   name: string;
   slug: string;
   category: string;
+  /** The chosen media asset id, or `""` for no icon. */
+  iconMediaId: string;
 }
 
 export const emptyTechnologyValues: TechnologyFormValues = {
   name: "",
   slug: "",
   category: "",
+  iconMediaId: "",
 };
 
 type TechnologyAction = (
@@ -62,11 +69,14 @@ export function TechnologyForm({
   technologyId,
   initialValues,
   submitLabel,
+  mediaOptions,
 }: {
   action: TechnologyAction;
   technologyId?: string;
   initialValues: TechnologyFormValues;
   submitLabel: string;
+  /** Uploaded assets to choose from, read on the server by the page. */
+  mediaOptions: readonly MediaOption[];
 }) {
   const fieldId = useId();
   const [state, formAction, isPending] = useActionState(action, idleState);
@@ -97,6 +107,7 @@ export function TechnologyForm({
     name: values.name,
     slug: values.slug,
     category: values.category,
+    iconMediaId: values.iconMediaId,
   });
 
   return (
@@ -175,6 +186,16 @@ export function TechnologyForm({
           errors={fieldErrors.category}
           hint="Optional grouping, e.g. “Language”, “Framework”, “Infrastructure”."
           onChange={(value) => update("category", value)}
+        />
+
+        <MediaPickerField
+          id={`${fieldId}-icon`}
+          label="Icon"
+          value={values.iconMediaId}
+          options={mediaOptions}
+          errors={fieldErrors.iconMediaId}
+          hint="Optional logo shown beside this technology."
+          onChange={(value) => update("iconMediaId", value)}
         />
       </section>
 
