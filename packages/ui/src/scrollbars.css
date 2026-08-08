@@ -1,0 +1,84 @@
+/**
+ * Scrollbar styling, shared by both apps.
+ *
+ * Lives here rather than in each app's `globals.css` because it is a design
+ * decision, not an app one: a visitor who opens the public site and the admin
+ * should not see two different scrollbars. It reads the same tokens as
+ * everything else, so it follows the theme into dark mode instead of pinning
+ * a grey that only works in one.
+ *
+ * Import it after `tokens.css`, which defines the colours it uses.
+ *
+ * ## Thinned, never hidden
+ *
+ * `scrollbar-width: none` would remove the only thing telling a mouse user
+ * there is more content below the fold, while leaving the overflow in place.
+ * The default control is replaced because its stepper arrows and full-width
+ * track are desktop chrome sitting inside the page's own layout — not because
+ * a scrollbar is unwanted.
+ *
+ * ## Two syntaxes on purpose
+ *
+ * `scrollbar-width`/`scrollbar-color` are the standard properties, supported
+ * by Firefox and current Chromium. The `::-webkit-scrollbar` rules cover the
+ * WebKit versions that ignore them. They describe the same result; neither is
+ * a fallback for a different design.
+ */
+
+/* The page scrollbar. `html` is what the browser paints the root scrollbar
+   from, so this has to sit here rather than on `body`. */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+/**
+ * Panes that scroll inside the page — the admin sidebar, and any future
+ * scrollable panel. Opt-in rather than applied to every overflow container,
+ * because a horizontally scrolling table wants the platform's own affordance:
+ * sideways overflow is easy to miss, and a thinner bar makes it easier still.
+ */
+.scroll-subtle {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+html::-webkit-scrollbar,
+.scroll-subtle::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+html::-webkit-scrollbar-track,
+.scroll-subtle::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html::-webkit-scrollbar-thumb,
+.scroll-subtle::-webkit-scrollbar-thumb {
+  background-color: var(--border-strong);
+  border-radius: var(--radius-full);
+  /* Inset from the track edge so the thumb reads as a hairline rather than a
+     filled gutter. `background-clip: content-box` is what makes the
+     transparent border show the track through. */
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+html::-webkit-scrollbar-thumb:hover,
+.scroll-subtle:hover::-webkit-scrollbar-thumb {
+  background-color: var(--fg-muted);
+}
+
+/* The stepper arrows are the least useful part of the default control and the
+   most visually intrusive. */
+html::-webkit-scrollbar-button,
+.scroll-subtle::-webkit-scrollbar-button {
+  display: none;
+}
+
+/* A corner between two scrollbars, painted grey by default. */
+html::-webkit-scrollbar-corner,
+.scroll-subtle::-webkit-scrollbar-corner {
+  background: transparent;
+}

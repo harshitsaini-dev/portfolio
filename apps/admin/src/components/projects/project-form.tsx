@@ -312,11 +312,12 @@ export function ProjectForm({
 
       <section aria-labelledby={`${fieldId}-media`} className="flex flex-col gap-3">
         <h2 id={`${fieldId}-media`} className="text-sm font-semibold uppercase tracking-wider text-fg">
-          Media
+          Gallery
         </h2>
         <p className="text-sm text-fg-muted">
-          Media associations require uploaded assets, which arrive with R2
-          storage in a later phase. No media can be attached yet.
+          A per-project gallery is not built yet. The cover image and icon
+          below are set from the media library, and the public case-study page
+          renders a gallery as soon as this can attach to one.
         </p>
       </section>
 

@@ -4,6 +4,9 @@
 /* shadcn/ui's variable names, aliased onto the tokens above. Introduces no
    colours of its own — see packages/ui/src/shadcn.css. */
 @import "@portfolio/ui/shadcn.css";
+/* One scrollbar treatment across both apps, built from the same
+   tokens. See packages/ui/src/scrollbars.css. */
+@import "@portfolio/ui/scrollbars.css";
 
 /* Tailwind only scans this app by default, so utilities used exclusively by
    the shared components would be absent from the generated stylesheet — a

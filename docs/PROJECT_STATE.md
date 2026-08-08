@@ -8,6 +8,79 @@ something passed without running it.
 
 **Phase 9 — R2/media. IN PROGRESS.** Not complete.
 
+## Project case-study pages, and admin chrome (branch `feat/project-pages-and-admin-chrome`)
+
+### `/projects/[slug]`
+
+One project in full: cover, long-form description, technologies, links and a
+media gallery the cards never show.
+
+The publication rule lives next to the read rather than in the route, so a
+caller that forgets it cannot serve a draft. Missing, draft and archived all
+resolve to `null` and become the same 404 — not a 403, and not a page saying
+"not published". Either of those confirms the slug exists, which is exactly
+what a draft is meant not to reveal.
+
+`generateMetadata` reads the project, which is safe here in a way it is not in
+the admin: `getProjectDetail` returns `null` for anything unpublished, so an
+unpublished title cannot reach a `<title>`. The admin's rule about metadata
+bypassing route protection does not apply to a page with no protection.
+
+The site is no longer one page, so the header's name became a link home and
+its section links became root-relative. A bare fragment on a project page
+looks for a section that is not there.
+
+`ContentImage` gained a **fluid** mode. Large images cannot use the fixed one:
+it pins width and height in an inline style, which would override the
+responsive classes, and it claims square dimensions, which is wrong for a
+photograph. Fluid mode reserves space from the asset's own recorded width and
+height, so the page does not reflow as covers load.
+
+### Admin sidebar scrolls independently
+
+Reported by the owner: scrolling a CMS form dragged the navigation up with it.
+The sidebar was an ordinary block in the page's single scroll region. It now
+sticks below the header with its own bounded height and overflow.
+
+Three classes, all needed: `self-start` (a flex item stretches to its
+container's height by default, and an item as tall as the scroll container has
+nowhere to stick to), `sticky top-16` (rest beneath the header, not under it),
+and `h-[calc(100dvh-4rem)]` with `overflow-y-auto`. `dvh` rather than `vh`
+because mobile browsers change the visible height as toolbars collapse.
+
+### One scrollbar treatment, shared
+
+`packages/ui/src/scrollbars.css` replaces the platform default for the page
+and for scrollable panes, in one place used by both apps — a visitor who opens
+the site and the admin should not see two different scrollbars. Built from the
+same tokens, so it follows the theme into dark mode.
+
+**Thinned, never hidden.** `scrollbar-width: none` would remove the only
+signal that there is more content below the fold while leaving the overflow.
+The opt-in `.scroll-subtle` class is deliberately not applied to horizontally
+scrolling tables, where sideways overflow is already easy to miss.
+
+### A stale notice corrected
+
+The project form told the editor that uploads "arrive with R2 storage in a
+later phase". They arrived. What is actually missing is the per-project
+gallery, so it says that instead.
+
+### Tests
+
+**3271/3271 across 23 suites**; the web suite grew to 65 checks. The new ones
+assert that a draft, an archived project and an unknown slug are
+indistinguishable, and that a gallery image with no alt text is dropped along
+with its caption.
+
+### Browser-verified
+
+A published project renders with its cover and metadata title. Setting it to
+draft in the CMS made `/projects/<slug>` return **404, identical to an unknown
+slug**, and removed it from the home page; publishing restored both. The
+sidebar stays pinned at 64px while the form scrolls, and both scrollbars
+compute `scrollbar-width: thin`.
+
 ## Section manager drives the public page (branch `feat/section-order-and-project-pages`)
 
 The `sections` table now controls the public page's order, headings and

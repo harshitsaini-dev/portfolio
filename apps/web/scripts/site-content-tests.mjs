@@ -445,6 +445,68 @@ try {
   );
   equal("and changes nothing else", unknown.sections.length, 5);
 
+
+  // =========================================================================
+  // Project detail pages. The publication rule again, from the other side.
+  // =========================================================================
+  startGroup("Project detail");
+
+  const { getProjectDetail, listPublishedProjectSlugs } = await import(
+    "../src/lib/content/project-detail.ts"
+  );
+
+  const detail = await getProjectDetail("published-project");
+  check("a published project resolves", detail !== null);
+  equal("with its title", detail?.title, "Published Project");
+  equal("and its period label", detail?.period, "2024 – present");
+  equal(
+    "an editor-supplied link label wins over the kind",
+    detail?.links[0]?.label,
+    "Source",
+  );
+
+  // The assertions that matter. A draft must be indistinguishable from a slug
+  // that was never used: anything else confirms the slug exists, which is
+  // what a draft is meant not to reveal.
+  equal(
+    "a DRAFT project resolves to null, exactly like a missing one",
+    await getProjectDetail("draft-project"),
+    null,
+  );
+  equal(
+    "an ARCHIVED project resolves to null",
+    await getProjectDetail("archived-project"),
+    null,
+  );
+  equal(
+    "an unknown slug resolves to null",
+    await getProjectDetail("no-such-project-anywhere"),
+    null,
+  );
+
+  const slugs = await listPublishedProjectSlugs();
+  equal("only published slugs are listed", slugs.length, 1);
+  equal("and it is the published one", slugs[0], "published-project");
+
+  // An image with no alt text is dropped here too, and its caption goes with
+  // it — a caption under an image that is not there is worse than neither.
+  await repos.projects.setMedia(published.id, [
+    { mediaAssetId: undescribed.id, caption: "Should not appear", position: 0 },
+    { mediaAssetId: described.id, caption: "A described shot", position: 1 },
+  ]);
+  const withGallery = await getProjectDetail("published-project");
+  equal("only the described image reaches the gallery", withGallery?.gallery.length, 1);
+  equal(
+    "and it keeps its caption",
+    withGallery?.gallery[0]?.caption,
+    "A described shot",
+  );
+  equal(
+    "the undescribed image's caption is dropped with it",
+    withGallery?.gallery.some((item) => item.caption === "Should not appear"),
+    false,
+  );
+
 } catch (error) {
   checks += 1;
   failures.push(`unexpected error: ${error?.message ?? error}`);

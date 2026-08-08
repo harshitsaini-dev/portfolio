@@ -1,4 +1,6 @@
 import { PlaceholderAction } from "@/components/placeholder-action";
+import Link from "next/link";
+
 import { Section } from "@/components/section";
 import type { SectionCopy } from "@/lib/content/sections";
 import { BadgeList } from "@/components/ui/badge";
@@ -20,7 +22,12 @@ function ProjectCard({ project }: { project: Project }) {
               <ContentImage image={project.image} size={32} decorative />
             ) : null}
             <h3 id={headingId} className={type.subheading}>
-              {project.title}
+              <Link
+                href={`/projects/${project.slug}`}
+                className="transition-colors duration-150 hover:text-accent"
+              >
+                {project.title}
+              </Link>
             </h3>
           </div>
           <p className={`shrink-0 ${type.meta}`}>{project.year}</p>

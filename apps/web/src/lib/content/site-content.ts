@@ -84,7 +84,12 @@ function toImage(
   // No alt text means nothing a screen reader could announce. See the module
   // comment: dropping the image is the accessible failure mode.
   if (!asset?.altText) return null;
-  return { id: asset.id, alt: asset.altText };
+  return {
+    id: asset.id,
+    alt: asset.altText,
+    width: asset.width,
+    height: asset.height,
+  };
 }
 
 /** Split stored prose into paragraphs on blank lines. */
