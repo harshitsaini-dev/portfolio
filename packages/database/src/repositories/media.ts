@@ -236,6 +236,20 @@ export interface ResumeRepository {
    */
   makeCurrent(id: string): Promise<Resume>;
   delete(id: string): Promise<boolean>;
+
+  /**
+   * How many résumés point at one media asset.
+   *
+   * `resumes.media_asset_id` is `ON DELETE RESTRICT`, so the database would
+   * block the delete anyway — but the media service asks first so it can tell
+   * the editor *what* to detach instead of surfacing a foreign-key failure,
+   * and so every one of the four references into `media_assets` is checked
+   * the same way rather than two being caught and two pre-checked.
+   *
+   * A counting query against `idx_resumes_media_asset`, not `list()` filtered
+   * in memory.
+   */
+  countByMediaAsset(mediaAssetId: string): Promise<number>;
 }
 
 export function createResumeRepository(
@@ -371,6 +385,22 @@ export function createResumeRepository(
         return (result.meta?.changes ?? 0) > 0;
       } catch (cause) {
         throw toDatabaseError(RESUME_ENTITY, "delete", cause);
+      }
+    },
+
+    async countByMediaAsset(mediaAssetId) {
+      try {
+        const row = await db
+          .prepare(
+            `SELECT COUNT(*) AS resume_count FROM resumes WHERE media_asset_id = ?`,
+          )
+          .bind(mediaAssetId)
+          .first<Row>();
+        // Not a schema column, so coerced rather than trusted across drivers.
+        const raw = row?.resume_count;
+        return typeof raw === "number" ? raw : Number(raw ?? 0);
+      } catch (cause) {
+        throw toDatabaseError(RESUME_ENTITY, "count by media asset", cause);
       }
     },
   };

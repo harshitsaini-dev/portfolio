@@ -558,6 +558,24 @@ try {
   equal("the GIF fixture still starts with `G`", GIF[0], 0x47);
   equal("and is still refused by the sniffer", detectContentType(GIF), null);
 
+  // The other half of that repair: the SOURCE must stay text. The assertions
+  // above prove the fixtures kept their teeth; this proves the file kept its
+  // classification, which is the thing that actually broke.
+  //
+  // Deliberately two named files rather than a repository-wide walk. These
+  // are the suites that legitimately need control-byte fixtures, so they are
+  // the ones that can regress; scanning everything would be a lint system
+  // wearing a test's clothes, and it would fail the moment a real binary
+  // asset is added.
+  for (const relative of [
+    join("scripts", "storage-foundation-tests.mjs"),
+    join("scripts", "media-service-tests.mjs"),
+  ]) {
+    const source = readFileSync(join(appRoot, relative));
+    const nulCount = source.filter((byte) => byte === 0).length;
+    equal(`\`${relative}\` contains zero literal NUL bytes`, nulCount, 0);
+  }
+
   /** Escape to pure ASCII so CI logs stay text, whatever the locale. */
   const asciiLabel = (value) =>
     value

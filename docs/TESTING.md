@@ -1,17 +1,17 @@
 # Testing
 
-## Current state (Phase 9 in progress — storage foundation added)
+## Current state (Phase 9 in progress — media service added)
 
-`pnpm test` runs **twenty real suites and one no-op** — **2888 checks**, all
-passing locally on Windows. The 2648 verified after the partial-update fix
-(PR #37, post-merge `main` run `31246283285`) are **all still among them and
-none were weakened**.
+`pnpm test` runs **twenty-one real suites and one no-op** — **3089 checks**,
+all passing locally on Windows. The 2888 verified after the storage-test
+hygiene fix (post-merge `main` run `31251658312`) are **all still among them
+and none were weakened**.
 
-The Phase 9 **storage foundation** added one new suite of **240**. Before it,
-the partial-update fix had added 160 (Projects 96 → 185, Technologies
-90 → 112, Server Action authorization 562 → 611). The database subtotal is
-unchanged at **297** — `packages/database` has not been touched since Skills.
-What each suite actually proves matters, so be precise:
+The Phase 9 **media service** added one new suite of **181**, plus **2** to the
+storage foundation (a source-level NUL guard) and **18** to the repository
+suite for the two reference-counting methods it needed — the first change to
+`packages/database` since Skills, so the database subtotal moved
+**297 → 315**. What each suite actually proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
@@ -28,12 +28,13 @@ What each suite actually proves matters, so be precise:
 | **Tools CMS** | **146** | the real schemas, and **real local D1** | The validation boundary, the shared URL policy, the `UNIQUE` name constraint on both create and rename, partial-patch safety, and the ordered CRUD lifecycle |
 | **Socials CMS** | **161** | the real schemas, and **real local D1** | The validation boundary, the **required** URL policy, that `platform` is free text rather than an enum, partial-patch safety, and the ordered CRUD lifecycle |
 | **Sections CMS** | **173** | the real schemas, and **real local D1** | The validation boundary, the canonical machine-key grammar, that **`key` cannot be renamed after creation**, partial-patch safety, and the ordered CRUD lifecycle |
-| **Storage foundation** | **240** | the pure upload policy, the real seam module, the in-memory fake, a **real local simulated R2**, and `tsc` over Wrangler-generated `R2Bucket` | The four-type allowlist with SVG excluded, byte-signature detection, declared/sniffed mismatch refusal, both size ceilings, path-safe generated keys, fault-injectable storage, and a seam that fails closed in every environment |
+| **Storage foundation** | **242** | the pure upload policy, the real seam module, the in-memory fake, a **real local simulated R2**, and `tsc` over Wrangler-generated `R2Bucket` | The four-type allowlist with SVG excluded, byte-signature detection, declared/sniffed mismatch refusal, both size ceilings, path-safe generated keys, fault-injectable storage, and a seam that fails closed in every environment |
+| **Media service** | **181** | the real service, the fault-injectable fake, and **real local D1 repositories** | The create ordering, that a rejected upload issues no put, that a declined put is not success, compensation and compensation-failure, that a colliding id cannot overwrite an existing object, the delete ordering, and that **all four** references block a delete — including the two `SET NULL` ones the database would not object to |
 | **Server Action authorization** | **611** | the **real exported action functions** for all eleven entities, against real local D1 | Unauthenticated mutations are denied and change nothing; partial updates preserve what they omit — **including a project's links, technology tags, and `project_media`**; unsafe URLs never reach a row; an in-use category cannot be deleted; a section key cannot be renamed; nothing leaks SQL |
 
-Subtotals: **admin 2591** (42 + 125 + 34 + 185 + 112 + 77 + 173 + 112 + 167 +
-233 + 146 + 161 + 173 + 240 + 611) and **database 297** (26 + 59 + 167 + 41 +
-4, detailed below) — **2888 total**.
+Subtotals: **admin 2774** (42 + 125 + 34 + 185 + 112 + 77 + 173 + 112 + 167 +
+233 + 146 + 161 + 173 + 242 + 181 + 611) and **database 315** (26 + 59 + 185 +
+41 + 4, detailed below) — **3089 total**.
 
 The database subtotal moved 287 → **297** for the first time since the
 Technologies slice: Skills needed `getSkillById()` on the repository
@@ -399,7 +400,42 @@ at the boundary rather than only the declared-size shortcut, and a proof that
 the ceiling follows the **sniffed** type so a renamed file cannot borrow the
 other allowance.
 
-### Integration tests — planned
+### Integration tests — implemented (media service, 181 checks)
+
+Against the fake plus **real local D1 repositories**, so reference safety is
+asserted against actual foreign keys rather than a mock that would agree with
+whatever the service did.
+
+Create: a valid image and a valid PDF succeed and the object, the row, and the
+sniffed content type all agree; four rejection shapes each issue **zero puts**
+and leave storage empty; an image without alt text is refused; a put failure
+leaves no row; **a declined put (resolved `null`) is a failure, not a
+success**; a D1 failure after a successful put compensates away the object,
+leaving neither row nor object; a compensation failure keeps the **original**
+failure primary, leaves the orphan, flags `cleanupRequired`, and emits a
+diagnostic carrying the key — while the user-facing message does not.
+
+Delete: the clean path removes the row then the object; **all four references
+block it**, with the two `SET NULL` cases asserted to leave the project's
+cover and the site's social image *unchanged*, proving the pre-check rather
+than the database did the work; a D1 failure leaves storage untouched; a
+storage failure after a successful D1 delete returns success with
+`objectRemoved: false` and does **not** recreate the metadata; stale metadata
+whose object already vanished still cleans up; an unknown id is a safe
+not-found.
+
+**The collision test is the one worth copying.** An injected id generator
+returns the same id twice, so the second create lands on an occupied key. It
+asserts the refusal, that **no second put was issued**, and that the existing
+object's bytes, D1 row, alt text, and content type are all unchanged — the
+assertion that actually matters, since `put` would have overwritten silently.
+A second case proves an *orphaned* object is equally protected. An earlier
+draft of this test passed while proving nothing: its payload was a type
+mismatch, so it was refused by validation before ever reaching the key
+reservation. The reason was asserted, not just the refusal, which is what
+caught it.
+
+### Further integration tests — planned
 
 Against the fake adapter plus real local D1: a successful upload writes the
 object **and** the row and they agree; an R2 failure before D1 leaves **no

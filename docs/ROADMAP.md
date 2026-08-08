@@ -263,8 +263,9 @@ Cloudflare R2 integration for project media and resume uploads, including
 upload validation.
 
 **In progress.** The audit is merged (`e3321d7`), its prerequisite regression
-is fixed and merged (`89f67f8`), and the **storage seam and upload policy are
-implemented and awaiting review**.
+is fixed and merged (`89f67f8`), the storage seam and upload policy are
+merged (`79ad35b`, `3808983`), and the **media service is implemented and
+awaiting review**.
 
 Still true, and unchanged by any of it: **nothing has been provisioned.** No
 R2 bucket, no bucket binding in any committed config, no deployment resource.
@@ -290,14 +291,15 @@ Planned slice order:
 1. ~~Fix the partial-update defect in Projects and Technologies~~ —
    **merged** (`89f67f8`, PR #37, CI `31246283285`). A prerequisite, not
    Phase 9 work proper.
-2. ~~Storage seam and pure policy~~ — **done, awaiting review.** The
-   `ObjectStorage` contract, the fail-closed provider seam, the in-memory
-   fake with fault injection, the storage-key generator, and the MIME/size
-   policy. Still no bucket and no binding.
-3. Media library CMS — upload, list, alt text, delete, with compensation.
-4. Project media attachment and project cover image.
-5. Résumé upload and the current-résumé surface.
-6. Public delivery routes for images and the current résumé.
+2. ~~Storage seam and pure policy~~ — **merged** (`79ad35b`), with a
+   follow-up text-safety fix (`3808983`, post-merge CI `31251658312`).
+3. ~~Media service~~ — **done, awaiting review.** Create and delete
+   orchestration, key reservation, compensation, and the four reference
+   pre-checks. Still no bucket and no binding.
+4. Media library CMS — upload Server Action, list, alt text, delete.
+5. Project media attachment and project cover image.
+6. Résumé upload and the current-résumé surface.
+7. Public delivery routes for images and the current résumé.
 
 ## Phase 10 — Theme/settings
 

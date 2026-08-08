@@ -8,6 +8,7 @@ import {
   type ProjectListOptions,
   type ProjectMediaInput,
   type ProjectMediaItem,
+  type ProjectMediaReferenceCounts,
   type ProjectUpdate,
   type ProjectWithRelations,
   type Technology,
@@ -160,6 +161,25 @@ export interface ProjectRepository {
    * count at once, and per-row calls would be N+1.
    */
   countByTechnology(): Promise<Record<string, number>>;
+
+  /**
+   * How many times this aggregate references one media asset.
+   *
+   * Lives here for the same ownership reason as `countByTechnology`: both
+   * `projects.cover_media_id` and `project_media` belong to this aggregate,
+   * so a second repository querying them would be a second ownership path.
+   *
+   * Exists because the two relations disagree about deletion.
+   * `project_media` is `ON DELETE RESTRICT` and would block a delete loudly;
+   * `projects.cover_media_id` is `ON DELETE SET NULL` and would let it
+   * through while **silently clearing a published project's cover image**.
+   * So "is this asset safe to delete?" cannot be answered by trying and
+   * catching — the dangerous case does not raise. It has to be asked first.
+   *
+   * One query with two indexed scalar subqueries rather than two round
+   * trips, or worse, listing every project and filtering in memory.
+   */
+  countMediaReferences(mediaAssetId: string): Promise<ProjectMediaReferenceCounts>;
 }
 
 export function createProjectRepository(
@@ -545,6 +565,37 @@ export function createProjectRepository(
         return counts;
       } catch (cause) {
         throw toDatabaseError(ENTITY, "count by technology", cause);
+      }
+    },
+
+    async countMediaReferences(mediaAssetId) {
+      try {
+        const row = await db
+          .prepare(
+            // Both subqueries hit a dedicated index —
+            // `idx_projects_cover_media` and `idx_project_media_asset` —
+            // which exist precisely for this reverse lookup.
+            `SELECT
+               (SELECT COUNT(*) FROM projects
+                 WHERE cover_media_id = ?) AS cover_count,
+               (SELECT COUNT(*) FROM project_media
+                 WHERE media_asset_id = ?) AS attachment_count`,
+          )
+          .bind(mediaAssetId, mediaAssetId)
+          .first<Row>();
+
+        // Aggregates are not schema columns, so they are coerced rather than
+        // trusted blindly across driver implementations — same care as
+        // `countByTechnology`.
+        const toCount = (value: unknown): number =>
+          typeof value === "number" ? value : Number(value ?? 0);
+
+        return {
+          covers: toCount(row?.cover_count),
+          attachments: toCount(row?.attachment_count),
+        };
+      } catch (cause) {
+        throw toDatabaseError(ENTITY, "count media references", cause);
       }
     },
   };

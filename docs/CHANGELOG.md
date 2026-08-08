@@ -1,6 +1,114 @@
 
 # Changelog
 
+## 2026-08-08 — Phase 9: media service
+
+The cross-system orchestration layer between validated bytes, R2, and D1.
+**Phase 9 is not complete** — this sits below the UI and action layers, and
+no upload action, media CMS, résumé UI, attachment UI, or public delivery
+exists.
+
+### Added
+
+- **`apps/admin/src/lib/media/service.ts`** — `createMediaService()`, taking
+  every dependency explicitly (storage, four repositories, an id generator,
+  an optional diagnostic sink) and reaching for nothing. That is what makes
+  its compensation paths testable.
+- **`apps/admin/src/lib/media/composition.ts`** — the one place that resolves
+  the two bindings on the service's behalf. Inherits the storage seam's
+  fail-closed rule, so it throws while no bucket exists.
+- **Two repository methods**, each owned by the repository that owns the
+  relation, following the `countByTechnology` precedent:
+  `projects.countMediaReferences(id)` (one query, two indexed scalar
+  subqueries) and `resumes.countByMediaAsset(id)`.
+- **`media-service-tests.mjs` — 181 checks**, plus 18 canonical repository
+  checks and a 2-check source-level NUL guard.
+
+### Two contract facts measured before coding
+
+- **An unconditional `put` never returns `null`; a conditional one returns
+  `null` and stores nothing.** So `null` means *declined*, and the service
+  treats it as a storage failure. **This corrects the storage foundation's
+  own rationale**, which said to treat any resolved promise as success —
+  that would have persisted a metadata row for a file never written. The
+  contract shape is unchanged; only the comment was wrong.
+- **`put` overwrites silently**, verified by writing 3 bytes then 5 to one
+  key. A key collision is therefore a data-loss bug, not a duplicate-row
+  bug, and "UUIDs don't collide" is not a safety argument.
+
+### Ordering and compensation
+
+- **Create: R2 put, then D1 insert.** A rejected upload issues **no put**.
+  A D1 failure compensates the object away; if compensation also fails the
+  **original** failure stays primary, the orphan is flagged, and a
+  diagnostic carries the key — never a success.
+- **A D1 `ConflictError` on `storage_key` does NOT delete the object**, which
+  may be what the winning row now points at.
+- **Keys are reserved before writing**, checking both `getByStorageKey()` and
+  `head()` and regenerating if either says occupied — so a colliding id
+  cannot overwrite an existing object *or* an orphan.
+- **Delete: reference checks, then D1, then R2.** All four references are
+  pre-checked. The two `ON DELETE SET NULL` ones matter most: the database
+  would carry out the delete while silently clearing a project's cover or the
+  site's social image, so catching a foreign-key error is not a safety check.
+  A referenced asset is **refused, never auto-detached**.
+- A failed storage delete after a successful D1 delete returns success with
+  **`objectRemoved: false`**, not a clean result.
+
+### Persisted, and honestly absent
+
+`storage_key`, the **sniffed** content type, the real byte size, trimmed alt
+text — enforced as required for images, because migration `0001` says so
+while the nullable column cannot. **`width`, `height`, and `checksum` are
+`null`**: nothing here can measure or hash without adding a decoder or a
+hashing step this slice did not approve, and a fabricated value is worse than
+an honest absence. No `original_filename`, no migration `0002`.
+
+### Changed
+
+- **`.env.example`** — the four S3-style R2 placeholders removed. They belong
+  to the S3 API, which this project does not use; the seam is asserted to
+  read none of them. `DATABASE_URL` is equally unused but was left with an
+  honest note, as removing it was outside scope.
+- The in-memory fake gained `declineNextPut()`, modelling the conditional
+  decline so the "resolved means success" trap is testable.
+
+### Fixed during implementation
+
+- **A thrown `create()` was treated as proof the row was absent, so the
+  compensating delete could strand a live metadata row.** The repository
+  reads the row back *outside* its own try block, so a read-back failure
+  throws with the row committed; the service then deleted the object,
+  producing a row pointing at a missing file — the single residue the
+  ordering model exists to rule out. Reproduced against real local D1.
+  Compensation now deletes only when `getByStorageKey()` positively reports
+  no row; a returned row keeps the object with `cleanupRequired: false`, and
+  a failed lookup keeps it with `cleanupRequired: true` and an
+  `indeterminate_persistence` diagnostic. The lookup is a real try/catch,
+  never `.catch(() => null)`.
+
+- **`getAdminMediaService()` leaked a workerd process on every failed
+  call.** It resolved the storage and database seams with `Promise.all`;
+  storage always rejects while no bucket exists, but the database
+  resolution had already started and its development path spawns a real
+  `getPlatformProxy()` that nothing disposed. It surfaced as the *next*
+  test suite hanging minutes later. Now sequential, storage first — the
+  seam expected to be unavailable decides, and a request that cannot
+  proceed never opens a binding. Asserted: the database provider is never
+  consulted when storage is unregistered.
+
+### Verification
+
+- `pnpm install --frozen-lockfile` **PASS** (0) · `pnpm lint` **PASS** (0) ·
+  `pnpm typecheck` **PASS** (0) · `pnpm test` **PASS** (0) — **3089 checks**,
+  database **315** and admin **2774** · `pnpm build` **PASS** (0).
+- All 2888 previous checks still pass.
+- **No bucket, no bucket binding, no remote call, no `--remote`, no
+  credentials.** Local D1 and the in-memory fake only.
+- **No browser verification**, deliberately: no route, component, or style
+  changed, so there is no user-facing behaviour to check. It belongs to the
+  media CMS slice.
+
 ## 2026-08-08 — Fix: storage test file classified as binary
 
 Hygiene fix, one test file. **No production code, no policy change, no

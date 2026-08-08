@@ -206,6 +206,22 @@ export interface ProjectMediaInput {
   readonly position?: number;
 }
 
+/**
+ * How a project aggregate references one media asset.
+ *
+ * Two counts rather than one boolean because the two relations have different
+ * delete rules and different remedies: `project_media` is `ON DELETE RESTRICT`
+ * and the editor must detach the attachment, while `projects.cover_media_id`
+ * is `ON DELETE SET NULL` — the database would allow the delete and silently
+ * clear the cover, so the application has to refuse first.
+ */
+export interface ProjectMediaReferenceCounts {
+  /** Projects using the asset as their cover image (`cover_media_id`). */
+  readonly covers: number;
+  /** Rows in `project_media` attaching the asset to a project. */
+  readonly attachments: number;
+}
+
 export interface Project extends EntityMeta {
   readonly slug: string;
   readonly title: string;
