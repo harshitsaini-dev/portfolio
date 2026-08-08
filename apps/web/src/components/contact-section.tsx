@@ -1,4 +1,5 @@
 import { PlaceholderAction } from "@/components/placeholder-action";
+import { ContactForm } from "@/components/contact-form";
 import { Section } from "@/components/section";
 import type { SectionCopy } from "@/lib/content/sections";
 import { Surface } from "@/components/ui/surface";
@@ -21,16 +22,18 @@ export function ContactSection({
     >
       <Surface tone="muted" className="p-8 sm:p-10">
         <p className={`max-w-2xl ${type.body}`}>{contact.body}</p>
+        {/* The email address stays alongside the form. Some people would
+            rather use their own mail client, and a form is not a reason to
+            hide the address. */}
         <div className="mt-8 flex flex-wrap items-start gap-x-6 gap-y-4">
           <PlaceholderAction
             action={contact.primaryAction}
-            variant="primary"
             context="contact"
           />
-          <PlaceholderAction
-            action={contact.secondaryAction}
-            context="contact"
-          />
+        </div>
+
+        <div className="mt-10">
+          <ContactForm />
         </div>
       </Surface>
     </Section>

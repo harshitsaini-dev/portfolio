@@ -8,6 +8,95 @@ something passed without running it.
 
 **Phase 9 — R2/media. IN PROGRESS.** Not complete.
 
+## Phase 11 — contact form and inbox (branch `feat/contact-inbox`)
+
+The public contact form writes to D1, the admin reads and triages, and an
+optional email copy goes to the owner.
+
+### The public site's only write
+
+`lib/db/binding.ts` said this app reads and never writes. That statement is
+amended rather than quietly broken: **one** write exists, it appends to
+`contact_messages`, and it touches no other table.
+
+### What the anti-abuse measures are, and what they are not
+
+Three defences that cost nothing: a **honeypot** field, a **minimum
+completion time**, and **hard length limits**. All three live in the schema
+rather than at the call site, so a second caller cannot forget them.
+
+It is **not rate limiting**, and it does not pretend to be. Real rate limiting
+counts requests per origin over time, and this project **stores no IP
+address** — `contact_messages` keeps only a coarse `source_country`, a privacy
+decision that predates this form. Enforcing a rate without an identifier
+belongs at the edge: Cloudflare Rate Limiting and Turnstile, both dashboard
+configuration, both Phase 21/22 and both **human actions**. Inventing a
+`rate_limits` table of hashed IPs would have contradicted the schema's own
+stated position.
+
+Every rejection that is not an ordinary field error returns the **same**
+generic message. Telling a bot which check caught it is telling it how to pass
+next time, and a honeypot is only worth having while it is invisible.
+
+### Email notification (optional)
+
+Asked for during the slice. `notifyOwner()` sends a copy through Resend's
+HTTPS API — **not SMTP**, because Cloudflare Workers cannot open raw TCP
+sockets, which rules out Gmail's SMTP directly.
+
+The ordering is the important part: **the message is written to D1 first, and
+a failed send never fails the visitor's submission.** They filled in a form
+and it was saved; saying otherwise because a third-party API was slow would be
+a lie about what happened and would invite a duplicate. Unconfigured is a
+normal state, not an error — the site works with no provider at all, which is
+what the inbox is for.
+
+The send is awaited rather than fired and forgotten: a Worker can be torn down
+as soon as it returns, so an unawaited request is one that might never be made.
+
+**Manual action required from the owner** to enable it: create a Resend
+account and API key, verify a sending domain, and set `RESEND_API_KEY`,
+`CONTACT_NOTIFY_TO` and `CONTACT_NOTIFY_FROM`. `.env.example` documents the
+names only.
+
+### Two bugs found while verifying
+
+* **`"use server"` files may export async functions and nothing else.** The
+  action file exported `contactIdleState`, an object, and every route 500'd
+  with *"A 'use server' file can only export async functions, found object."*
+  The state and the shared rejection message moved to a plain module — the
+  right answer anyway, since the form and the action have to agree on that
+  shape.
+* **`Date.now()` cannot be called during render**, `useMemo` included, and
+  `setState` in an effect triggers a cascading render. Both lint rules fired
+  in turn. The timestamp is now written straight to the input's DOM value in
+  an effect: once after mount, re-rendering nothing.
+
+### Inbox
+
+List and detail, with status transitions (read / unread / archived / spam) and
+a separate permanent delete behind a two-step confirmation — archiving keeps
+the message, deleting does not, so they are not the same control. There is
+**no create action**: an admin that could author a message could put something
+in the inbox nobody sent. Message bodies render as text with
+`whitespace-pre-wrap`; nothing interprets a stranger's input as markup.
+
+Inbox validation lives in `packages/schemas` rather than the admin app, which
+has no `zod` dependency and should not gain one to check two fields.
+
+### Tests
+
+**3310/3310 across 23 suites**; the web suite grew from 81 to 97 checks,
+covering the honeypot, the timing window, every length ceiling, unknown-field
+rejection, and that a stored message arrives unread with no country.
+
+### Browser-verified
+
+A real submission through the public form landed in D1 as `unread` with
+`source_country` null, the confirmation replaced the form and took focus, the
+inbox listed it, and marking it read set both the status and `read_at` — the
+latter stamped by the repository rather than the action.
+
 ## Phase 10 — theme and settings CMS (branch `feat/theme-cms`)
 
 The `site_settings` row now drives the public site's name, description,

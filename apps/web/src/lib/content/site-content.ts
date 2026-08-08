@@ -403,12 +403,14 @@ export async function getSiteContent(): Promise<SiteContent> {
         "Email",
         "No public email address yet",
       ),
-      // The contact form is Phase 11. Saying so is more honest than a link
-      // that goes nowhere.
+      // Kept in the model because the view type still has the field, but the
+      // contact section no longer renders it: the form below it *is* the way
+      // to send a message now, and an inert button saying the same thing
+      // beside a working form would be noise.
       secondaryAction: {
         status: "unavailable",
         label: "Send a message",
-        reason: "The contact form is not built yet",
+        reason: "Use the form below",
       },
     },
     footerNote: profileRow?.fullName
