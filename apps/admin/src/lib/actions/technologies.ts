@@ -118,6 +118,7 @@ export async function createTechnologyAction(
       name: input.name,
       slug: input.slug,
       category: input.category,
+      iconMediaId: input.iconMediaId,
     });
     created = { id: technology.id, slug: technology.slug };
   } catch (error) {
@@ -161,6 +162,7 @@ export async function updateTechnologyAction(
       name: input.name,
       slug: input.slug,
       category: input.category,
+      iconMediaId: input.iconMediaId,
     });
     updated = { id: technology.id, slug: technology.slug };
   } catch (error) {

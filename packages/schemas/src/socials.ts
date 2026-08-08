@@ -46,6 +46,11 @@ import { z } from "zod";
 
 import { httpUrlSchema } from "./internal/url.ts";
 
+import {
+  mediaReferenceCreate,
+  mediaReferenceUpdate,
+} from "./internal/media-reference.ts";
+
 // ---------------------------------------------------------------------------
 // Shared leaf schemas — no defaults, no optionality; the shapes add those.
 // ---------------------------------------------------------------------------
@@ -72,6 +77,7 @@ const positionValue = z
  */
 export const socialLinkCreateSchema = z
   .object({
+    iconMediaId: mediaReferenceCreate,
     // What the link is called in the UI, e.g. "GitHub profile". Distinct
     // from `platform` and never derived from it — two columns exist because
     // the editor may legitimately want them to differ.
@@ -95,6 +101,7 @@ export const socialLinkCreateSchema = z
  */
 export const socialLinkUpdateSchema = z
   .object({
+    iconMediaId: mediaReferenceUpdate,
     label: requiredText(80).optional(),
     platform: requiredText(80).optional(),
     url: httpUrlSchema.optional(),

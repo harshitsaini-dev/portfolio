@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { updateProjectAction } from "@/lib/actions/projects";
 import { withAdminPage } from "@/lib/auth/protected-page";
+import { getMediaOptions } from "@/lib/media/options";
 import { getAdminRepositories } from "@/lib/db/binding";
 import { DeleteProjectForm } from "@/components/projects/delete-project-form";
 import { ProjectForm } from "@/components/projects/project-form";
@@ -27,6 +28,8 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
 
     const project = await repos.projects.getById(id);
     if (!project) notFound();
+
+    const mediaOptions = await getMediaOptions();
 
     // The repository exposes `getBySlugWithRelations` but not an id
     // equivalent, so relations are composed here from its existing methods
@@ -61,6 +64,7 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
           action={updateProjectAction}
           projectId={project.id}
           technologies={allTechnologies}
+          mediaOptions={mediaOptions}
           submitLabel="Save changes"
           initialValues={{
             title: project.title,
@@ -73,6 +77,8 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
             periodLabel: project.periodLabel ?? "",
             startedOn: project.startedOn ?? "",
             completedOn: project.completedOn ?? "",
+            iconMediaId: project.iconMediaId ?? "",
+            coverMediaId: project.coverMediaId ?? "",
             links: links.map((link) => ({
               label: link.label,
               url: link.url,

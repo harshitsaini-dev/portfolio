@@ -251,10 +251,36 @@ try {
   check("the create schema still parses without a category", createDefaults.success);
   equal("create still defaults category to null", createDefaults.data?.category, null);
   equal(
-    "create still materialises all three fields",
+    "create still materialises every field, defaults included",
     Object.keys(createDefaults.data ?? {}).length,
-    3,
+    4,
   );
+  equal(
+    "create defaults iconMediaId to null",
+    createDefaults.data?.iconMediaId,
+    null,
+  );
+
+  // The icon reference is the newest field to go through the create/update
+  // split, so it gets the same regression coverage the split exists for:
+  // a patch that never mentions the icon must not materialise it, because
+  // the repository writes whatever the patch contains and a materialised
+  // null would clear the icon on every unrelated rename.
+  const renameOnly = technologyUpdateSchema.safeParse({ name: "Rust" });
+  check("a rename-only patch parses", renameOnly.success);
+  check(
+    "a rename-only patch does NOT mention iconMediaId",
+    renameOnly.success && !("iconMediaId" in renameOnly.data),
+  );
+  const clearIcon = technologyUpdateSchema.safeParse({ iconMediaId: "" });
+  check("an explicit empty icon parses", clearIcon.success);
+  equal(
+    "an explicit empty icon clears to null rather than erroring",
+    clearIcon.data?.iconMediaId,
+    null,
+  );
+  const setIcon = technologyUpdateSchema.safeParse({ iconMediaId: "id-1" });
+  equal("an explicit icon id survives the patch", setIcon.data?.iconMediaId, "id-1");
 
   check("a non-empty id is accepted", technologyIdSchema.safeParse("abc").success);
   check("an empty id is rejected", !technologyIdSchema.safeParse("").success);

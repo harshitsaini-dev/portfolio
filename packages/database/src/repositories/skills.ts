@@ -44,9 +44,11 @@ const CATEGORY_ENTITY = "skill_category";
 const SKILL_ENTITY = "skill";
 
 const CATEGORY_COLUMNS =
-  "id, name, slug, description, position, is_visible, created_at, updated_at";
+  `id, name, slug, description, position, is_visible, icon_media_id,
+   created_at, updated_at`;
 const SKILL_COLUMNS =
-  "id, category_id, name, proficiency, position, is_visible, created_at, updated_at";
+  `id, category_id, name, proficiency, position, is_visible, icon_media_id,
+   created_at, updated_at`;
 
 function toCategory(row: Row): SkillCategory {
   return {
@@ -56,6 +58,7 @@ function toCategory(row: Row): SkillCategory {
     description: nullableString(CATEGORY_ENTITY, row, "description"),
     position: requireNumber(CATEGORY_ENTITY, row, "position"),
     isVisible: requireBoolean(CATEGORY_ENTITY, row, "is_visible"),
+    iconMediaId: nullableString(CATEGORY_ENTITY, row, "icon_media_id"),
     createdAt: requireString(CATEGORY_ENTITY, row, "created_at"),
     updatedAt: requireString(CATEGORY_ENTITY, row, "updated_at"),
   };
@@ -69,12 +72,17 @@ function toSkill(row: Row): Skill {
     proficiency: nullableNumber(SKILL_ENTITY, row, "proficiency"),
     position: requireNumber(SKILL_ENTITY, row, "position"),
     isVisible: requireBoolean(SKILL_ENTITY, row, "is_visible"),
+    iconMediaId: nullableString(SKILL_ENTITY, row, "icon_media_id"),
     createdAt: requireString(SKILL_ENTITY, row, "created_at"),
     updatedAt: requireString(SKILL_ENTITY, row, "updated_at"),
   };
 }
 
 const SKILL_PATCH: FieldSpecs<SkillUpdate> = {
+  iconMediaId: {
+    column: "icon_media_id",
+    encode: (p) => p.iconMediaId ?? null,
+  },
   // `categoryId` is absent: moving a skill between categories is a distinct
   // operation, not a field edit, and would need re-ordering handled too.
   name: { column: "name", encode: (p) => p.name },
@@ -128,15 +136,27 @@ export function createSkillsRepository(
     table: "skill_categories",
     columns: CATEGORY_COLUMNS,
     decode: toCategory,
-    insertColumns: ["name", "slug", "description", "position", "is_visible"],
+    insertColumns: [
+      "name",
+      "slug",
+      "description",
+      "position",
+      "is_visible",
+      "icon_media_id",
+    ],
     insertValues: (input: SkillCategoryCreate) => [
       input.name,
       input.slug,
       input.description ?? null,
       input.position ?? 0,
       boolToInt(input.isVisible ?? true),
+      input.iconMediaId ?? null,
     ],
     patch: {
+      iconMediaId: {
+        column: "icon_media_id",
+        encode: (p) => p.iconMediaId ?? null,
+      },
       name: { column: "name", encode: (p) => p.name },
       slug: { column: "slug", encode: (p) => p.slug },
       description: { column: "description", encode: (p) => p.description ?? null },
@@ -224,8 +244,8 @@ export function createSkillsRepository(
           .prepare(
             `INSERT INTO skills
                (id, category_id, name, proficiency, position, is_visible,
-                created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                icon_media_id, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .bind(
             id,
@@ -234,6 +254,7 @@ export function createSkillsRepository(
             input.proficiency ?? null,
             input.position ?? 0,
             boolToInt(input.isVisible ?? true),
+            input.iconMediaId ?? null,
             now,
             now,
           )

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { updateSkillCategoryAction } from "@/lib/actions/skills";
 import { withAdminPage } from "@/lib/auth/protected-page";
+import { getMediaOptions } from "@/lib/media/options";
 import { getAdminRepositories } from "@/lib/db/binding";
 import { DeleteSkillCategoryForm } from "@/components/skills/delete-skill-category-form";
 import { SkillCategoryForm } from "@/components/skills/skill-category-form";
@@ -26,6 +27,8 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
 
     const category = await repos.skills.getById(id);
     if (!category) notFound();
+
+    const mediaOptions = await getMediaOptions();
 
     // The count drives what the delete affordance says. The authority is
     // still `ON DELETE RESTRICT` on the server.
@@ -64,12 +67,14 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
           categoryId={category.id}
           submitLabel="Save changes"
           initialValues={{
+            iconMediaId: category.iconMediaId ?? "",
             name: category.name,
             slug: category.slug,
             description: category.description ?? "",
             position: category.position,
             isVisible: category.isVisible,
           }}
+          mediaOptions={mediaOptions}
         />
 
         <section

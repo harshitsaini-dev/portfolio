@@ -38,6 +38,7 @@ const HIGHLIGHT_ENTITY = "timeline_highlight";
 
 /** Columns written on insert, excluding id/created_at/updated_at. */
 const INSERT_COLUMNS = [
+  "icon_media_id",
   "role",
   "organization",
   "summary",
@@ -51,6 +52,7 @@ const INSERT_COLUMNS = [
 
 function insertValues(input: TimelineEntryCreate): readonly unknown[] {
   return [
+    input.iconMediaId ?? null,
     input.role,
     input.organization,
     input.summary ?? null,
@@ -70,6 +72,10 @@ function insertValues(input: TimelineEntryCreate): readonly unknown[] {
  * share one allowlist — two copies would be a place for them to drift.
  */
 const PATCH: FieldSpecs<TimelineEntryUpdate> = {
+  iconMediaId: {
+    column: "icon_media_id",
+    encode: (p) => p.iconMediaId ?? null,
+  },
   role: { column: "role", encode: (p) => p.role },
   organization: { column: "organization", encode: (p) => p.organization },
   summary: { column: "summary", encode: (p) => p.summary ?? null },
@@ -85,7 +91,8 @@ const PATCH: FieldSpecs<TimelineEntryUpdate> = {
 };
 
 const COLUMNS = `id, role, organization, summary, location, period_label,
-  started_on, ended_on, position, is_visible, created_at, updated_at`;
+  started_on, ended_on, position, is_visible, icon_media_id,
+  created_at, updated_at`;
 
 function toEntry(row: Row): TimelineEntry {
   return {
@@ -99,6 +106,7 @@ function toEntry(row: Row): TimelineEntry {
     endedOn: nullableString(ENTITY, row, "ended_on"),
     position: requireNumber(ENTITY, row, "position"),
     isVisible: requireBoolean(ENTITY, row, "is_visible"),
+    iconMediaId: nullableString(ENTITY, row, "icon_media_id"),
     createdAt: requireString(ENTITY, row, "created_at"),
     updatedAt: requireString(ENTITY, row, "updated_at"),
   };

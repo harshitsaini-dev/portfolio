@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { updateTechnologyAction } from "@/lib/actions/technologies";
 import { withAdminPage } from "@/lib/auth/protected-page";
+import { getMediaOptions } from "@/lib/media/options";
 import { getAdminRepositories } from "@/lib/db/binding";
 import { DeleteTechnologyForm } from "@/components/technologies/delete-technology-form";
 import { TechnologyForm } from "@/components/technologies/technology-form";
@@ -26,6 +27,8 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
 
     const technology = await repos.technologies.getById(id);
     if (!technology) notFound();
+
+    const mediaOptions = await getMediaOptions();
 
     // Whether this technology is still tagged on projects decides what the
     // delete section can offer. The count comes from the projects aggregate,
@@ -62,7 +65,9 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
             name: technology.name,
             slug: technology.slug,
             category: technology.category ?? "",
+            iconMediaId: technology.iconMediaId ?? "",
           }}
+          mediaOptions={mediaOptions}
         />
 
         <section

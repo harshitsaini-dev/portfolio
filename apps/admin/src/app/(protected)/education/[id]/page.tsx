@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { updateEducationEntryAction } from "@/lib/actions/education";
 import { withAdminPage } from "@/lib/auth/protected-page";
+import { getMediaOptions } from "@/lib/media/options";
 import { getAdminRepositories } from "@/lib/db/binding";
 import { DeleteEducationEntryForm } from "@/components/education/delete-education-entry-form";
 import { EducationForm } from "@/components/education/education-form";
@@ -26,6 +27,8 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
 
     const entry = await repos.education.getById(id);
     if (!entry) notFound();
+
+    const mediaOptions = await getMediaOptions();
 
     return (
       <div className="mx-auto w-full max-w-3xl">
@@ -51,6 +54,7 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
           entryId={entry.id}
           submitLabel="Save changes"
           initialValues={{
+            iconMediaId: entry.iconMediaId ?? "",
             qualification: entry.qualification,
             institution: entry.institution,
             fieldOfStudy: entry.fieldOfStudy ?? "",
@@ -61,6 +65,7 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
             position: entry.position,
             isVisible: entry.isVisible,
           }}
+          mediaOptions={mediaOptions}
         />
 
         <section

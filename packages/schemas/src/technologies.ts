@@ -10,9 +10,12 @@
  *
  *   id | name | slug (UNIQUE) | category (nullable) | created_at | updated_at
  *
- * There is no icon, logo, visibility, or position column, so no such field
- * is validated here. Inventing one would mean either silently dropping it or
- * pretending the CMS stores something it cannot.
+ * There is no visibility or position column, so no such field is validated
+ * here. Inventing one would mean either silently dropping it or pretending
+ * the CMS stores something it cannot.
+ *
+ * `icon_media_id` was added by migration 0002 — this module said there was
+ * no icon column, and that was true until media assets existed to point at.
  *
  * Shapes are inferred with `z.infer` so validator and type cannot drift.
  */
@@ -20,6 +23,10 @@
 import { z } from "zod";
 
 import { slugSchema } from "./internal/slug.ts";
+import {
+  mediaReferenceCreate,
+  mediaReferenceUpdate,
+} from "./internal/media-reference.ts";
 
 /** Ids are application-generated UUIDv7 strings; accept any non-empty id. */
 const idSchema = z.string().trim().min(1, "Required").max(64, "Too long");
@@ -65,6 +72,7 @@ export const technologyCreateSchema = z
     name: nameValue,
     slug: technologySlugSchema,
     category: nullableCategory.default(null),
+    iconMediaId: mediaReferenceCreate,
   })
   .strict();
 
@@ -96,6 +104,7 @@ export const technologyUpdateSchema = z
     name: nameValue.optional(),
     slug: technologySlugSchema.optional(),
     category: nullableCategory.optional(),
+    iconMediaId: mediaReferenceUpdate,
   })
   .strict();
 

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { updateToolAction } from "@/lib/actions/tools";
 import { withAdminPage } from "@/lib/auth/protected-page";
+import { getMediaOptions } from "@/lib/media/options";
 import { getAdminRepositories } from "@/lib/db/binding";
 import { DeleteToolForm } from "@/components/tools/delete-tool-form";
 import { ToolForm } from "@/components/tools/tool-form";
@@ -26,6 +27,8 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
 
     const tool = await repos.tools.getById(id);
     if (!tool) notFound();
+
+    const mediaOptions = await getMediaOptions();
 
     return (
       <div className="mx-auto w-full max-w-3xl">
@@ -51,12 +54,14 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
           toolId={tool.id}
           submitLabel="Save changes"
           initialValues={{
+            iconMediaId: tool.iconMediaId ?? "",
             name: tool.name,
             purpose: tool.purpose ?? "",
             url: tool.url ?? "",
             position: tool.position,
             isVisible: tool.isVisible,
           }}
+          mediaOptions={mediaOptions}
         />
 
         <section

@@ -23,8 +23,14 @@ import {
   TextAreaField,
   TextField,
 } from "@/components/form/field";
+import {
+  MediaPickerField,
+  type MediaOption,
+} from "@/components/media/media-picker-field";
 
 export interface SkillCategoryFormValues {
+  /** The chosen media asset id, or `""` for no icon. */
+  iconMediaId: string;
   name: string;
   slug: string;
   description: string;
@@ -33,6 +39,7 @@ export interface SkillCategoryFormValues {
 }
 
 export const emptySkillCategoryValues: SkillCategoryFormValues = {
+  iconMediaId: "",
   name: "",
   slug: "",
   description: "",
@@ -50,11 +57,14 @@ export function SkillCategoryForm({
   categoryId,
   initialValues,
   submitLabel,
+  mediaOptions,
 }: {
   action: SkillsAction;
   categoryId?: string;
   initialValues: SkillCategoryFormValues;
   submitLabel: string;
+  /** Uploaded assets to choose from, read on the server by the page. */
+  mediaOptions: readonly MediaOption[];
 }) {
   const fieldId = useId();
   const [state, formAction, isPending] = useActionState(action, idleState);
@@ -187,6 +197,28 @@ export function SkillCategoryForm({
           checked={values.isVisible}
           onChange={(checked) => update("isVisible", checked)}
           hint="Uncheck to hide this category from the public site. It stays listed here."
+        />
+      </section>
+
+      <section
+        aria-labelledby={`${fieldId}-icon-heading`}
+        className="flex flex-col gap-5"
+      >
+        <h2
+          id={`${fieldId}-icon-heading`}
+          className="text-sm font-semibold uppercase tracking-wider text-fg"
+        >
+          Icon
+        </h2>
+
+        <MediaPickerField
+          id={`${fieldId}-icon`}
+          label="Icon"
+          value={values.iconMediaId}
+          options={mediaOptions}
+          errors={fieldErrors.iconMediaId}
+          hint="Optional image shown beside this category."
+          onChange={(value) => update("iconMediaId", value)}
         />
       </section>
 

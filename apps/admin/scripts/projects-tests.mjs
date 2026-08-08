@@ -356,11 +356,34 @@ try {
       links: [{ label: "x", url: "javascript:alert(1)", kind: "other" }],
     }).success === false,
   );
-  for (const field of ["id", "createdAt", "updatedAt", "isAdmin", "coverMediaId"]) {
+  for (const field of ["id", "createdAt", "updatedAt", "isAdmin"]) {
     check(
       `an update supplying \`${field}\` is rejected outright`,
       projectUpdateSchema.safeParse({ title: "T", [field]: "x" }).success === false,
     );
+  }
+
+  // The two media references are editable as of the entity-icons work. They
+  // are the newest fields to go through the create/update split, so they get
+  // the coverage that split exists for: an absent key must stay absent, or
+  // the repository writes a materialised null and clears the image on every
+  // unrelated edit.
+  const renamePatch = projectUpdateSchema.safeParse({ title: "T" });
+  check("a title-only patch parses", renamePatch.success);
+  for (const field of ["coverMediaId", "iconMediaId"]) {
+    check(
+      `a title-only patch does NOT mention ${field}`,
+      renamePatch.success && !(field in renamePatch.data),
+    );
+    const cleared = projectUpdateSchema.safeParse({ [field]: "" });
+    check(`an explicit empty ${field} parses`, cleared.success);
+    equal(
+      `an explicit empty ${field} clears to null`,
+      cleared.data?.[field],
+      null,
+    );
+    const set = projectUpdateSchema.safeParse({ [field]: "asset-1" });
+    equal(`an explicit ${field} survives`, set.data?.[field], "asset-1");
   }
 
   // The create shape must be unchanged by the fix — it is *supposed* to
@@ -386,9 +409,9 @@ try {
   );
   equal("create still defaults media to []", createDefaults.data?.media.length, 0);
   equal(
-    "create still materialises all thirteen fields",
+    "create still materialises every field, defaults included",
     Object.keys(createDefaults.data ?? {}).length,
-    13,
+    15,
   );
   equal(
     "a media item caption still defaults to null inside an item",

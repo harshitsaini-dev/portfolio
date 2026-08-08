@@ -3,6 +3,8 @@ import Link from "next/link";
 
 import { Button } from "@portfolio/ui/components/button";
 
+import { MediaThumbnail } from "@/components/media/media-thumbnail";
+
 import { withAdminPage } from "@/lib/auth/protected-page";
 import { getAdminRepositories } from "@/lib/db/binding";
 
@@ -65,6 +67,9 @@ export default withAdminPage(async () => {
             <thead>
               <tr className="border-b border-subtle text-xs uppercase tracking-wider text-fg-muted">
                 <th scope="col" className="py-3 pr-4 font-medium">
+                  <span className="sr-only">Preview</span>
+                </th>
+                <th scope="col" className="py-3 pr-4 font-medium">
                   Description
                 </th>
                 <th scope="col" className="py-3 pr-4 font-medium">
@@ -81,6 +86,15 @@ export default withAdminPage(async () => {
             <tbody>
               {assets.map((asset) => (
                 <tr key={asset.id} className="border-b border-subtle/60">
+                  <td className="py-3 pr-4 align-top">
+                    {/* Decorative: the description cell beside it already
+                        carries the same text. */}
+                    <MediaThumbnail
+                      id={asset.id}
+                      contentType={asset.contentType}
+                      alt=""
+                    />
+                  </td>
                   <td className="py-3 pr-4 align-top text-fg">
                     {asset.altText ?? (
                       <span className="text-fg-muted">

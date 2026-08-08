@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { updateSectionAction } from "@/lib/actions/sections";
 import { withAdminPage } from "@/lib/auth/protected-page";
+import { getMediaOptions } from "@/lib/media/options";
 import { getAdminRepositories } from "@/lib/db/binding";
 import { DeleteSectionForm } from "@/components/sections/delete-section-form";
 import { SectionForm } from "@/components/sections/section-form";
@@ -26,6 +27,8 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
 
     const section = await repos.sections.getById(id);
     if (!section) notFound();
+
+    const mediaOptions = await getMediaOptions();
 
     return (
       <div className="mx-auto w-full max-w-3xl">
@@ -51,6 +54,7 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
           sectionId={section.id}
           submitLabel="Save changes"
           initialValues={{
+            iconMediaId: section.iconMediaId ?? "",
             key: section.key,
             title: section.title,
             subtitle: section.subtitle ?? "",
@@ -58,6 +62,7 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
             position: section.position,
             isVisible: section.isVisible,
           }}
+          mediaOptions={mediaOptions}
         />
 
         <section

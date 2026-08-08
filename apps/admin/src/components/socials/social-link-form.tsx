@@ -32,8 +32,14 @@ import {
   CheckboxField,
   TextField,
 } from "@/components/form/field";
+import {
+  MediaPickerField,
+  type MediaOption,
+} from "@/components/media/media-picker-field";
 
 export interface SocialLinkFormValues {
+  /** The chosen media asset id, or `""` for no icon. */
+  iconMediaId: string;
   label: string;
   platform: string;
   url: string;
@@ -42,6 +48,7 @@ export interface SocialLinkFormValues {
 }
 
 export const emptySocialLinkValues: SocialLinkFormValues = {
+  iconMediaId: "",
   label: "",
   platform: "",
   url: "",
@@ -59,11 +66,14 @@ export function SocialLinkForm({
   socialLinkId,
   initialValues,
   submitLabel,
+  mediaOptions,
 }: {
   action: SocialLinkAction;
   socialLinkId?: string;
   initialValues: SocialLinkFormValues;
   submitLabel: string;
+  /** Uploaded assets to choose from, read on the server by the page. */
+  mediaOptions: readonly MediaOption[];
 }) {
   const fieldId = useId();
   const [state, formAction, isPending] = useActionState(action, idleState);
@@ -197,6 +207,28 @@ export function SocialLinkForm({
           checked={values.isVisible}
           onChange={(checked) => update("isVisible", checked)}
           hint="Uncheck to hide this link from the public site. It stays listed here."
+        />
+      </section>
+
+      <section
+        aria-labelledby={`${fieldId}-icon-heading`}
+        className="flex flex-col gap-5"
+      >
+        <h2
+          id={`${fieldId}-icon-heading`}
+          className="text-sm font-semibold uppercase tracking-wider text-fg"
+        >
+          Icon
+        </h2>
+
+        <MediaPickerField
+          id={`${fieldId}-icon`}
+          label="Icon"
+          value={values.iconMediaId}
+          options={mediaOptions}
+          errors={fieldErrors.iconMediaId}
+          hint="Optional image shown beside this link."
+          onChange={(value) => update("iconMediaId", value)}
         />
       </section>
 

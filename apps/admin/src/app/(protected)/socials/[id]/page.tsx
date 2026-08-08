@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { updateSocialLinkAction } from "@/lib/actions/socials";
 import { withAdminPage } from "@/lib/auth/protected-page";
+import { getMediaOptions } from "@/lib/media/options";
 import { getAdminRepositories } from "@/lib/db/binding";
 import { DeleteSocialLinkForm } from "@/components/socials/delete-social-link-form";
 import { SocialLinkForm } from "@/components/socials/social-link-form";
@@ -26,6 +27,8 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
 
     const socialLink = await repos.socialLinks.getById(id);
     if (!socialLink) notFound();
+
+    const mediaOptions = await getMediaOptions();
 
     return (
       <div className="mx-auto w-full max-w-3xl">
@@ -51,12 +54,14 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
           socialLinkId={socialLink.id}
           submitLabel="Save changes"
           initialValues={{
+            iconMediaId: socialLink.iconMediaId ?? "",
             label: socialLink.label,
             platform: socialLink.platform,
             url: socialLink.url,
             position: socialLink.position,
             isVisible: socialLink.isVisible,
           }}
+          mediaOptions={mediaOptions}
         />
 
         <section

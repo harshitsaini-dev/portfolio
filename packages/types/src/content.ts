@@ -32,6 +32,11 @@ export interface EntityMeta {
 // ---------------------------------------------------------------------------
 
 export interface Profile extends EntityMeta {
+  /**
+   * Optional profile photograph, referencing `media_assets`.
+   * `ON DELETE SET NULL`: deleting the image clears the reference.
+   */
+  readonly avatarMediaId: string | null;
   readonly fullName: string;
   readonly headline: string;
   readonly tagline: string | null;
@@ -42,6 +47,7 @@ export interface Profile extends EntityMeta {
 }
 
 export interface ProfileInput {
+  readonly avatarMediaId?: string | null;
   readonly fullName: string;
   readonly headline: string;
   readonly tagline?: string | null;
@@ -89,6 +95,11 @@ export interface MediaAssetUpdate {
 // ---------------------------------------------------------------------------
 
 export interface SocialLink extends EntityMeta {
+  /**
+   * Optional icon, referencing `media_assets`. `ON DELETE SET NULL`:
+   * deleting the image clears the reference and leaves the row intact.
+   */
+  readonly iconMediaId: string | null;
   readonly label: string;
   readonly platform: string;
   readonly url: string;
@@ -97,6 +108,7 @@ export interface SocialLink extends EntityMeta {
 }
 
 export interface SocialLinkCreate {
+  readonly iconMediaId?: string | null;
   readonly label: string;
   readonly platform: string;
   readonly url: string;
@@ -105,6 +117,7 @@ export interface SocialLinkCreate {
 }
 
 export interface SocialLinkUpdate {
+  readonly iconMediaId?: string | null;
   readonly label?: string;
   readonly platform?: string;
   readonly url?: string;
@@ -142,18 +155,25 @@ export interface ResumeUpdate {
 // ---------------------------------------------------------------------------
 
 export interface Technology extends EntityMeta {
+  /**
+   * Optional icon, referencing `media_assets`. `ON DELETE SET NULL`:
+   * deleting the image clears the reference and leaves the row intact.
+   */
+  readonly iconMediaId: string | null;
   readonly name: string;
   readonly slug: string;
   readonly category: string | null;
 }
 
 export interface TechnologyCreate {
+  readonly iconMediaId?: string | null;
   readonly name: string;
   readonly slug: string;
   readonly category?: string | null;
 }
 
 export interface TechnologyUpdate {
+  readonly iconMediaId?: string | null;
   readonly name?: string;
   readonly slug?: string;
   readonly category?: string | null;
@@ -223,6 +243,11 @@ export interface ProjectMediaReferenceCounts {
 }
 
 export interface Project extends EntityMeta {
+  /**
+   * Optional icon, referencing `media_assets`. `ON DELETE SET NULL`:
+   * deleting the image clears the reference and leaves the row intact.
+   */
+  readonly iconMediaId: string | null;
   readonly slug: string;
   readonly title: string;
   readonly summary: string;
@@ -245,6 +270,7 @@ export interface ProjectWithRelations extends Project {
 }
 
 export interface ProjectCreate {
+  readonly iconMediaId?: string | null;
   readonly slug: string;
   readonly title: string;
   readonly summary: string;
@@ -260,6 +286,7 @@ export interface ProjectCreate {
 }
 
 export interface ProjectUpdate {
+  readonly iconMediaId?: string | null;
   readonly slug?: string;
   readonly title?: string;
   readonly summary?: string;
@@ -294,6 +321,11 @@ export interface TimelineHighlight {
 }
 
 export interface TimelineEntry extends EntityMeta {
+  /**
+   * Optional icon, referencing `media_assets`. `ON DELETE SET NULL`:
+   * deleting the image clears the reference and leaves the row intact.
+   */
+  readonly iconMediaId: string | null;
   readonly role: string;
   readonly organization: string;
   readonly summary: string | null;
@@ -310,6 +342,7 @@ export interface TimelineEntryWithHighlights extends TimelineEntry {
 }
 
 export interface TimelineEntryCreate {
+  readonly iconMediaId?: string | null;
   readonly role: string;
   readonly organization: string;
   readonly summary?: string | null;
@@ -322,6 +355,7 @@ export interface TimelineEntryCreate {
 }
 
 export interface TimelineEntryUpdate {
+  readonly iconMediaId?: string | null;
   readonly role?: string;
   readonly organization?: string;
   readonly summary?: string | null;
@@ -338,6 +372,11 @@ export interface TimelineEntryUpdate {
 // ---------------------------------------------------------------------------
 
 export interface EducationEntry extends EntityMeta {
+  /**
+   * Optional icon, referencing `media_assets`. `ON DELETE SET NULL`:
+   * deleting the image clears the reference and leaves the row intact.
+   */
+  readonly iconMediaId: string | null;
   readonly qualification: string;
   readonly institution: string;
   readonly fieldOfStudy: string | null;
@@ -350,6 +389,7 @@ export interface EducationEntry extends EntityMeta {
 }
 
 export interface EducationEntryCreate {
+  readonly iconMediaId?: string | null;
   readonly qualification: string;
   readonly institution: string;
   readonly fieldOfStudy?: string | null;
@@ -364,6 +404,11 @@ export interface EducationEntryCreate {
 export type EducationEntryUpdate = Partial<EducationEntryCreate>;
 
 export interface Certification extends EntityMeta {
+  /**
+   * Optional icon, referencing `media_assets`. `ON DELETE SET NULL`:
+   * deleting the image clears the reference and leaves the row intact.
+   */
+  readonly iconMediaId: string | null;
   readonly title: string;
   readonly issuer: string;
   readonly credentialId: string | null;
@@ -375,6 +420,7 @@ export interface Certification extends EntityMeta {
 }
 
 export interface CertificationCreate {
+  readonly iconMediaId?: string | null;
   readonly title: string;
   readonly issuer: string;
   readonly credentialId?: string | null;
@@ -392,6 +438,11 @@ export type CertificationUpdate = Partial<CertificationCreate>;
 // ---------------------------------------------------------------------------
 
 export interface SkillCategory extends EntityMeta {
+  /**
+   * Optional icon, referencing `media_assets`. `ON DELETE SET NULL`:
+   * deleting the image clears the reference and leaves the row intact.
+   */
+  readonly iconMediaId: string | null;
   readonly name: string;
   readonly slug: string;
   readonly description: string | null;
@@ -400,6 +451,7 @@ export interface SkillCategory extends EntityMeta {
 }
 
 export interface SkillCategoryCreate {
+  readonly iconMediaId?: string | null;
   readonly name: string;
   readonly slug: string;
   readonly description?: string | null;
@@ -410,6 +462,11 @@ export interface SkillCategoryCreate {
 export type SkillCategoryUpdate = Partial<SkillCategoryCreate>;
 
 export interface Skill extends EntityMeta {
+  /**
+   * Optional icon, referencing `media_assets`. `ON DELETE SET NULL`:
+   * deleting the image clears the reference and leaves the row intact.
+   */
+  readonly iconMediaId: string | null;
   readonly categoryId: string;
   readonly name: string;
   readonly proficiency: number | null;
@@ -418,6 +475,7 @@ export interface Skill extends EntityMeta {
 }
 
 export interface SkillCreate {
+  readonly iconMediaId?: string | null;
   readonly categoryId: string;
   readonly name: string;
   readonly proficiency?: number | null;
@@ -426,6 +484,7 @@ export interface SkillCreate {
 }
 
 export interface SkillUpdate {
+  readonly iconMediaId?: string | null;
   readonly name?: string;
   readonly proficiency?: number | null;
   readonly position?: number;
@@ -437,6 +496,11 @@ export interface SkillCategoryWithSkills extends SkillCategory {
 }
 
 export interface Tool extends EntityMeta {
+  /**
+   * Optional icon, referencing `media_assets`. `ON DELETE SET NULL`:
+   * deleting the image clears the reference and leaves the row intact.
+   */
+  readonly iconMediaId: string | null;
   readonly name: string;
   readonly purpose: string | null;
   readonly url: string | null;
@@ -445,6 +509,7 @@ export interface Tool extends EntityMeta {
 }
 
 export interface ToolCreate {
+  readonly iconMediaId?: string | null;
   readonly name: string;
   readonly purpose?: string | null;
   readonly url?: string | null;
@@ -459,6 +524,11 @@ export type ToolUpdate = Partial<ToolCreate>;
 // ---------------------------------------------------------------------------
 
 export interface Section extends EntityMeta {
+  /**
+   * Optional icon, referencing `media_assets`. `ON DELETE SET NULL`:
+   * deleting the image clears the reference and leaves the row intact.
+   */
+  readonly iconMediaId: string | null;
   /** Stable machine key the UI maps to a component, e.g. `projects`. */
   readonly key: string;
   readonly title: string;
@@ -469,6 +539,7 @@ export interface Section extends EntityMeta {
 }
 
 export interface SectionCreate {
+  readonly iconMediaId?: string | null;
   readonly key: string;
   readonly title: string;
   readonly subtitle?: string | null;
@@ -478,6 +549,7 @@ export interface SectionCreate {
 }
 
 export interface SectionUpdate {
+  readonly iconMediaId?: string | null;
   readonly title?: string;
   readonly subtitle?: string | null;
   readonly eyebrow?: string | null;

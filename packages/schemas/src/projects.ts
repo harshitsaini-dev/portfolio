@@ -24,6 +24,11 @@ import { PROJECT_LINK_KINDS, PROJECT_STATUSES } from "@portfolio/types";
 // than a second copy. The rule itself is unchanged — see `internal/url.ts`.
 import { httpUrlSchema } from "./internal/url.ts";
 
+import {
+  mediaReferenceCreate,
+  mediaReferenceUpdate,
+} from "./internal/media-reference.ts";
+
 /** Ids are application-generated UUIDv7 strings; accept any non-empty id. */
 const idSchema = z
   .string()
@@ -126,6 +131,8 @@ const mediaList = z.array(projectMediaInputSchema).max(20, "Too many items");
  */
 export const projectCreateSchema = z
   .object({
+    iconMediaId: mediaReferenceCreate,
+    coverMediaId: mediaReferenceCreate,
     title: titleValue,
     slug: projectSlugSchema,
     summary: summaryValue,
@@ -183,6 +190,8 @@ export const projectCreateSchema = z
  */
 export const projectUpdateSchema = z
   .object({
+    iconMediaId: mediaReferenceUpdate,
+    coverMediaId: mediaReferenceUpdate,
     title: titleValue.optional(),
     slug: projectSlugSchema.optional(),
     summary: summaryValue.optional(),

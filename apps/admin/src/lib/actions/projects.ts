@@ -162,6 +162,8 @@ export async function createProjectAction(
       periodLabel: input.periodLabel,
       startedOn: input.startedOn,
       completedOn: input.completedOn,
+      iconMediaId: input.iconMediaId,
+      coverMediaId: input.coverMediaId,
     });
 
     // Relationship writes reference rows that must already exist; a bad id
@@ -216,7 +218,8 @@ export async function updateProjectAction(
       position: input.position,
       periodLabel: input.periodLabel,
       startedOn: input.startedOn,
-      completedOn: input.completedOn,
+      iconMediaId: input.iconMediaId,
+      coverMediaId: input.coverMediaId,
     });
 
     await applyRelations(repos, project.id, input);

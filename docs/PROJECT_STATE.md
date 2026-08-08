@@ -8,6 +8,122 @@ something passed without running it.
 
 **Phase 9 — R2/media. IN PROGRESS.** Not complete.
 
+## Entity icons (branch `feat/entity-icons`) — COMPLETE
+
+Asked for after the owner reported that skills, tools and technologies showed
+no icons at all. That was not a rendering bug: **the committed schema had no
+icon column anywhere**, and several schema modules said so in as many words.
+The chosen approach is an uploaded logo per item, referencing `media_assets`,
+rather than an `icon_key` naming an icon set or a `logo_url` pointing at
+somebody else's CDN.
+
+### Migrations 0002 and 0003 — applied locally only
+
+0002 covers technologies, tools, skills and social links; 0003 covers
+projects, skill categories, timeline entries, education, certifications and
+sections, and adds the avatar column `profile` never had. All nullable, all
+`ON DELETE SET NULL`, matching `projects.cover_media_id`.
+
+0003 is a second migration rather than a longer 0002 because 0002 had already
+been applied to a local database holding authored content, and editing an
+applied migration would have meant destroying that database to pick up the
+change. **No remote database was touched.**
+
+### All eleven entities wired
+
+Types, schemas, repositories, actions, forms and pages, with
+`MediaPickerField` in every create and edit form.
+
+The reference grammar lives once in
+`packages/schemas/src/internal/media-reference.ts`, with the create and
+update variants declared separately — never `.partial()` of the create shape,
+which is the defect that once cleared a technology's category on every
+unrelated rename.
+
+Two entities are not uniform:
+
+* **Projects** carries both references. The cover heads the case study at
+  full width; the icon sits beside the title in lists at about 40px, and one
+  file rarely reads well at both sizes. `cover_media_id` has existed since
+  Phase 7 and no UI ever exposed it — it is editable for the first time here.
+* **Profile** carries `avatar_media_id`, labelled "photograph" rather than
+  "icon", because it is a picture of a person.
+
+Most actions already passed `parsed.data` or a rest-spread patch straight to
+the repository, so the reference flows without further change. Projects and
+profile enumerate their columns and were updated explicitly — a field missing
+from that list is dropped silently between a validated payload and the write.
+
+### Supporting work
+
+* `GET (protected)/media/[id]/raw` serves the bytes. Until it existed no
+  uploaded file could be seen anywhere in the admin, so no picker could show
+  an icon.
+* `MediaThumbnail` and `MediaPickerField`, plus `getMediaOptions()`, which
+  filters to images — the library also holds PDFs, and a PDF attached as an
+  icon would render as a grey placeholder wherever it appeared.
+
+### Three defects found in existing code
+
+* **The repository test harness loaded `0001_initial_schema.sql` by name.**
+  From the moment a second migration existed it measured a schema the
+  application no longer had, reporting it only as an opaque "create failed".
+  It now applies every file in `migrations/` in order.
+* **The protected-page invariant discovered `page.*` only**, so the first
+  `route.ts` under `(protected)/` was enforced by nothing. A sibling
+  route-handler invariant now requires the awaited guard to be the *first*
+  statement in every exported method, with six negative controls — including
+  a handler that resolves a binding before authorizing, and one that guards
+  `GET` but not `DELETE`.
+* **Three Tailwind utilities in the media CMS resolved to nothing**
+  (`bg-accent-strong`, `text-on-accent`, `border-border`), drawing the accent
+  background with the inherited dark foreground — a WCAG AA contrast failure
+  on the slice's primary action. Fixed in commit `09f52ee`.
+
+### Tests
+
+**3206/3206 across 22 suites.** Two project assertions were rewritten rather
+than relaxed: `coverMediaId` sat in the list of fields an update must refuse,
+which was correct while nothing validated it, and is replaced by coverage of
+the behaviour it should now have. The database-managed fields beside it are
+untouched and still refused.
+
+The tools and socials suites still assert that an invented `icon` field is
+rejected, and still pass — `.strict()` refuses `icon`; the real column is
+`iconMediaId`.
+
+### Browser-verified (`playwright-local` MCP, admin on :3001)
+
+| Check | Result |
+| --- | --- |
+| `GET /media/<id>/raw` | 200, `image/png`, 179 bytes, PNG magic `89 50 4e 47` |
+| Response headers | `nosniff`, `inline`, `private, max-age=31536000, immutable` |
+| Unknown id | 404 |
+| List thumbnail | 40×40 at both 1280px and 375px, no horizontal overflow |
+| Picker present | all 11 forms; projects renders 2 (cover + icon) |
+| Technologies | create persists, edit preselects, **rename keeps the icon** |
+| Tools | create persists, edit preselects, **rename keeps the icon** |
+| Projects | cover and icon both persist; **rename keeps both** |
+| Profile | avatar persists through the singleton upsert |
+
+One measurement during verification returned a false negative — an HTML regex
+matched `-icon-heading` before `-icon` and reported the project icon as unset.
+Re-measured against the live DOM, both references were present. Recorded
+because the lesson is the reusable part: a heuristic that reads markup can
+manufacture a defect that does not exist.
+
+### Local test data
+
+A 64px blue PNG, a technology "TypeScript 5", a tool "Blender 4", a project
+"Icon Verification Project Renamed" and a profile row were created in the
+**local** development database while verifying. None is seeded content;
+delete them from the CMS when convenient.
+
+### Not done
+
+The public site does not render any of these images yet — `apps/web` is still
+placeholder content, and connecting it is the next slice.
+
 ## shadcn/ui configured (branch `feat/shadcn-design-system`)
 
 Approved as "shadcn now, Motion/Animate UI later" — those two remain

@@ -42,6 +42,11 @@ import { z } from "zod";
 
 import { nullableHttpUrlSchema } from "./internal/url.ts";
 
+import {
+  mediaReferenceCreate,
+  mediaReferenceUpdate,
+} from "./internal/media-reference.ts";
+
 // ---------------------------------------------------------------------------
 // Shared leaf schemas — no defaults, no optionality; the shapes add those.
 // ---------------------------------------------------------------------------
@@ -76,6 +81,7 @@ const positionValue = z
  */
 export const toolCreateSchema = z
   .object({
+    iconMediaId: mediaReferenceCreate,
     name: requiredText(80),
     // What the tool is used for, e.g. "Design and prototyping". Free text:
     // there is no controlled vocabulary column to validate against.
@@ -98,6 +104,7 @@ export const toolCreateSchema = z
  */
 export const toolUpdateSchema = z
   .object({
+    iconMediaId: mediaReferenceUpdate,
     name: requiredText(80).optional(),
     purpose: nullableText(200).optional(),
     url: nullableHttpUrlSchema.optional(),

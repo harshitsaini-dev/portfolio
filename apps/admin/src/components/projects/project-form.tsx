@@ -36,10 +36,18 @@ import {
   TextAreaField,
   TextField,
 } from "@/components/form/field";
+import {
+  MediaPickerField,
+  type MediaOption,
+} from "@/components/media/media-picker-field";
 import type { ProjectMutationData } from "@/lib/actions/projects";
 import { isErrorResult, idleState, type ActionState } from "@/lib/actions/result";
 
 export interface ProjectFormValues {
+  /** The small mark shown beside the title in lists. `""` for none. */
+  iconMediaId: string;
+  /** The large image heading the case study. `""` for none. */
+  coverMediaId: string;
   title: string;
   slug: string;
   summary: string;
@@ -55,6 +63,8 @@ export interface ProjectFormValues {
 }
 
 export const emptyProjectValues: ProjectFormValues = {
+  iconMediaId: "",
+  coverMediaId: "",
   title: "",
   slug: "",
   summary: "",
@@ -80,12 +90,15 @@ export function ProjectForm({
   initialValues,
   technologies,
   submitLabel,
+  mediaOptions,
 }: {
   action: ProjectAction;
   projectId?: string;
   initialValues: ProjectFormValues;
   technologies: readonly Technology[];
   submitLabel: string;
+  /** Uploaded assets to choose from, read on the server by the page. */
+  mediaOptions: readonly MediaOption[];
 }) {
   const fieldId = useId();
   const [state, formAction, isPending] = useActionState(action, idleState);
@@ -124,6 +137,8 @@ export function ProjectForm({
     periodLabel: values.periodLabel,
     startedOn: values.startedOn,
     completedOn: values.completedOn,
+    iconMediaId: values.iconMediaId,
+    coverMediaId: values.coverMediaId,
     links: values.links,
     technologyIds: values.technologyIds,
     media: [],
@@ -303,6 +318,41 @@ export function ProjectForm({
           Media associations require uploaded assets, which arrive with R2
           storage in a later phase. No media can be attached yet.
         </p>
+      </section>
+
+      <section
+        aria-labelledby={`${fieldId}-imagery-heading`}
+        className="flex flex-col gap-5"
+      >
+        <h2
+          id={`${fieldId}-imagery-heading`}
+          className="text-sm font-semibold uppercase tracking-wider text-fg"
+        >
+          Imagery
+        </h2>
+
+        {/* Two images, not one. The cover heads the case study at full
+            width; the icon sits beside the title in lists and cards, at
+            about 40px. One file rarely reads well at both sizes. */}
+        <MediaPickerField
+          id={`${fieldId}-cover`}
+          label="Cover image"
+          value={values.coverMediaId}
+          options={mediaOptions}
+          errors={fieldErrors.coverMediaId}
+          hint="Large image shown at the top of the project page."
+          onChange={(value) => update("coverMediaId", value)}
+        />
+
+        <MediaPickerField
+          id={`${fieldId}-icon`}
+          label="Icon"
+          value={values.iconMediaId}
+          options={mediaOptions}
+          errors={fieldErrors.iconMediaId}
+          hint="Small mark shown beside the title in project lists."
+          onChange={(value) => update("iconMediaId", value)}
+        />
       </section>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-subtle pt-6">
