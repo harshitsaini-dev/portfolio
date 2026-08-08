@@ -660,15 +660,19 @@ Media attachments have no admin UI yet: no asset can exist before R2
 (Phase 9), so the form sends an empty media array rather than inventing
 asset ids.
 
-**That empty array is currently sent unconditionally, and it is also how a
-partial update wipes attachments.** `projectUpdateSchema` is derived with
-`.partial()` from a defaulted create shape, so `media`, `links`, and
-`technologyIds` are materialised as `[]` even when the caller omits them, and
-`applyRelations` reads a defaulted `[]` as "replace with nothing". Harmless
-today only because no attachments can exist. It stops being harmless the
-moment Phase 9 creates some, which is why the fix is a prerequisite for the
-attachment slice rather than part of it. Reported in
-`docs/PROJECT_STATE.md`; **not yet fixed**.
+That empty array is sent unconditionally by the form, which is correct while
+no asset can exist.
+
+**It was also how a partial update wiped attachments, until this was fixed.**
+`projectUpdateSchema` was derived with `.partial()` from a defaulted create
+shape, so `media`, `links`, and `technologyIds` were materialised as `[]`
+even when the caller omitted them, and `applyRelations` reads a defaulted
+`[]` as "replace with nothing". Harmless only because no attachments could
+exist yet — and it would have stopped being harmless the moment Phase 9
+created some. Fixed ahead of the attachment slice: an omitted collection now
+stays absent, `[]` still means a deliberate clear, and the distinction is
+asserted against real local D1 through the real Server Action. See
+`docs/PROJECT_STATE.md`.
 
 ## Local vs remote policy
 

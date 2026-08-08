@@ -3,14 +3,69 @@
 Notes on things learned while building this project that are worth
 remembering for future work.
 
+## Projects and Technologies partial-update fix
+
+### Picking the assertion field *is* the test
+
+Both suites already had a preservation check, and both picked a field that
+could not fail: Projects asserted `summary` survives an edit, Technologies
+asserted `partial.data?.slug === undefined`. Neither field carries a
+`.default()`, so `.partial()` never materialised either one. Every field that
+*did* have a default went unchecked — including the eight scalars and three
+collections that were being destroyed.
+
+A preservation test is only as good as the field it inspects. The rule now:
+assert the fields that carry **create defaults**, set to deliberately
+non-default values, and prefer asserting the whole row over choosing a
+representative at all. The fixtures for this fix are published, featured,
+positioned at 7 and 9, with populated prose and dates and one of each
+relationship — every one of them a field the old parse would have flattened.
+
+### Testing the layer below the broken one proves nothing about it
+
+`technologies-tests.mjs` genuinely did prove that a name-only patch preserves
+`category`. It built the patch by hand and passed it to the repository — and
+the repository was never broken. `buildPatch` skips `undefined` correctly and
+always did.
+
+The bug lived in the **schema**, which manufactures keys the caller never
+sent. A test that skips the schema and starts at the repository is testing
+the half that works. For a boundary defect, the payload has to enter at the
+boundary; otherwise the test is shaped like the fix rather than like the bug.
+
+### Verify a regression test by watching it fail
+
+Every new check here was run against the pre-fix schemas before being
+trusted: 23 fail in Projects, 4 in Technologies, 8 in the Server Action
+suite, with the failure text naming the exact destruction
+(`status is preserved — expected "published", got "draft"`). That took one
+temporary revert and three runs.
+
+It is worth the minutes. A regression test that has never been observed
+failing is a guess about what the bug was, and this repository now has two
+examples of a test that passed while the bug it was named after was live.
+
+### The fix was smaller than the bug
+
+The blast radius was ten fields and three relationship tables across two
+merged CMS areas. The repair is **two schema files** and no change to any
+repository, action, component, or migration.
+
+That ratio is the tell for a boundary defect: when the wrong data is being
+manufactured at the entrance, every layer downstream behaves correctly on
+input that lies to it. The temptation is to add guards downstream — a
+`if (input.media?.length)` in the action would have "fixed" the media
+symptom — and each such guard would have made the real contract harder to
+see and left the scalar corruption untouched.
+
 ## Phase 9 — R2/media audit
 
 ### The third occurrence of a bug means the *rule* was never enforced
 
 `.partial()` over a defaulted create shape has now caused the same defect
 three times: education (caught pre-merge), timeline (caught post-merge and
-fixed in `c345131`), and now projects and technologies (found by this audit,
-still open).
+fixed in `c345131`), and projects and technologies (found by this audit and
+fixed in the task that followed it).
 
 After the second occurrence the rule was written into `ARCHITECTURE.md` and
 every entity built afterwards followed it. What nobody did was **go back and

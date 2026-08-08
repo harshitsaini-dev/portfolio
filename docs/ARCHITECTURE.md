@@ -190,21 +190,24 @@ service layer once it exists. Types shared between layers live in
 
 ## Partial-update semantics across the CMS (Phase 8)
 
-Every entity with an update action is *intended* to share one contract.
+Every entity with an update action shares one contract. **All eleven satisfy
+it, and that is measured rather than assumed**: each exported update schema
+is parsed with one field and with none, and every one yields exactly one key
+and zero keys. `profileSaveSchema` is deliberately outside the rule — it is a
+full save, not a patch.
 
-> **Correction (Phase 9 audit).** An earlier revision of this section claimed
-> the contract was "now enforced by construction rather than by convention".
-> **That was not true**, and the claim is withdrawn. Two merged modules still
-> derive their update shape with `.partial()` from a defaulted create shape —
-> `packages/schemas/src/projects.ts` and
-> `packages/schemas/src/technologies.ts` — so for those two entities the
-> contract below is violated: a partial project update silently resets
-> `status`, `isFeatured`, `position`, and the nullable text/date columns, and
-> **wipes every project link, technology tag, and `project_media`
-> attachment**; a technology rename silently clears `category`. Measured
-> against real local D1 through the real Server Action, not inferred. The
-> defect is reported in `docs/PROJECT_STATE.md` and is **not yet fixed**.
-> Nine of the eleven entities do satisfy the contract.
+> **History.** An earlier revision claimed the contract was "enforced by
+> construction rather than by convention". That was **not true when written**:
+> `projects.ts` and `technologies.ts` still derived their update shape with
+> `.partial()` from a defaulted create shape, so a partial project update
+> reset `status`, `isFeatured`, `position`, and the nullable text/date
+> columns and **wiped every project link, technology tag, and
+> `project_media` attachment**, while a technology rename cleared `category`.
+> The Phase 9 audit measured it against real local D1 through the real Server
+> Action; it was fixed in its own task. The claim is accurate now. It is kept
+> here because the failure mode is instructive: a rule introduced mid-project
+> protects everything written after it and nothing written before, so
+> adopting one has to include a sweep of what already exists.
 
 The contract itself is unchanged:
 

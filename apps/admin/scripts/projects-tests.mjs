@@ -219,10 +219,187 @@ try {
   });
   check("an unknown field is rejected rather than ignored", unknownField.success === false);
 
-  const partial = projectUpdateSchema.safeParse({ title: "Only the title" });
-  check("an update may contain a single field", partial.success);
   const partialWithId = projectUpdateSchema.safeParse({ id: "x", title: "T" });
   check("an update supplying `id` is rejected", partialWithId.success === false);
+
+  // =========================================================================
+  startGroup("Partial updates must stay partial");
+
+  // The regression this group exists for. `projectUpdateSchema` used to be
+  // `projectCreateSchema.partial()`, and `.partial()` does NOT neutralise
+  // `.default()` in Zod — a defaulted field is still materialised when its
+  // key is absent. A title-only patch parsed to ELEVEN keys, and the empty
+  // patch to TEN, so the repository's allowlist rewrote every scalar and
+  // `applyRelations` replaced all three collections with the materialised
+  // `[]`. The old suite only asked "does a partial update parse?", which was
+  // always true, so it never saw any of it.
+  const partial = projectUpdateSchema.safeParse({ title: "Only the title" });
+  check("a single-field update parses", partial.success);
+  equal(
+    "a single-field update produces exactly one key",
+    Object.keys(partial.data ?? {}).length,
+    1,
+  );
+  equal("and that key is the one supplied", partial.data?.title, "Only the title");
+
+  // Each field asserted by name: a count alone would not say *which* field
+  // leaked if the shape changes later.
+  for (const field of [
+    "links",
+    "technologyIds",
+    "media",
+    "status",
+    "isFeatured",
+    "position",
+    "description",
+    "periodLabel",
+    "startedOn",
+    "completedOn",
+    "slug",
+    "summary",
+  ]) {
+    check(
+      `an unmentioned \`${field}\` is absent, not defaulted`,
+      partial.success && !Object.hasOwn(partial.data, field),
+      `got ${JSON.stringify(partial.data?.[field])}`,
+    );
+  }
+
+  const emptyPatch = projectUpdateSchema.safeParse({});
+  check("an empty update parses", emptyPatch.success);
+  equal(
+    "an empty update materialises zero keys",
+    Object.keys(emptyPatch.data ?? {}).length,
+    0,
+  );
+
+  // Falsy values are real edits, not absences — the other half of the
+  // contract, and the half a naive `if (value)` guard would break.
+  const explicitZero = projectUpdateSchema.safeParse({ position: 0 });
+  equal("an explicit `position: 0` survives", explicitZero.data?.position, 0);
+  check(
+    "and it is genuinely present, not merely falsy",
+    explicitZero.success && Object.hasOwn(explicitZero.data, "position"),
+  );
+  const explicitFalse = projectUpdateSchema.safeParse({ isFeatured: false });
+  equal("an explicit `isFeatured: false` survives", explicitFalse.data?.isFeatured, false);
+  check(
+    "and it is genuinely present, not merely falsy",
+    explicitFalse.success && Object.hasOwn(explicitFalse.data, "isFeatured"),
+  );
+
+  // Omitted and explicitly-empty are different requests. The schema must
+  // preserve the distinction so the action can act on it.
+  const explicitEmptyCollections = projectUpdateSchema.safeParse({
+    links: [],
+    technologyIds: [],
+    media: [],
+  });
+  check(
+    "explicitly supplied empty collections are still valid",
+    explicitEmptyCollections.success,
+  );
+  equal(
+    "and all three survive as present keys",
+    Object.keys(explicitEmptyCollections.data ?? {}).length,
+    3,
+  );
+  for (const field of ["links", "technologyIds", "media"]) {
+    check(
+      `an explicit empty \`${field}\` is present and empty`,
+      explicitEmptyCollections.success &&
+        Array.isArray(explicitEmptyCollections.data[field]) &&
+        explicitEmptyCollections.data[field].length === 0,
+    );
+  }
+
+  // Nullable scalars: absent means "leave alone", explicit null means "clear".
+  const explicitNulls = projectUpdateSchema.safeParse({
+    description: null,
+    periodLabel: null,
+    startedOn: null,
+    completedOn: null,
+  });
+  check("explicit nulls are accepted as deliberate clears", explicitNulls.success);
+  equal("and none of them is dropped", Object.keys(explicitNulls.data ?? {}).length, 4);
+  const blankToNull = projectUpdateSchema.safeParse({ description: "   " });
+  equal(
+    "blank text still normalises to null when supplied",
+    blankToNull.data?.description,
+    null,
+  );
+
+  // Validation strength must not have been traded away for optionality.
+  check(
+    "an over-long description is still rejected in an update",
+    projectUpdateSchema.safeParse({ description: "x".repeat(8001) }).success === false,
+  );
+  check(
+    "a malformed date is still rejected in an update",
+    projectUpdateSchema.safeParse({ startedOn: "2024-13-99x" }).success === false,
+  );
+  check(
+    "a negative position is still rejected in an update",
+    projectUpdateSchema.safeParse({ position: -1 }).success === false,
+  );
+  check(
+    "an empty title is still rejected in an update",
+    projectUpdateSchema.safeParse({ title: "  " }).success === false,
+  );
+  check(
+    "duplicate technology ids are still rejected in an update",
+    projectUpdateSchema.safeParse({ technologyIds: ["a", "a"] }).success === false,
+  );
+  check(
+    "an unsafe link URL is still rejected in an update",
+    projectUpdateSchema.safeParse({
+      links: [{ label: "x", url: "javascript:alert(1)", kind: "other" }],
+    }).success === false,
+  );
+  for (const field of ["id", "createdAt", "updatedAt", "isAdmin", "coverMediaId"]) {
+    check(
+      `an update supplying \`${field}\` is rejected outright`,
+      projectUpdateSchema.safeParse({ title: "T", [field]: "x" }).success === false,
+    );
+  }
+
+  // The create shape must be unchanged by the fix — it is *supposed* to
+  // default. Regression guard in the opposite direction.
+  const createDefaults = projectCreateSchema.safeParse({
+    title: "T",
+    slug: "t",
+    summary: "S",
+  });
+  check("the create schema still parses a minimal payload", createDefaults.success);
+  equal("create still defaults status", createDefaults.data?.status, "draft");
+  equal("create still defaults isFeatured", createDefaults.data?.isFeatured, false);
+  equal("create still defaults position", createDefaults.data?.position, 0);
+  equal("create still defaults description to null", createDefaults.data?.description, null);
+  equal("create still defaults periodLabel to null", createDefaults.data?.periodLabel, null);
+  equal("create still defaults startedOn to null", createDefaults.data?.startedOn, null);
+  equal("create still defaults completedOn to null", createDefaults.data?.completedOn, null);
+  equal("create still defaults links to []", createDefaults.data?.links.length, 0);
+  equal(
+    "create still defaults technologyIds to []",
+    createDefaults.data?.technologyIds.length,
+    0,
+  );
+  equal("create still defaults media to []", createDefaults.data?.media.length, 0);
+  equal(
+    "create still materialises all thirteen fields",
+    Object.keys(createDefaults.data ?? {}).length,
+    13,
+  );
+  equal(
+    "a media item caption still defaults to null inside an item",
+    projectCreateSchema.safeParse({
+      title: "T",
+      slug: "t",
+      summary: "S",
+      media: [{ mediaAssetId: "asset-1" }],
+    }).data?.media[0]?.caption,
+    null,
+  );
 
   // =========================================================================
   startGroup("Slug suggestion");
@@ -397,6 +574,165 @@ try {
     updateConflict = error instanceof ConflictError;
   }
   check("renaming onto a taken slug raises ConflictError", updateConflict);
+
+  // =========================================================================
+  startGroup("Partial update preserves persisted state (real D1)");
+
+  // The persisted-state half of the regression above. The schema group proves
+  // the patch has one key; this proves the ROW still has everything else.
+  //
+  // Deliberately built with NON-DEFAULT values in every field that carries a
+  // create default, because those are precisely the fields the old
+  // `.partial()` derivation would have overwritten. The previous suite's
+  // "untouched fields are preserved" check inspected `summary` — the one
+  // field with no default — so it passed while the bug was live.
+  const richAsset = await repos.media.create({
+    storageKey: "regression/cover.png",
+    contentType: "image/png",
+    byteSize: 2048,
+  });
+  const richTech = await repos.technologies.create({
+    name: "Regression Tech",
+    slug: "regression-tech",
+    category: "Language",
+  });
+  const rich = await repos.projects.create({
+    slug: "rich-project",
+    title: "Rich Project",
+    summary: "Every defaulted field deliberately non-default.",
+    description: "A description that must survive a title-only edit.",
+    status: "published",
+    isFeatured: true,
+    position: 7,
+    periodLabel: "2024-2025",
+    startedOn: "2024-01-01",
+    completedOn: "2025-01-01",
+    coverMediaId: richAsset.id,
+  });
+  await repos.projects.setLinks(rich.id, [
+    { label: "Source", url: "https://example.com/source", kind: "repository", position: 0 },
+  ]);
+  await repos.projects.setTechnologies(rich.id, [richTech.id]);
+  await repos.projects.setMedia(rich.id, [
+    { mediaAssetId: richAsset.id, caption: "Screenshot", position: 0 },
+  ]);
+
+  const before = await repos.projects.getById(rich.id);
+  const beforeLinks = await repos.projects.listLinks(rich.id);
+  const beforeTech = await repos.projects.listTechnologies(rich.id);
+  const beforeMedia = await repos.projects.listMedia(rich.id);
+  const otherBefore = await repos.projects.getBySlug("beta-project");
+  equal("the fixture starts published", before.status, "published");
+  equal("the fixture starts featured", before.isFeatured, true);
+  equal("the fixture starts at a non-zero position", before.position, 7);
+  equal("the fixture starts with one link", beforeLinks.length, 1);
+  equal("the fixture starts with one technology", beforeTech.length, 1);
+  equal("the fixture starts with one media attachment", beforeMedia.length, 1);
+
+  // A title-only payload, parsed by the real schema and applied exactly the
+  // way `updateProjectAction` applies it — repository patch, then the three
+  // relationship setters guarded on presence.
+  const titleOnly = projectUpdateSchema.parse({ title: "Rich Project Renamed" });
+  await repos.projects.update(rich.id, {
+    title: titleOnly.title,
+    slug: titleOnly.slug,
+    summary: titleOnly.summary,
+    description: titleOnly.description,
+    status: titleOnly.status,
+    isFeatured: titleOnly.isFeatured,
+    position: titleOnly.position,
+    periodLabel: titleOnly.periodLabel,
+    startedOn: titleOnly.startedOn,
+    completedOn: titleOnly.completedOn,
+  });
+  if (titleOnly.links) {
+    await repos.projects.setLinks(
+      rich.id,
+      titleOnly.links.map((link, index) => ({ ...link, position: index })),
+    );
+  }
+  if (titleOnly.technologyIds) {
+    await repos.projects.setTechnologies(rich.id, titleOnly.technologyIds);
+  }
+  if (titleOnly.media) {
+    await repos.projects.setMedia(
+      rich.id,
+      titleOnly.media.map((item, index) => ({ ...item, position: index })),
+    );
+  }
+
+  const after = await repos.projects.getById(rich.id);
+  const afterLinks = await repos.projects.listLinks(rich.id);
+  const afterTech = await repos.projects.listTechnologies(rich.id);
+  const afterMedia = await repos.projects.listMedia(rich.id);
+
+  equal("the title actually changed", after.title, "Rich Project Renamed");
+  equal("status is preserved", after.status, "published");
+  equal("isFeatured is preserved", after.isFeatured, true);
+  equal("position is preserved", after.position, 7);
+  equal(
+    "description is preserved",
+    after.description,
+    "A description that must survive a title-only edit.",
+  );
+  equal("periodLabel is preserved", after.periodLabel, "2024-2025");
+  equal("startedOn is preserved", after.startedOn, "2024-01-01");
+  equal("completedOn is preserved", after.completedOn, "2025-01-01");
+  equal("summary is preserved", after.summary, before.summary);
+  equal("slug is preserved", after.slug, "rich-project");
+  equal("coverMediaId is preserved", after.coverMediaId, richAsset.id);
+  equal("createdAt is unchanged", after.createdAt, before.createdAt);
+
+  equal("links are preserved", afterLinks.length, 1);
+  equal("the surviving link is the same one", afterLinks[0].label, "Source");
+  equal("the link URL is unchanged", afterLinks[0].url, "https://example.com/source");
+  equal("technology relationships are preserved", afterTech.length, 1);
+  equal("the surviving technology is the same one", afterTech[0].slug, "regression-tech");
+  equal("project_media is preserved", afterMedia.length, 1);
+  equal("the surviving attachment points at the same asset", afterMedia[0].mediaAssetId, richAsset.id);
+  equal("the attachment caption is preserved", afterMedia[0].caption, "Screenshot");
+
+  // Nothing outside the edited row moved.
+  const otherAfter = await repos.projects.getBySlug("beta-project");
+  equal("an unrelated project's status is untouched", otherAfter.status, otherBefore.status);
+  equal("an unrelated project's position is untouched", otherAfter.position, otherBefore.position);
+  equal("an unrelated project's updatedAt is untouched", otherAfter.updatedAt, otherBefore.updatedAt);
+  equal("the media asset itself is untouched", (await repos.media.getById(richAsset.id))?.storageKey, "regression/cover.png");
+  equal(
+    "the technology record's category is untouched",
+    (await repos.technologies.getById(richTech.id))?.category,
+    "Language",
+  );
+
+  // The other half of the contract: an explicit empty collection still clears.
+  const clearing = projectUpdateSchema.parse({ links: [] });
+  if (clearing.links) {
+    await repos.projects.setLinks(rich.id, clearing.links);
+  }
+  equal(
+    "an explicitly empty links array still clears them",
+    (await repos.projects.listLinks(rich.id)).length,
+    0,
+  );
+  equal(
+    "and clearing links left technologies alone",
+    (await repos.projects.listTechnologies(rich.id)).length,
+    1,
+  );
+  equal(
+    "and clearing links left media alone",
+    (await repos.projects.listMedia(rich.id)).length,
+    1,
+  );
+
+  // Detach before the delete group runs: project_media -> media_assets is
+  // ON DELETE RESTRICT, and this fixture is not what that group is testing.
+  await repos.projects.setMedia(rich.id, []);
+  await repos.projects.setTechnologies(rich.id, []);
+  await repos.projects.delete(rich.id);
+  check("the regression fixture cleaned up", (await repos.projects.getById(rich.id)) === null);
+  check("its media asset can now be deleted", (await repos.media.delete(richAsset.id)) === true);
+  check("its technology can now be deleted", (await repos.technologies.delete(richTech.id)) === true);
 
   // =========================================================================
   startGroup("Delete");
