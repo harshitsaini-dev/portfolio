@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { Container } from "@/components/ui/container";
 import { ScrambleText } from "@/components/ui/scramble-text";
+import { Typewriter } from "@/components/ui/typewriter";
 import { type } from "@/components/ui/typography";
 
 interface SectionProps {
@@ -46,7 +47,13 @@ export function Section({
     <section
       id={id}
       aria-labelledby={headingId}
-      className="border-t border-subtle py-20 sm:py-24"
+      /*
+        No top border. The 3D layer is fixed behind the page, so a hairline
+        rule drew a line straight across the figure — reported as exactly
+        that. Spacing separates the sections without putting a stroke over
+        the background.
+      */
+      className="py-24 sm:py-32"
     >
       <Container>
         {/* The heading block reveals as one unit. The section body is a
@@ -57,7 +64,7 @@ export function Section({
               {marker}
             </span>
           ) : null}
-          {eyebrow}
+          <Typewriter text={eyebrow} />
         </p>
         {/* The heading resolves out of random characters as it scrolls in.
             The real string is always in the DOM — see `ScrambleText`. */}

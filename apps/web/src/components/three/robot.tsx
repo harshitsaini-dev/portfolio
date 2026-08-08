@@ -84,9 +84,22 @@ const SHOULDER_Y = 0.34;
  * clipped it. Sitting lower with a smaller sway keeps the whole figure in
  * frame at every scroll position.
  */
-const ROBOT_HOME_X = -0.55;
-const ROBOT_HOME_Y = -1.15;
+const ROBOT_HOME_X = 2.5;
+const ROBOT_HOME_Y = -0.9;
 const ROBOT_SCALE = 0.42;
+
+/**
+ * The figure never crosses to the left of this.
+ *
+ * The canvas is fixed behind the whole page, so an unconstrained drift walked
+ * it straight through the middle of the skills cards — the surfaces are
+ * semi-transparent, so it showed through and made the text harder to read.
+ * Decoration that costs legibility has stopped being decoration.
+ *
+ * The content column ends around x = 1.6 in scene units at desktop widths, so
+ * staying right of 1.9 keeps the figure in the margin.
+ */
+const ROBOT_MIN_X = 1.9;
 
 /**
  * How far it travels as the page scrolls.
@@ -96,7 +109,7 @@ const ROBOT_SCALE = 0.42;
  * the scroll progress makes it wander back and forth instead, which reads as
  * a companion moving around rather than an object sliding off the screen.
  */
-const SCROLL_SWAY_X = 1.15;
+const SCROLL_SWAY_X = 0.75;
 const SCROLL_SWAY_Y = 0.55;
 
 /**
@@ -131,6 +144,9 @@ const ARM_RAISED_ROTATION = -2.25;
 const SHELL = "#e8eaf2";
 const SHELL_DARK = "#aeb4c7";
 const ACCENT = "#2547d0";
+/** The hoodie. Dark enough to read as fabric beside the pale shell. */
+const HOODIE = "#1c2030";
+const HOODIE_LIGHT = "#2a3045";
 
 export function Robot({ animate }: { animate: boolean }) {
   const root = useRef<Group>(null);
@@ -210,8 +226,10 @@ export function Robot({ animate }: { animate: boolean }) {
       // crosses into the text column on the left.
       const targetY =
         ROBOT_HOME_Y + bob + Math.sin(scroll * Math.PI * 2) * SCROLL_SWAY_Y;
-      const targetX =
-        ROBOT_HOME_X + Math.sin(scroll * Math.PI * 3) * SCROLL_SWAY_X;
+      const targetX = Math.max(
+        ROBOT_MIN_X,
+        ROBOT_HOME_X + Math.sin(scroll * Math.PI * 3) * SCROLL_SWAY_X,
+      );
 
       // Depth, so the figure appears to move toward and away from the
       // viewer. Driven by moving it along Z rather than by scaling it: with a
@@ -286,48 +304,74 @@ export function Robot({ animate }: { animate: boolean }) {
     <group ref={root} position={[ROBOT_HOME_X, ROBOT_HOME_Y, 0]} scale={ROBOT_SCALE}>
       {/* Head */}
       <group ref={head} position={[0, 1.15, 0]}>
-        <RoundedBox args={[1.25, 1.0, 1.0]} radius={0.18} smoothness={4}>
-          <meshStandardMaterial color={SHELL} roughness={0.35} metalness={0.15} />
+        {/*
+          A rounded box with a large radius rather than a sphere or a hard
+          box: a sphere reads as a ball and a box read as a crate. This keeps
+          a flat-ish front to sit features on while staying soft.
+        */}
+        <RoundedBox args={[1.1, 1.05, 1.0]} radius={0.34} smoothness={5}>
+          <meshStandardMaterial color={SHELL} roughness={0.35} metalness={0.12} />
         </RoundedBox>
 
-        {/* Visor. Set back slightly so it reads as inset rather than stuck on. */}
+        {/*
+          The hood: a sphere slightly larger than the head, pushed back so the
+          face stays clear. Cheaper and more legible than a modelled shell,
+          and it reads as a hoodie immediately.
+        */}
+        <mesh position={[0, 0.06, -0.16]} scale={[1.06, 1.02, 1]}>
+          <sphereGeometry args={[0.72, 28, 24]} />
+          <meshStandardMaterial color={HOODIE} roughness={0.85} metalness={0.02} />
+        </mesh>
+
+        {/* The rim, where the fabric turns back around the face. */}
+        <mesh position={[0, 0.05, 0.26]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.58, 0.1, 14, 32]} />
+          <meshStandardMaterial
+            color={HOODIE_LIGHT}
+            roughness={0.85}
+            metalness={0.02}
+          />
+        </mesh>
+
+        {/*
+          A face rather than a visor band: two eyes and a mouth, each proud of
+          the head. `emissive` because nothing in the scene lights the front
+          of a face held inside a hood.
+        */}
+        <mesh ref={leftEye} position={[-0.2, 0.1, 0.5]}>
+          <sphereGeometry args={[0.085, 20, 20]} />
+          <meshStandardMaterial
+            color={ACCENT}
+            emissive={ACCENT}
+            emissiveIntensity={1.8}
+            toneMapped={false}
+          />
+        </mesh>
+        <mesh ref={rightEye} position={[0.2, 0.1, 0.5]}>
+          <sphereGeometry args={[0.085, 20, 20]} />
+          <meshStandardMaterial
+            color={ACCENT}
+            emissive={ACCENT}
+            emissiveIntensity={1.8}
+            toneMapped={false}
+          />
+        </mesh>
+
+        {/* A small bar for a mouth. Enough to read as a face without tipping
+            into a cartoon. */}
         <RoundedBox
-          args={[0.95, 0.42, 0.08]}
-          radius={0.06}
+          args={[0.26, 0.055, 0.05]}
+          radius={0.025}
           smoothness={3}
-          position={[0, 0.05, 0.49]}
+          position={[0, -0.16, 0.5]}
         >
-          <meshStandardMaterial color="#14172b" roughness={0.2} metalness={0.4} />
+          <meshStandardMaterial
+            color={ACCENT}
+            emissive={ACCENT}
+            emissiveIntensity={1.1}
+            toneMapped={false}
+          />
         </RoundedBox>
-
-        {/* Eyes. `emissive` so they read as lit rather than merely pale —
-            there is no light inside the visor to catch. */}
-        <mesh ref={leftEye} position={[-0.22, 0.05, 0.55]}>
-          <sphereGeometry args={[0.075, 20, 20]} />
-          <meshStandardMaterial
-            color={ACCENT}
-            emissive={ACCENT}
-            emissiveIntensity={1.6}
-            toneMapped={false}
-          />
-        </mesh>
-        <mesh ref={rightEye} position={[0.22, 0.05, 0.55]}>
-          <sphereGeometry args={[0.075, 20, 20]} />
-          <meshStandardMaterial
-            color={ACCENT}
-            emissive={ACCENT}
-            emissiveIntensity={1.6}
-            toneMapped={false}
-          />
-        </mesh>
-
-        {/* Ears */}
-        {[-0.72, 0.72].map((x) => (
-          <mesh key={x} position={[x, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.12, 0.12, 0.12, 16]} />
-            <meshStandardMaterial color={SHELL_DARK} roughness={0.4} metalness={0.3} />
-          </mesh>
-        ))}
 
         {/* Antenna */}
         <mesh position={[0, 0.62, 0]}>
@@ -351,14 +395,42 @@ export function Robot({ animate }: { animate: boolean }) {
         <meshStandardMaterial color={SHELL_DARK} roughness={0.4} metalness={0.35} />
       </mesh>
 
-      {/* Torso */}
-      <RoundedBox args={[1.15, 1.05, 0.72]} radius={0.16} smoothness={4} position={[0, 0, 0]}>
-        <meshStandardMaterial color={SHELL} roughness={0.35} metalness={0.15} />
+      {/* Torso, wearing the hoodie. */}
+      <RoundedBox args={[1.15, 1.05, 0.72]} radius={0.2} smoothness={4}>
+        <meshStandardMaterial color={HOODIE} roughness={0.85} metalness={0.02} />
       </RoundedBox>
 
-      {/* Chest light */}
-      <mesh position={[0, 0.1, 0.37]}>
-        <cylinderGeometry args={[0.14, 0.14, 0.05, 24]} />
+      {/* The front pocket. */}
+      <RoundedBox
+        args={[0.72, 0.32, 0.06]}
+        radius={0.05}
+        smoothness={3}
+        position={[0, -0.24, 0.36]}
+      >
+        <meshStandardMaterial
+          color={HOODIE_LIGHT}
+          roughness={0.85}
+          metalness={0.02}
+        />
+      </RoundedBox>
+
+      {/* Drawstrings: two short cords with tips, hanging from the hood. */}
+      {[-0.14, 0.14].map((x) => (
+        <group key={x} position={[x, 0.42, 0.33]}>
+          <mesh>
+            <cylinderGeometry args={[0.018, 0.018, 0.28, 8]} />
+            <meshStandardMaterial color={SHELL_DARK} roughness={0.7} />
+          </mesh>
+          <mesh position={[0, -0.16, 0]}>
+            <sphereGeometry args={[0.035, 12, 12]} />
+            <meshStandardMaterial color={SHELL} roughness={0.5} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Chest light, sitting on fabric rather than a metal plate. */}
+      <mesh position={[0, 0.14, 0.37]}>
+        <cylinderGeometry args={[0.1, 0.1, 0.04, 24]} />
         <meshStandardMaterial
           color={ACCENT}
           emissive={ACCENT}
@@ -392,7 +464,7 @@ export function Robot({ animate }: { animate: boolean }) {
           smoothness={3}
           position={[0, -0.3, 0]}
         >
-          <meshStandardMaterial color={SHELL_DARK} roughness={0.4} metalness={0.3} />
+          <meshStandardMaterial color={HOODIE} roughness={0.85} metalness={0.02} />
         </RoundedBox>
         <mesh position={[0, -0.76, 0]}>
           <sphereGeometry args={[0.15, 18, 18]} />
@@ -411,7 +483,7 @@ export function Robot({ animate }: { animate: boolean }) {
           smoothness={3}
           position={[0, -0.3, 0]}
         >
-          <meshStandardMaterial color={SHELL_DARK} roughness={0.4} metalness={0.3} />
+          <meshStandardMaterial color={HOODIE} roughness={0.85} metalness={0.02} />
         </RoundedBox>
         <mesh position={[0, -0.76, 0]}>
           <sphereGeometry args={[0.15, 18, 18]} />

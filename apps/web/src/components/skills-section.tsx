@@ -1,6 +1,5 @@
 import { Section } from "@/components/section";
 import type { SectionCopy } from "@/lib/content/sections";
-import { BadgeList } from "@/components/ui/badge";
 import { ContentImage } from "@/components/ui/content-image";
 import { Surface } from "@/components/ui/surface";
 import { type } from "@/components/ui/typography";
@@ -50,12 +49,25 @@ export function SkillsSection({
                   </h3>
                 </div>
                 <p className={`mt-2 ${type.bodySm}`}>{category.description}</p>
-                <div className="mt-5">
-                  <BadgeList
-                    items={category.skills}
-                    label={`${category.name} skills`}
-                  />
-                </div>
+                {/* Rendered here rather than through BadgeList, which takes
+                    plain strings: a skill can carry a logo, and the logo is
+                    decorative because the name sits beside it. */}
+                <ul
+                  aria-label={`${category.name} skills`}
+                  className="mt-5 flex flex-wrap gap-2"
+                >
+                  {category.skills.map((skill) => (
+                    <li
+                      key={skill.id}
+                      className="inline-flex items-center gap-2 rounded-full border border-subtle bg-surface-muted px-3 py-1 text-xs font-medium text-fg-muted"
+                    >
+                      {skill.image ? (
+                        <ContentImage image={skill.image} size={16} decorative />
+                      ) : null}
+                      {skill.name}
+                    </li>
+                  ))}
+                </ul>
               </Surface>
             </li>
           );
