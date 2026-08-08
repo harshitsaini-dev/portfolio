@@ -1,25 +1,26 @@
 # Testing
 
-## Current state (Phase 8 COMPLETE; Phase 9 audit adds no tests)
+## Current state (Phase 8 COMPLETE; partial-update fix awaiting review)
 
-`pnpm test` runs **nineteen real suites and one no-op** — **2488 checks**,
-all passing on Windows and on GitHub Actions/Linux (PR #34 and its
-post-merge `main` run `31204188654`, and again on the Phase 8 closure PR #35
-and its post-merge run `31243357467`). The 2245 verified after the Socials
-CMS are all still among them and none were weakened.
+`pnpm test` runs **nineteen real suites and one no-op** — **2648 checks**,
+all passing locally on Windows. The 2488 verified at the Phase 8 closure
+(PR #35, post-merge `main` run `31243357467`) are **all still among them and
+none were weakened**.
 
-**The Phase 9 audit pass changed no code and added no tests**, so the total
-is unchanged at 2488. It did establish that two of these suites claim more
-than they prove — see *Partial updates must preserve what they omit* below.
-What each one actually proves matters, so be precise:
+The Phase 9 audit pass changed no code and added no tests. The
+**Projects/Technologies partial-update fix** then added **160**: Projects
+96 → **185**, Technologies 90 → **112**, and Server Action authorization
+562 → **611**. The database subtotal is unchanged at **297**, because the
+defect was at the validation boundary and no repository contract changed.
+What each suite actually proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
 | Admin authentication | **42** | real `jose` verification, locally minted tokens | The Access JWT boundary and the development-auth guard |
 | Admin foundation | **125** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, the protected-page invariant, and horizontal scroll containment |
 | **D1 composition boundary** | **34** | the real `binding.ts`, the **working tree**, plus `tsc` over Wrangler-generated Cloudflare types | Production fails closed, the provider seam composes, and Phase 22's provider already type-checks |
-| **Projects CMS** | **96** | the real schemas, and **real local D1** via `getPlatformProxy()` | The validation boundary and the full CRUD + relationship path |
-| **Technologies CMS** | **90** | the real schemas, and **real local D1** | The validation boundary, CRUD, the page-level usage composition, and `ON DELETE RESTRICT` |
+| **Projects CMS** | **185** | the real schemas, and **real local D1** via `getPlatformProxy()` | The validation boundary, **partial-patch safety at both the schema and the persisted row**, and the full CRUD + relationship path |
+| **Technologies CMS** | **112** | the real schemas, and **real local D1** | The validation boundary, **partial-patch safety including the defaulted `category`**, CRUD, the page-level usage composition, and `ON DELETE RESTRICT` |
 | **Profile CMS** | **77** | the real schema, and **real local D1** | The validation boundary and the singleton create-then-update lifecycle |
 | **Timeline CMS** | **173** | the real schemas, and **real local D1** | The validation boundary, partial-patch safety, and the parent/child aggregate lifecycle |
 | **Education CMS** | **112** | the real schemas, and **real local D1** | The validation boundary, partial-patch safety, and the ordered CRUD lifecycle |
@@ -28,11 +29,11 @@ What each one actually proves matters, so be precise:
 | **Tools CMS** | **146** | the real schemas, and **real local D1** | The validation boundary, the shared URL policy, the `UNIQUE` name constraint on both create and rename, partial-patch safety, and the ordered CRUD lifecycle |
 | **Socials CMS** | **161** | the real schemas, and **real local D1** | The validation boundary, the **required** URL policy, that `platform` is free text rather than an enum, partial-patch safety, and the ordered CRUD lifecycle |
 | **Sections CMS** | **173** | the real schemas, and **real local D1** | The validation boundary, the canonical machine-key grammar, that **`key` cannot be renamed after creation**, partial-patch safety, and the ordered CRUD lifecycle |
-| **Server Action authorization** | **562** | the **real exported action functions** for all eleven entities, against real local D1 | Unauthenticated mutations are denied and change nothing; partial updates preserve what they omit; unsafe URLs never reach a row; an in-use category cannot be deleted; a section key cannot be renamed; nothing leaks SQL |
+| **Server Action authorization** | **611** | the **real exported action functions** for all eleven entities, against real local D1 | Unauthenticated mutations are denied and change nothing; partial updates preserve what they omit — **including a project's links, technology tags, and `project_media`**; unsafe URLs never reach a row; an in-use category cannot be deleted; a section key cannot be renamed; nothing leaks SQL |
 
-Subtotals: **admin 2191** (42 + 125 + 34 + 96 + 90 + 77 + 173 + 112 + 167 +
-233 + 146 + 161 + 173 + 562) and **database 297** (26 + 59 + 167 + 41 + 4,
-detailed below) — **2488 total**.
+Subtotals: **admin 2351** (42 + 125 + 34 + 185 + 112 + 77 + 173 + 112 + 167 +
+233 + 146 + 161 + 173 + 611) and **database 297** (26 + 59 + 167 + 41 + 4,
+detailed below) — **2648 total**.
 
 The database subtotal moved 287 → **297** for the first time since the
 Technologies slice: Skills needed `getSkillById()` on the repository
@@ -238,29 +239,26 @@ position; delete removing only the target with the other surviving; and
 
 ## Partial updates must preserve what they omit
 
-A rule asserted for **nine of the eleven** entities, because it has now
-bitten three times — once in education (caught before merge), once in
-timeline (caught after), and once in projects and technologies (found by the
-Phase 9 audit, still open).
+A rule now asserted for **all eleven** entities, because it bit three times —
+education (caught before merge), timeline (caught after), and projects plus
+technologies (found by the Phase 9 audit and fixed in its own task).
 
-> **Correction (Phase 9 audit).** This section previously said the rule was
+**The coverage claim is now measured, not asserted.** Every exported update
+schema is parsed with one field and with none; all ten produce **exactly one
+key** and **zero keys** respectively. `profileSaveSchema` is excluded on
+purpose — it is a full save, not a patch, so materialising all seven of its
+fields is correct.
+
+> **History.** An earlier revision of this section claimed the rule was
 > asserted "for every entity whose update schema exists", and the Server
-> Action authorization row above says the suite proves "partial updates
-> preserve what they omit". **Both overstate the coverage.** Neither
-> `projects` nor `technologies` has a partial-update assertion, and both
-> still derive their update shape with `.partial()` from a defaulted create
-> shape. `projects-tests.mjs` asserts only that a single-field update
-> *parses*, and its "untouched fields are preserved" check happens to inspect
-> `summary`, which carries no default — so it passes for the wrong reason.
-> Measured behaviour: a title-only update through the real
-> `updateProjectAction` resets `status`, `isFeatured`, `position`, and four
-> nullable columns, and deletes every link, technology tag, and
-> `project_media` row. See `docs/PROJECT_STATE.md`. **Not yet fixed.**
->
-> This is the third time the same defect has appeared, and every time it
-> survived because a test asserted *parse success* instead of *persisted
-> state*. Retrofitting the assertion below to Projects and Technologies is
-> the prerequisite work.
+> Action authorization row above claimed the suite proved "partial updates
+> preserve what they omit". **Both overstated the coverage at the time**:
+> neither Projects nor Technologies had a partial-update assertion, and both
+> still derived their update shape with `.partial()` from a defaulted create
+> shape. Both claims are true now, and the tests that make them true are
+> listed below. The lesson is kept because it is the reason the gap lasted
+> two merges: a documented rule protects code written after it, never code
+> written before it.
 
 **Deriving an update schema as `createSchema.partial()` is unsafe when any
 field carries `.default()`.** `.partial()` makes the key optional but does
@@ -286,6 +284,39 @@ always did. It is:
 
 That last one is the important shape: assert the **state after the write**,
 not merely that the mutation returned without error.
+
+### Choosing the field to assert on is the test
+
+The Projects and Technologies gap was not a missing test — both suites *had*
+a preservation check. Both picked a field that could not fail:
+
+| Suite | What it checked | Why it always passed |
+| --- | --- | --- |
+| `projects-tests.mjs` | `summary` survives an update | `summary` carries **no default**, so `.partial()` never materialised it |
+| `technologies-tests.mjs` | `partial.data?.slug === undefined` | `slug` carries **no default** either |
+
+The one field in each schema that *did* carry a default — `category` for
+technologies, and eight fields plus three collections for projects — was
+never inspected. So the rule for a preservation test is: **assert the fields
+that carry create defaults**, set to deliberately non-default values, and
+prefer asserting the whole row over choosing at all.
+
+A second blind spot sat next to it. `technologies-tests.mjs` did prove that a
+name-only patch preserves `category` — but it built the patch by hand and
+passed it straight to the repository, which was never the broken layer. **A
+partial-update test has to route the payload through the schema**, because
+the schema is where the extra keys appear.
+
+### Regression fixtures must be hostile to the bug
+
+The fixtures added for this fix set **every default-bearing field to a
+non-default value** before the one-field update: published rather than draft,
+featured, a non-zero position, populated description and dates, and one of
+each relationship — a link, a technology tag, and a `project_media` row.
+Verified in both directions by temporarily restoring the pre-fix schemas: the
+new checks fail **23** (Projects), **4** (Technologies), and **8** (Server
+Action authorization) times against the old code, and pass against the new.
+A regression test that has never been observed failing is a guess.
 
 ## Planned: Phase 9 media testing architecture
 

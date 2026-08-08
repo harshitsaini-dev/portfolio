@@ -1,6 +1,84 @@
 
 # Changelog
 
+## 2026-08-08 — Fix: Projects and Technologies partial updates
+
+Repairs the cross-cutting defect the Phase 9 audit found and reported. No R2
+or media work; Phase 9 storage implementation stays blocked until this is
+reviewed, merged, and its post-merge `main` CI is green.
+
+### Fixed
+
+- **A partial project update silently destroyed unmentioned state.**
+  `projectUpdateSchema` was `projectCreateSchema.partial()`, and Zod 4's
+  `.partial()` does not neutralise `.default()`. A title-only payload parsed
+  to **eleven** keys and an empty one to **ten**. The repository's patch
+  allowlist wrote the scalars, and `applyRelations` cannot tell a
+  materialised `[]` from a deliberate clear, so it replaced all three
+  collections. Measured through the real authenticated `updateProjectAction`
+  against real local D1: `status` `published` → `draft`, `isFeatured` true →
+  false, `position` 9 → 0, `description`/`periodLabel`/`startedOn`/
+  `completedOn` → `null`, and **every link, technology tag, and
+  `project_media` row deleted** — while the action redirected as though it
+  had succeeded.
+- **A technology rename silently cleared its category.** Same cause;
+  `technologyUpdateSchema.parse({ name })` returned **two** keys.
+- Same defect class as the timeline regression fixed in `c345131`. These two
+  modules predate the rule that prevented it everywhere else.
+
+### Changed
+
+- `packages/schemas/src/projects.ts` — leaf schemas (`nullableText`,
+  `nullableDate`, `titleValue`, `summaryValue`, `statusValue`,
+  `positionValue`, `linkList`, `technologyIdList`, `mediaList`) declared once
+  **without** defaults; the create shape adds `.default(...)` and the update
+  shape adds `.optional()`. `projectUpdateSchema` is now written out
+  explicitly and `.strict()`.
+- `packages/schemas/src/technologies.ts` — the same split for `nameValue` and
+  `nullableCategory`; `technologyUpdateSchema` written out explicitly.
+- **Create behaviour is unchanged** and still applies every default,
+  asserted directly in both suites so the fix cannot have leaked optionality
+  into the create path.
+
+### Not changed
+
+- **No repository, Server Action, component, form, route, migration, or
+  config change.** `buildPatch` already skips `undefined` and
+  `applyRelations` already guards each collection on presence — both were
+  correct and were simply being handed a patch that misrepresented the
+  caller. The fix is **two schema files**.
+- `packages/database` untouched, so the database subtotal stays **297**.
+  Migration `0001` untouched; no `0002`.
+- Timeline, Education, Certifications, Skills, Tools, Socials, Sections,
+  Profile, `apps/web`, and `.github` untouched.
+
+### Verification
+
+- **The `.partial()` sweep was measured, not read.** All ten exported update
+  schemas parsed with one field and with none. Before: exactly two
+  materialised extra keys. After: **all ten yield one key and zero keys**. No
+  live `.partial()` call remains in `packages/schemas`.
+- **New coverage: +160 checks**, every one of which fails against the pre-fix
+  code — verified by temporarily restoring the old schemas and re-running:
+  Projects 96 → **185** (23 fail pre-fix), Technologies 90 → **112** (4 fail
+  pre-fix), Server Action authorization 562 → **611** (8 fail pre-fix).
+- Fixtures deliberately set **every default-bearing field to a non-default
+  value** plus one link, one technology tag, and one `project_media` row.
+  `summary` is no longer the preservation proof — it was the original blind
+  spot, having no default.
+- `pnpm install --frozen-lockfile` **PASS** (exit 0) · `pnpm lint` **PASS**
+  (exit 0) · `pnpm typecheck` **PASS** (exit 0) · `pnpm test` **PASS** —
+  **2648 checks**, database **297** and admin **2351** · `pnpm build`
+  **PASS** (exit 0), all admin routes still `ƒ (Dynamic)`.
+- All **2488** checks from the Phase 8 closure still pass; none was weakened.
+- **Browser MCP was not used, deliberately.** No UI behaviour changed — both
+  edit forms submit complete payloads, which is why no browser flow could
+  ever produce the partial payload that triggered this. The unsafe surface is
+  the exported Server Action contract, and that is exercised directly against
+  real local D1.
+- Local D1 only: `remoteBindings: false`, disposable temp state, no
+  `--remote`, no Cloudflare credentials.
+
 ## 2026-08-08 — Phase 9 R2/media: audit and architecture
 
 Documentation-only entry. **No application, test, schema, repository,

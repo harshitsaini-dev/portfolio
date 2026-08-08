@@ -38,14 +38,19 @@ export const technologySlugSchema = slugSchema;
 /**
  * `category` is nullable in the schema, so blank input becomes `null` rather
  * than `""` — one representation for "no category", not two.
+ *
+ * Declared **without** a default. The create shape adds `.default(null)`; the
+ * update shape adds `.optional()`. See `technologyUpdateSchema` for why those
+ * must not be the same declaration.
  */
-const optionalCategory = z
+const nullableCategory = z
   .string()
   .trim()
   .max(80, "Too long")
   .transform((value) => (value.length === 0 ? null : value))
-  .nullable()
-  .default(null);
+  .nullable();
+
+const nameValue = z.string().trim().min(1, "Required").max(80, "Too long");
 
 /**
  * Fields a caller may set when creating a technology.
@@ -57,20 +62,42 @@ const optionalCategory = z
  */
 export const technologyCreateSchema = z
   .object({
-    name: z.string().trim().min(1, "Required").max(80, "Too long"),
+    name: nameValue,
     slug: technologySlugSchema,
-    category: optionalCategory,
+    category: nullableCategory.default(null),
   })
   .strict();
 
 /**
- * An update is the same shape, all-optional.
+ * An update patch: every field optional, and **no defaults**.
+ *
+ * ## Why this is written out rather than derived with `.partial()`
+ *
+ * It used to be `technologyCreateSchema.partial()`. `.partial()` makes a key
+ * optional but does **not** neutralise `.default()`, so `category` was still
+ * materialised as `null` when absent. Measured before this fix,
+ * `parse({ name: "TypeScript 5" })` returned **two** keys — so **renaming a
+ * technology silently cleared its category**, because the repository's patch
+ * allowlist wrote the materialised `null`.
+ *
+ * Milder than the projects case only because this table has three mutable
+ * columns and no relationships; it is the same defect.
+ *
+ * An absent `category` now stays absent and `buildPatch` skips the column,
+ * while an explicit `category: null` remains a deliberate clear — the
+ * distinction the patch types exist to express.
  *
  * `slug` stays updatable — renaming is a legitimate editorial action — while
  * the database-managed fields remain unreachable and `.strict()` still
  * rejects them.
  */
-export const technologyUpdateSchema = technologyCreateSchema.partial();
+export const technologyUpdateSchema = z
+  .object({
+    name: nameValue.optional(),
+    slug: technologySlugSchema.optional(),
+    category: nullableCategory.optional(),
+  })
+  .strict();
 
 export type TechnologyCreateInput = z.infer<typeof technologyCreateSchema>;
 export type TechnologyUpdateInput = z.infer<typeof technologyUpdateSchema>;

@@ -6,7 +6,146 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 9 — R2/media. IN PROGRESS (audit and architecture only).**
+**Phase 9 — R2/media. BLOCKED on review of the partial-update fix.**
+
+The Phase 9 audit pass is done and its blocker is now **fixed and verified**
+on `fix/project-technology-partial-updates`. **Phase 9 storage engineering
+resumes only after that fix is reviewed, merged, and its post-merge `main` CI
+is green** — the fix is a prerequisite, not Phase 9 work.
+
+## Projects and Technologies partial-update fix (COMPLETE, awaiting review)
+
+The defect the Phase 9 audit found, now repaired. Baseline moved
+**2488 → 2648**; every one of the 2488 previous checks still passes.
+
+### Root cause
+
+`projectUpdateSchema` and `technologyUpdateSchema` were derived with
+`.partial()` from create shapes carrying `.default()`. In Zod 4, `.partial()`
+makes a key optional but does **not** remove its default, so an absent key is
+still materialised. Measured before the fix:
+
+```
+projectUpdateSchema.parse({ title: "Only the title" })   => 11 keys
+projectUpdateSchema.parse({})                            => 10 keys
+technologyUpdateSchema.parse({ name: "TypeScript 5" })   =>  2 keys
+```
+
+Two layers then acted on values the caller never sent. The repository's patch
+allowlist wrote the scalars, and `applyRelations` **cannot distinguish a
+materialised `[]` from a caller deliberately clearing a collection**, so it
+replaced links, technologies, and media wholesale.
+
+Measured blast radius, through the real authenticated `updateProjectAction`
+against real local D1, from a payload naming only `title`:
+
+| Field | Before | After |
+| --- | --- | --- |
+| `status` | `published` | **`draft`** |
+| `isFeatured` | `true` | **`false`** |
+| `position` | `9` | **`0`** |
+| `description`, `periodLabel`, `startedOn`, `completedOn` | set | **`null`** |
+| `project_links` | 2 | **0** |
+| `project_technologies` | 1 | **0** |
+| `project_media` | 1 | **0** |
+
+The action **redirected as though it had succeeded**. For technologies, a
+rename cleared `category`.
+
+### Why the existing tests missed it
+
+Both suites asserted the wrong thing, in the same two ways.
+
+- **Parse success instead of parse content.** `projects-tests.mjs` asked only
+  *"does a single-field update parse?"* — which was true before and after. It
+  never counted the keys.
+- **A field that could not fail.** Its `untouched fields are preserved` check
+  inspected `summary`, the one nullable-ish field with **no default**, so it
+  passed while the bug was live. Technologies' equivalent checked
+  `partial.data?.slug === undefined` — also default-free. **`category`, the
+  one field that did have a default, was never checked.**
+- **The repository was tested, but the schema was bypassed.**
+  `technologies-tests.mjs` did prove that a name-only *repository* patch
+  preserves `category` — and it does. The repository was never broken. The
+  patch has to arrive **through the schema** for the defect to appear, and no
+  test did that.
+
+### The fix
+
+**Schema-only, in two files.** Both update shapes are now written out
+explicitly with `.optional()` fields and **no defaults**, following the
+pattern education established and timeline was repaired to: leaf schemas
+declared once without defaults, the create shape adding `.default(...)`, the
+update shape adding `.optional()`.
+
+**No repository, action, migration, or UI change was needed**, and none was
+made. `buildPatch` already skips `undefined` values, and `applyRelations`
+already guards each collection on presence — both were correct all along and
+were simply being fed a patch that lied about what the caller sent. Verified
+after the fix: a single-field parse yields exactly one key, and an empty
+parse yields zero.
+
+### Project and technology update semantics now guaranteed
+
+- **Omitted scalar** → persisted value preserved. `status`, `isFeatured`, and
+  `position` are no longer reset by an edit that does not mention them.
+- **Omitted collection** → `links`, `technologyIds`, and `media` stay absent,
+  so the relationship is left entirely alone.
+- **Explicit `[]`** → still a deliberate clear, still applied.
+- **Explicit falsy** → `position: 0` and `isFeatured: false` are real edits.
+- **Explicit `null`** → still a deliberate clear on every nullable scalar,
+  including `technologies.category`.
+- **Create is unchanged** and still applies all its defaults, asserted
+  directly in both suites so the fix cannot have leaked optionality into it.
+
+### The `.partial()` sweep
+
+Every exported update schema was **measured**, not read: a one-field parse
+and an empty parse against all ten. Before the fix, exactly two materialised
+extra keys (projects and technologies); the other eight were already clean.
+After the fix, **all ten produce exactly one key from a one-field patch and
+zero from an empty one.** No live `.partial()` call remains anywhere in
+`packages/schemas` — the five remaining mentions are documentation.
+
+`profileSaveSchema` is deliberately excluded: it is a **full save**, not a
+patch, so materialising all seven fields is its correct behaviour.
+
+### Regression coverage added
+
+**+160 checks**, all of which fail against the pre-fix code — verified by
+temporarily restoring the old schemas and re-running:
+
+| Suite | Was | Now | Fails pre-fix |
+| --- | --- | --- | --- |
+| Projects CMS | 96 | **185** | **23 checks** |
+| Technologies CMS | 90 | **112** | **4 checks** |
+| Server Action authorization | 562 | **611** | **8 checks** |
+
+The persisted-state fixtures deliberately set **every default-bearing field
+to a non-default value** — published, featured, position 7/9, populated
+description and dates, plus a link, a technology tag, and a `project_media`
+attachment — because those are exactly the fields the old parse would have
+overwritten. `summary` is still asserted, but only alongside the others,
+never as the proof.
+
+### Browser verification was not required, and why
+
+**No UI behaviour changed.** Both edit forms build a complete payload —
+`project-form.tsx` sends all thirteen fields on every submit and
+`technology-form.tsx` all three — so no browser flow could ever produce the
+partial payload that triggered this, which is precisely why the defect
+survived two merges unnoticed. The unsafe surface is the **exported Server
+Action contract**, reachable by any caller that posts a partial payload, and
+that is what the new action-level suite exercises directly against real local
+D1. Inventing a fake partial-submit browser flow would have proved nothing
+that the real action call does not already prove. No component, form, route,
+or style was touched.
+
+## Phase 9 — R2/media (audit and architecture)
+
+**Status: the audit is complete and its blocker is fixed above.** Storage
+implementation has not started and does not start until that fix is merged
+and CI-green.
 
 **Phase 8 — Remaining CMS is COMPLETE**, merged and CI-verified on `main`
 (`91334d1 docs: mark sections CMS and phase 8 complete`, Pull Request #35,
@@ -21,8 +160,10 @@ implementation plan recorded below and in `ARCHITECTURE.md`, `DATABASE.md`,
 
 **The audit found a cross-cutting defect in already-merged code and stopped
 rather than fixing it** — see *Blocker: partial project and technology
-updates* below. It is reported, not repaired, and it blocks one specific
-Phase 9 slice.
+updates* below. **It has since been repaired** in its own task; the fix and
+its evidence are recorded under *Projects and Technologies partial-update
+fix* above, and the blocker section below is retained as the audit record of
+how it was found.
 
 - **Technologies CMS: COMPLETE.** Merged into `main` as
   `97d6425 feat: add technologies CMS`, verified by **Pull Request #14 on
@@ -91,17 +232,21 @@ Phase 22** (fail-closed until then).
 
 ## Active task
 
-**Phase 9 — R2/media foundation: audit and architecture.** Documentation
-only; no code changed. Awaiting review of the plan below, and a decision on
-the reported blocker.
+**Projects and Technologies partial-update fix.** Complete and verified
+locally on `fix/project-technology-partial-updates`; awaiting review, merge,
+and post-merge `main` CI. **Phase 9 storage implementation stays blocked
+until then.**
 
 ## Phase 9 — R2/media (IN PROGRESS — audit and architecture)
 
 ### Blocker: partial project and technology updates
 
-**Discovered during this audit, in already-merged code. Reported, not
-fixed** — the task's scope rules require stopping rather than expanding into
-completed CMS areas.
+**Discovered during this audit, in already-merged code. Reported, not fixed
+in the audit pass** — the task's scope rules required stopping rather than
+expanding into completed CMS areas. **Now fixed in a dedicated task** — see
+*Projects and Technologies partial-update fix* above for the repair, the
+`.partial()` sweep across all ten update schemas, and the regression
+coverage. What follows is the audit record as written at discovery.
 
 `docs/ARCHITECTURE.md` states the project rule: *"Update shapes must not be
 derived with `.partial()` when fields carry `.default()`."* Two modules still

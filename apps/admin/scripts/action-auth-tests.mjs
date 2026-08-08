@@ -2080,6 +2080,232 @@ try {
   );
 
   // =========================================================================
+  startGroup("Partial project update through the REAL action preserves everything");
+
+  // The regression this group exists for, at the layer that actually shipped
+  // it. `projectUpdateSchema` used to be `projectCreateSchema.partial()`, so
+  // a title-only payload arrived at the action carrying eleven keys — every
+  // scalar default plus `links: []`, `technologyIds: []`, and `media: []`.
+  // `applyRelations` cannot tell a materialised `[]` from a deliberate clear,
+  // so it replaced all three wholesale, and the action redirected as though
+  // the edit had succeeded normally.
+  //
+  // Authenticated on purpose: an unauthenticated call proves nothing here,
+  // because it never reaches the schema at all.
+  const partialAsset = await repos.media.create({
+    storageKey: "action-regression/cover.png",
+    contentType: "image/png",
+    byteSize: 4096,
+  });
+  const partialTech = await repos.technologies.create({
+    name: "Partial Regression Tech",
+    slug: "partial-regression-tech",
+    category: "Language",
+  });
+  const partialProject = await repos.projects.create({
+    slug: "partial-regression",
+    title: "Partial Regression",
+    summary: "Every defaulted field deliberately non-default.",
+    description: "Prose that a title-only edit must not delete.",
+    status: "published",
+    isFeatured: true,
+    position: 9,
+    periodLabel: "2023-2024",
+    startedOn: "2023-02-01",
+    completedOn: "2024-03-04",
+    coverMediaId: partialAsset.id,
+  });
+  await repos.projects.setLinks(partialProject.id, [
+    { label: "Repo", url: "https://example.com/repo", kind: "repository", position: 0 },
+    { label: "Live", url: "https://example.com/live", kind: "live", position: 1 },
+  ]);
+  await repos.projects.setTechnologies(partialProject.id, [partialTech.id]);
+  await repos.projects.setMedia(partialProject.id, [
+    { mediaAssetId: partialAsset.id, caption: "Cover shot", position: 0 },
+  ]);
+  const partialBefore = await repos.projects.getById(partialProject.id);
+  equal("the fixture starts published", partialBefore.status, "published");
+  equal("the fixture starts featured", partialBefore.isFeatured, true);
+  equal("the fixture starts at position 9", partialBefore.position, 9);
+  equal(
+    "the fixture starts with two links",
+    (await repos.projects.listLinks(partialProject.id)).length,
+    2,
+  );
+  equal(
+    "the fixture starts with one technology",
+    (await repos.projects.listTechnologies(partialProject.id)).length,
+    1,
+  );
+  equal(
+    "the fixture starts with one media attachment",
+    (await repos.projects.listMedia(partialProject.id)).length,
+    1,
+  );
+
+  // A payload mentioning ONLY the title — the exact shape that was
+  // destructive before the fix.
+  const partialUpdate = await invoke(
+    actions.updateProjectAction,
+    payloadForm({ title: "Partial Regression Renamed" }, partialProject.id),
+  );
+  equal(
+    "an authenticated title-only update redirects on success",
+    partialUpdate.kind,
+    "redirect",
+  );
+  equal(
+    "it redirects to the list with the unchanged slug",
+    partialUpdate.to,
+    "/projects?updated=partial-regression",
+  );
+
+  const partialAfter = await repos.projects.getById(partialProject.id);
+  const partialAfterLinks = await repos.projects.listLinks(partialProject.id);
+  const partialAfterTech = await repos.projects.listTechnologies(partialProject.id);
+  const partialAfterMedia = await repos.projects.listMedia(partialProject.id);
+
+  equal("the title really changed", partialAfter.title, "Partial Regression Renamed");
+  equal("status is preserved", partialAfter.status, "published");
+  equal("isFeatured is preserved", partialAfter.isFeatured, true);
+  equal("position is preserved", partialAfter.position, 9);
+  equal(
+    "description is preserved",
+    partialAfter.description,
+    "Prose that a title-only edit must not delete.",
+  );
+  equal("periodLabel is preserved", partialAfter.periodLabel, "2023-2024");
+  equal("startedOn is preserved", partialAfter.startedOn, "2023-02-01");
+  equal("completedOn is preserved", partialAfter.completedOn, "2024-03-04");
+  equal("slug is preserved", partialAfter.slug, "partial-regression");
+  equal("summary is preserved", partialAfter.summary, partialBefore.summary);
+  equal("coverMediaId is preserved", partialAfter.coverMediaId, partialAsset.id);
+  equal("createdAt is unchanged", partialAfter.createdAt, partialBefore.createdAt);
+  equal("both links are preserved", partialAfterLinks.length, 2);
+  equal("link order is preserved", partialAfterLinks[1].label, "Live");
+  equal("technology relationships are preserved", partialAfterTech.length, 1);
+  equal(
+    "the surviving technology is the same one",
+    partialAfterTech[0].slug,
+    "partial-regression-tech",
+  );
+  equal("project_media is preserved", partialAfterMedia.length, 1);
+  equal(
+    "the attachment still points at the same asset",
+    partialAfterMedia[0].mediaAssetId,
+    partialAsset.id,
+  );
+  equal("the attachment caption is preserved", partialAfterMedia[0].caption, "Cover shot");
+  check(
+    "the referenced technology's own category was not disturbed",
+    (await repos.technologies.getById(partialTech.id))?.category === "Language",
+  );
+  check(
+    "the unrelated target project is still byte-for-byte unchanged",
+    JSON.stringify(await repos.projects.getById(victim.id)) === JSON.stringify(before),
+  );
+  check(
+    "no SQL or constraint text was returned by the successful update",
+    partialUpdate.kind === "redirect" &&
+      !/SQLITE|UNIQUE|constraint|projects\./i.test(String(partialUpdate.to)),
+  );
+
+  // Falsy explicit values are real edits, not absences.
+  const projectExplicitFalsy = await invoke(
+    actions.updateProjectAction,
+    payloadForm({ position: 0, isFeatured: false }, partialProject.id),
+  );
+  equal(
+    "an explicit position/isFeatured update redirects",
+    projectExplicitFalsy.kind,
+    "redirect",
+  );
+  const projectAfterFalsy = await repos.projects.getById(partialProject.id);
+  equal("an explicit `position: 0` is applied", projectAfterFalsy.position, 0);
+  equal("an explicit `isFeatured: false` is applied", projectAfterFalsy.isFeatured, false);
+  equal("and status was still left alone", projectAfterFalsy.status, "published");
+  equal(
+    "and the relationships were still left alone",
+    (await repos.projects.listMedia(partialProject.id)).length,
+    1,
+  );
+
+  // The other half of the contract: an explicit empty array still clears.
+  const explicitClear = await invoke(
+    actions.updateProjectAction,
+    payloadForm({ media: [] }, partialProject.id),
+  );
+  equal("an explicit empty media array redirects", explicitClear.kind, "redirect");
+  equal(
+    "an explicitly empty media array really does clear it",
+    (await repos.projects.listMedia(partialProject.id)).length,
+    0,
+  );
+  equal(
+    "and clearing media left the links alone",
+    (await repos.projects.listLinks(partialProject.id)).length,
+    2,
+  );
+  equal(
+    "and clearing media left the technologies alone",
+    (await repos.projects.listTechnologies(partialProject.id)).length,
+    1,
+  );
+
+  // =========================================================================
+  startGroup("Partial technology update through the REAL action preserves category");
+
+  const partialCategorised = await repos.technologies.create({
+    name: "Categorised Tech",
+    slug: "categorised-tech",
+    category: "Runtime",
+  });
+  equal("the fixture starts with a category", partialCategorised.category, "Runtime");
+
+  const techPartialUpdate = await invoke(
+    technologyActions.updateTechnologyAction,
+    payloadForm({ name: "Categorised Tech v2" }, partialCategorised.id),
+  );
+  equal(
+    "an authenticated name-only update redirects on success",
+    techPartialUpdate.kind,
+    "redirect",
+  );
+  const techPartialAfter = await repos.technologies.getById(partialCategorised.id);
+  equal("the name really changed", techPartialAfter.name, "Categorised Tech v2");
+  equal("the category is preserved", techPartialAfter.category, "Runtime");
+  equal("the slug is preserved", techPartialAfter.slug, "categorised-tech");
+  equal("createdAt is unchanged", techPartialAfter.createdAt, partialCategorised.createdAt);
+
+  // An explicit null still clears, through the real action.
+  const techClear = await invoke(
+    technologyActions.updateTechnologyAction,
+    payloadForm({ category: null }, partialCategorised.id),
+  );
+  equal("an explicit null-category update redirects", techClear.kind, "redirect");
+  equal(
+    "an explicit null really does clear the category",
+    (await repos.technologies.getById(partialCategorised.id))?.category,
+    null,
+  );
+  equal(
+    "and the name survived that clear",
+    (await repos.technologies.getById(partialCategorised.id))?.name,
+    "Categorised Tech v2",
+  );
+
+  // Detach and clean up: project_media -> media_assets is ON DELETE RESTRICT.
+  await repos.projects.setTechnologies(partialProject.id, []);
+  await repos.projects.delete(partialProject.id);
+  await repos.technologies.delete(partialTech.id);
+  await repos.technologies.delete(partialCategorised.id);
+  check(
+    "the regression fixtures cleaned up",
+    (await repos.projects.getById(partialProject.id)) === null &&
+      (await repos.media.delete(partialAsset.id)) === true,
+  );
+
+  // =========================================================================
   startGroup("Positive control — the profile action works when authenticated");
 
   // The seeded profile is still present, so this exercises the update path;

@@ -172,14 +172,88 @@ try {
   // =========================================================================
   startGroup("Update schema");
 
+  // `technologyUpdateSchema` used to be `technologyCreateSchema.partial()`,
+  // and `.partial()` does NOT neutralise `.default()` in Zod — so `category`
+  // was still materialised as null when absent, and a rename silently cleared
+  // it. The old assertions here checked `partial.data?.slug === undefined`,
+  // which was true either way: `slug` has no default. `category` does, and it
+  // was never checked.
   const emptyPatch = technologyUpdateSchema.safeParse({});
   check("an empty patch is valid", emptyPatch.success);
+  equal(
+    "an empty patch materialises zero keys",
+    Object.keys(emptyPatch.data ?? {}).length,
+    0,
+  );
+
   const partial = technologyUpdateSchema.safeParse({ name: "Renamed" });
   check("a single-field patch is valid", partial.success);
-  equal("the patch carries only what was sent", partial.data?.slug, undefined);
+  equal(
+    "a name-only patch produces exactly one key",
+    Object.keys(partial.data ?? {}).length,
+    1,
+  );
+  equal("and that key is the one supplied", partial.data?.name, "Renamed");
+  check(
+    "an unmentioned `category` is absent, not defaulted to null",
+    partial.success && !Object.hasOwn(partial.data, "category"),
+    `got ${JSON.stringify(partial.data?.category)}`,
+  );
+  check(
+    "an unmentioned `slug` is absent",
+    partial.success && !Object.hasOwn(partial.data, "slug"),
+  );
+
+  // Absent means "leave alone"; explicit null means "clear". The patch types
+  // exist to express exactly that difference.
+  const explicitNullCategory = technologyUpdateSchema.safeParse({ category: null });
+  check("an explicit `category: null` is accepted", explicitNullCategory.success);
+  equal(
+    "and it survives as a deliberate clear",
+    explicitNullCategory.data?.category,
+    null,
+  );
+  check(
+    "and it is genuinely present, not merely nullish",
+    explicitNullCategory.success && Object.hasOwn(explicitNullCategory.data, "category"),
+  );
+  equal(
+    "a blank category still normalises to null when supplied",
+    technologyUpdateSchema.safeParse({ category: "   " }).data?.category,
+    null,
+  );
+  equal(
+    "an explicit category value survives",
+    technologyUpdateSchema.safeParse({ category: "Runtime" }).data?.category,
+    "Runtime",
+  );
+
+  // Optionality must not have cost any validation strength.
   check(
     "a patch with an invalid slug is still rejected",
     !technologyUpdateSchema.safeParse({ slug: "NOT A SLUG" }).success,
+  );
+  check(
+    "an empty name is still rejected in a patch",
+    !technologyUpdateSchema.safeParse({ name: "  " }).success,
+  );
+  check(
+    "an over-long category is still rejected in a patch",
+    !technologyUpdateSchema.safeParse({ category: "x".repeat(81) }).success,
+  );
+
+  // The create shape must still default — the fix must not have leaked
+  // optionality into it.
+  const createDefaults = technologyCreateSchema.safeParse({
+    name: "Go",
+    slug: "go",
+  });
+  check("the create schema still parses without a category", createDefaults.success);
+  equal("create still defaults category to null", createDefaults.data?.category, null);
+  equal(
+    "create still materialises all three fields",
+    Object.keys(createDefaults.data ?? {}).length,
+    3,
   );
 
   check("a non-empty id is accepted", technologyIdSchema.safeParse("abc").success);
@@ -303,6 +377,48 @@ try {
     renameConflict = error instanceof ConflictError;
   }
   check("renaming onto a taken slug raises ConflictError", renameConflict);
+
+  // =========================================================================
+  startGroup("Partial update preserves persisted state (real D1)");
+
+  // The group above proves the patch has one key; this proves the ROW keeps
+  // its category. Note that the "Update" group above passes a hand-built
+  // patch straight to the repository, which was never the broken layer — the
+  // patch has to come THROUGH the schema for the defect to appear, which is
+  // exactly why the old suite missed it.
+  const categorised = await repos.technologies.create({
+    name: "Elixir",
+    slug: "elixir",
+    category: "Language",
+  });
+  equal("the fixture starts with a category", categorised.category, "Language");
+
+  const namePatch = technologyUpdateSchema.parse({ name: "Elixir 1.18" });
+  const afterRename = await repos.technologies.update(categorised.id, {
+    name: namePatch.name,
+    slug: namePatch.slug,
+    category: namePatch.category,
+  });
+  equal("the name actually changed", afterRename.name, "Elixir 1.18");
+  equal("the category is preserved by a name-only patch", afterRename.category, "Language");
+  equal("the slug is preserved", afterRename.slug, "elixir");
+  equal("createdAt is unchanged", afterRename.createdAt, categorised.createdAt);
+
+  // The other half of the contract still works through the schema.
+  const clearPatch = technologyUpdateSchema.parse({ category: null });
+  const afterClear = await repos.technologies.update(categorised.id, {
+    name: clearPatch.name,
+    slug: clearPatch.slug,
+    category: clearPatch.category,
+  });
+  equal("an explicit null still clears the category", afterClear.category, null);
+  equal("and the name survived that clear", afterClear.name, "Elixir 1.18");
+
+  await repos.technologies.delete(categorised.id);
+  check(
+    "the regression fixture cleaned up",
+    (await repos.technologies.getById(categorised.id)) === null,
+  );
 
   // =========================================================================
   startGroup("Admin list composition");

@@ -276,17 +276,19 @@ exist and are tested — but there is no object storage behind them and no CMS
 surface.
 
 The audit found one **blocker in already-merged code**: `projectUpdateSchema`
-and `technologyUpdateSchema` are still derived with `.partial()` from
-defaulted create shapes, so a partial project update silently clears
-unmentioned columns and wipes every link, technology tag, and
-**`project_media` attachment**. It was reported rather than fixed, per the
-task's scope rules. See `docs/PROJECT_STATE.md`. The project-media
-attachment slice is blocked on it.
+and `technologyUpdateSchema` were derived with `.partial()` from defaulted
+create shapes, so a partial project update silently cleared unmentioned
+columns and wiped every link, technology tag, and **`project_media`
+attachment**. The audit reported it rather than fixing it, per that task's
+scope rules; it has since been **fixed and verified** on
+`fix/project-technology-partial-updates`, and Phase 9 storage work resumes
+once that is merged and its post-merge `main` CI is green. See
+`docs/PROJECT_STATE.md`.
 
 Planned slice order:
 
-1. Fix the partial-update defect in Projects and Technologies (prerequisite,
-   not Phase 9 work proper).
+1. ~~Fix the partial-update defect in Projects and Technologies~~ —
+   **done, awaiting review.** A prerequisite, not Phase 9 work proper.
 2. Storage seam and pure policy — binding provider, `R2Like` adapter
    contract, in-memory fake, storage-key generator, MIME/size policy.
 3. Media library CMS — upload, list, alt text, delete, with compensation.
