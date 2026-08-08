@@ -8,6 +8,88 @@ something passed without running it.
 
 **Phase 9 — R2/media. IN PROGRESS.** Not complete.
 
+## Entity icons (branch `feat/entity-icons`, IN PROGRESS)
+
+Asked for after the owner reported that skills, tools and technologies showed
+no icons at all. That was not a rendering bug: **the committed schema had no
+icon column anywhere**, and several schema modules said so in as many words.
+The chosen approach is an uploaded logo per item, referencing `media_assets`,
+rather than an `icon_key` naming an icon set or a `logo_url` pointing at
+somebody else's CDN.
+
+### Migrations 0002 and 0003 — applied locally only
+
+0002 covers technologies, tools, skills and social links; 0003 covers
+projects, skill categories, timeline entries, education, certifications and
+sections, and adds the avatar column `profile` never had. All nullable, all
+`ON DELETE SET NULL`, matching `projects.cover_media_id`.
+
+0003 is a second migration rather than a longer 0002 because 0002 had already
+been applied to a local database holding authored content, and editing an
+applied migration would have meant destroying that database to pick up the
+change. **No remote database was touched.**
+
+### Done so far
+
+* The reference grammar lives once in
+  `packages/schemas/src/internal/media-reference.ts`, with the create and
+  update variants declared separately — never `.partial()` of the create
+  shape, which is the defect that once cleared a technology's category on
+  every unrelated rename.
+* **Technologies** wired end to end: types, schemas, repository, action,
+  form, both pages.
+* `GET (protected)/media/[id]/raw` serves the bytes. Until it existed no
+  uploaded file could be seen anywhere in the admin, so no picker could show
+  an icon.
+* `MediaThumbnail` and `MediaPickerField`, written once for the remaining ten
+  entities and for `projects.cover_media_id` — which the schema has always
+  had and no UI ever exposed.
+
+### Two defects found in existing code
+
+* **The repository test harness loaded `0001_initial_schema.sql` by name.**
+  From the moment a second migration existed it measured a schema the
+  application no longer had, reporting it only as an opaque "create failed".
+  It now applies every file in `migrations/` in order.
+* **The protected-page invariant discovered `page.*` only**, so the first
+  `route.ts` under `(protected)/` was enforced by nothing. A sibling
+  route-handler invariant now requires the awaited guard to be the *first*
+  statement in every exported method, with six negative controls — including
+  a handler that resolves a binding before authorizing, and one that guards
+  `GET` but not `DELETE`.
+
+### Browser-verified (`playwright-local` MCP, admin on :3001)
+
+A real upload through the real form, then:
+
+| Check | Result |
+| --- | --- |
+| `GET /media/<id>/raw` | 200, `image/png`, 179 bytes, PNG magic `89 50 4e 47` |
+| Response headers | `nosniff`, `inline`, `private, max-age=31536000, immutable` |
+| Unknown id | 404 |
+| List thumbnail | 40×40 at both 1280px and 375px, no horizontal overflow |
+| Choosing an icon | preview swaps, id lands in the submitted payload |
+| Create, then reopen | select preselected from D1 with the asset's description |
+| Rename without touching the picker | **icon still set** — the `.partial()` regression class, proven in a browser |
+
+`MediaThumbnail` carries explicit `width`/`height` because a table's layout
+algorithm compressed a 40px preview to about 12px in the list's tight column,
+measured at 375px.
+
+### Still to do
+
+The remaining ten entities (tools, skills, skill categories, social links,
+projects incl. cover, timeline, education, certifications, sections, profile
+avatar). Technologies established the shape; the rest is mechanical. Their
+`.strict()` schemas currently reject an `icon` field — the tools and socials
+suites assert exactly that — so those assertions move as each is wired.
+
+### Local test data
+
+A 64px blue PNG and a technology named "TypeScript 5" were created in the
+**local** development database while verifying the flow. Neither is seeded
+content; delete both from the CMS when convenient.
+
 ## shadcn/ui configured (branch `feat/shadcn-design-system`)
 
 Approved as "shadcn now, Motion/Animate UI later" — those two remain
