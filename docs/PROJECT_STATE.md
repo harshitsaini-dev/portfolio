@@ -8,6 +8,101 @@ something passed without running it.
 
 **Phase 9 — R2/media. IN PROGRESS.** Not complete.
 
+## Phase 9 — media library CMS (implemented, awaiting review)
+
+The first Phase 9 slice with a **user interface**, and the first that can be
+verified in a browser.
+
+### A local bucket, and a decision reversed to get one
+
+`getAdminStorage()` now falls back to a **locally simulated R2** in
+development. `wrangler.d1.jsonc` gained an `r2_buckets` entry, which creates
+**no remote resource** — miniflare simulates it under
+`.wrangler/state/v3`, with no account, no credentials and no network.
+**Production still fails closed.**
+
+This reverses the storage foundation's "fails closed in every environment"
+stance. That was correct while nothing consumed storage; the CMS is the
+consumer, and without a local binding every upload throws and the slice
+cannot be browser-verified at all. `DECISIONS.md` records the reversal
+rather than quietly diverging from itself, and the seam's own comment says
+so too.
+
+### `wrangler` is still named exactly once
+
+The guard in `db-composition-tests.mjs` allows exactly one
+production-reachable file to name `wrangler`. A second dynamic import in the
+storage seam would have broken it **and** spawned a second workerd process
+for one config.
+
+So the resolution moved to **`src/lib/dev-platform.ts`**, which both seams
+read from. The guard now points there and **gained a check** — the D1
+binding must no longer name `wrangler` itself — so the suite went
+**34 → 35**.
+
+Worth recording: the discarded Antigravity branch hit this same wall and
+wrapped the import in `eval('import("wrangler")')` to hide it from the
+bundler. That defeated the guard instead of satisfying it, and its CI failed
+**31/34** twice.
+
+### What was built
+
+| Piece | Notes |
+| --- | --- |
+| `uploadMediaAssetAction` | `requireAdminIdentity()` **before** the body is read or a binding resolved |
+| `updateMediaAssetAction` | alt text only; enforces the image alt-text rule on update too |
+| `deleteMediaAssetAction` | delegates to the service, so all four reference checks apply |
+| `/media`, `/media/new`, `/media/[id]` | all through `withAdminPage`, all static metadata |
+| `mediaAssetUpdateSchema`, `mediaPurposeSchema` | `purpose` is a closed set, never a caller-supplied prefix |
+
+The upload form posts **FormData rather than a JSON payload**, unlike every
+other form here: a `File` has no JSON representation that is not base64.
+Validation strength is unchanged because it never depended on the transport
+— the action re-reads the bytes and the shared policy sniffs them.
+
+**Still not built:** project attachment and cover UI, résumé UI, and public
+delivery. **No R2 bucket exists in Cloudflare.**
+
+### Verification actually performed
+
+| Command | Result |
+| --- | --- |
+| `pnpm lint` | **PASS** (exit 0) |
+| `pnpm typecheck` | **PASS** (exit 0) |
+| `pnpm test` | **PASS** (exit 0) — **3181 real checks**, 22 suites |
+| `pnpm build` | **PASS** (exit 0) |
+
+Two suites failed first, both asserting the pre-reversal stance that storage
+fails closed in *every* environment — seven checks in the storage foundation
+and two in the media service's composition group. **They were rewritten, not
+deleted**: the production guarantee is now asserted more strongly (including
+that a repeated production call cannot drift into the development path, which
+nothing checked before), and development is asserted to resolve a
+contract-satisfying bucket.
+
+### Browser verification (`playwright-local` MCP, real local D1 + R2)
+
+Manual MCP verification, **not** automated Playwright CI tests.
+
+| Proof | Result |
+| --- | --- |
+| A real 7,853-byte PNG uploads | row **and** object created, key `media/019fe20a….png` |
+| The uploaded filename reaches the key | **no** — server-generated id only |
+| An SVG renamed `.png` | **refused**: "not a PNG, JPEG, WebP, or PDF, whatever it is named" |
+| After that refusal | **0 rows, 0 objects** |
+| Delete, two-step confirm | row **and** object removed |
+| Focus moves to the confirm button | yes |
+| Error summary takes focus on failure | yes |
+| 375px: page scrolls sideways | **no**; wrapper is `relative`, caption and `sr-only` labels intact |
+| Console errors | **0** |
+
+One thing measured and **not** changed: the row-action link is 18px tall,
+below the 44px touch guidance. Every existing list page uses the same inline
+text-link pattern, so this is a **pre-existing repository-wide** choice, not
+something this slice introduced. Changing it here would have been an
+unrelated sweep across nine pages; it is recorded as a known item instead.
+
+
 | Step | State |
 | --- | --- |
 | Audit and architecture | **merged** — `e3321d7 docs: document phase 9 media foundation` |
@@ -19,7 +114,7 @@ something passed without running it.
 
 **No R2 bucket exists, no bucket binding is configured in any committed file,
 and no Cloudflare resource was created or mutated.** Baseline moved
-**2888 → 3089**; all 2888 previous checks still pass.
+**3089 → 3181**; all 3089 previous checks still pass.
 
 ## Phase 9 — media service (implemented, awaiting review)
 

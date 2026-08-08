@@ -7,24 +7,26 @@
  * same reason: the moment a second place can reach the binding, storage calls
  * start appearing in components and Server Actions.
  *
- * ## Where this deliberately differs from the database seam
+ * ## Development resolves a simulated bucket; production fails closed
  *
- * `../db/binding.ts` falls back to a local `getPlatformProxy()` binding in
- * development, because a real local D1 database genuinely exists — Phase 4
- * created it and the migration is applied to it.
+ * In development this falls back to the locally simulated R2 that
+ * `../dev-platform.ts` exposes — miniflare-backed, under
+ * `.wrangler/state/v3`, with no account, no credentials and no network.
  *
- * **There is no equivalent fallback here, because there is no bucket.** No R2
- * bucket has been created, no binding is configured in any committed config,
- * and creating one is a human action against a billable Cloudflare account
- * (see `docs/DEPLOYMENT.md`). Inventing a local development bucket would mean
- * adding `r2_buckets` to a committed config for a resource that does not
- * exist, which is exactly the kind of premature deployment guess Phase 4
- * refused to make for D1.
+ * > **Reversal, recorded on purpose.** Until Phase 9 slice 4 this seam failed
+ * > closed in *every* environment, and this comment argued that a local
+ * > development bucket would mean "adding `r2_buckets` to a committed config
+ * > for a resource that does not exist". That was the right call while
+ * > nothing consumed storage. The media CMS is that consumer: without a local
+ * > binding every upload throws and the slice cannot be verified in a browser
+ * > at all. `r2_buckets` in `wrangler.d1.jsonc` still creates **no remote
+ * > resource** — it only tells miniflare what to simulate. See
+ * > `docs/DECISIONS.md`.
  *
- * So this seam **fails closed in every environment** until a provider is
- * registered. That is not a limitation to be worked around; it is the correct
- * state until the bucket is provisioned, and it means no code path can ever
- * silently read or write the wrong storage.
+ * **Production still fails closed**, and that half is not negotiable: a
+ * development path reachable in production is how a deployment quietly writes
+ * to the wrong bucket. No R2 bucket exists in Cloudflare, and creating one
+ * remains a human action — see `docs/DEPLOYMENT.md`.
  *
  * Registration has exactly two intended callers: tests, which inject an
  * in-memory fake or a local simulated bucket, and the future deployment
@@ -39,6 +41,8 @@
 import "server-only";
 
 import type { ObjectStorage } from "@portfolio/types";
+
+import { getDevPlatformBindings } from "../dev-platform.ts";
 
 /**
  * Supplies object storage for the current request.
@@ -93,6 +97,26 @@ export function hasAdminStorageProvider(): boolean {
 }
 
 /**
+ * Resolve the locally simulated bucket.
+ *
+ * The proxy lives in `../dev-platform.ts`, the single place this application
+ * names `wrangler`. Nothing here contacts Cloudflare: miniflare simulates the
+ * bucket under `.wrangler/state/v3`, with no account and no credentials.
+ */
+async function getDevelopmentStorage(): Promise<ObjectStorage> {
+  try {
+    const { MEDIA } = await getDevPlatformBindings();
+    return MEDIA;
+  } catch (cause) {
+    const error = new StorageUnavailableError(
+      "the local development platform could not supply a bucket binding",
+    );
+    error.cause = cause;
+    throw error;
+  }
+}
+
+/**
  * Resolve object storage for this environment.
  *
  * Fails closed when nothing is registered. A provider that throws is wrapped
@@ -103,11 +127,17 @@ export function hasAdminStorageProvider(): boolean {
  */
 export async function getAdminStorage(): Promise<ObjectStorage> {
   if (!registeredProvider) {
-    throw new StorageUnavailableError(
-      "no storage provider is registered. No R2 bucket has been created and " +
-        "no binding is configured yet — see docs/DEPLOYMENT.md for the manual " +
-        "Cloudflare steps, and register a provider with setAdminStorageProvider()",
-    );
+    if (process.env.NODE_ENV === "production") {
+      // Fail closed, and be specific about *why* in the server log. There is
+      // deliberately no production fallback: a development path reachable in
+      // production is how a deployment quietly writes to the wrong bucket.
+      throw new StorageUnavailableError(
+        "no storage provider is registered. Production binding resolution is " +
+          "not implemented yet — Phase 22 must call setAdminStorageProvider() " +
+          "with getCloudflareContext().env.MEDIA from @opennextjs/cloudflare",
+      );
+    }
+    return getDevelopmentStorage();
   }
 
   let storage: ObjectStorage;

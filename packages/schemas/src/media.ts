@@ -346,6 +346,47 @@ function reject(reason: UploadRejectionReason): UploadPolicyResult {
   return { ok: false, reason, message: REJECTION_MESSAGES[reason] };
 }
 
+/**
+ * Editable metadata for a stored asset.
+ *
+ * Only `alt_text` is editable after creation. `storage_key`, `content_type`
+ * and `byte_size` describe the object that was actually stored, so changing
+ * them would make the row disagree with the bytes; the repository's patch
+ * allowlist and this schema both refuse.
+ *
+ * `.strict()` for the usual reason: an unexpected key is a client bug or a
+ * probe, and silently dropping it hides both.
+ */
+export const mediaAssetUpdateSchema = z
+  .object({
+    altText: z
+      .string()
+      .trim()
+      .max(300, "Too long")
+      .transform((value) => (value.length === 0 ? null : value))
+      .nullable()
+      .optional(),
+  })
+  .strict();
+
+export type MediaAssetUpdateInput = z.infer<typeof mediaAssetUpdateSchema>;
+
+/** Identifies a media asset for update/delete. */
+export const mediaAssetIdSchema = z
+  .string()
+  .trim()
+  .min(1, "Required")
+  .max(64, "Too long");
+
+/**
+ * The purpose a caller may declare for an upload.
+ *
+ * A closed set, and the ONLY way a caller influences the storage namespace.
+ * An arbitrary string here would be user input reaching an object key, which
+ * is precisely what the key grammar exists to prevent.
+ */
+export const mediaPurposeSchema = z.enum(STORAGE_NAMESPACES);
+
 export interface UploadCandidate {
   /** What the client says the file is. Checked, never believed. */
   readonly declaredContentType: string;

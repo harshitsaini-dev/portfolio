@@ -293,10 +293,11 @@ Planned slice order:
    Phase 9 work proper.
 2. ~~Storage seam and pure policy~~ — **merged** (`79ad35b`), with a
    follow-up text-safety fix (`3808983`, post-merge CI `31251658312`).
-3. ~~Media service~~ — **done, awaiting review.** Create and delete
-   orchestration, key reservation, compensation, and the four reference
-   pre-checks. Still no bucket and no binding.
-4. Media library CMS — upload Server Action, list, alt text, delete.
+3. ~~Media service~~ — **merged** (`1748f06`, PR #41, post-merge CI
+   `31264118433`).
+4. ~~Media library CMS~~ — **done, awaiting review.** Upload Server
+   Action, list, alt text, delete, plus a local development R2 binding.
+   Still no bucket in Cloudflare.
 5. Project media attachment and project cover image.
 6. Résumé upload and the current-résumé surface.
 7. Public delivery routes for images and the current résumé.

@@ -1,11 +1,22 @@
 {
   // ---------------------------------------------------------------------
-  // D1 DATABASE MANAGEMENT ONLY — this is not a deployment config.
+  // LOCAL BINDINGS ONLY — this is not a deployment config.
   //
-  // Its single job is to give `wrangler d1 ...` commands a binding, a
-  // database, and a migrations directory, so schema work can happen before
-  // any Worker exists. It is deliberately separate from the eventual
-  // OpenNext deployment configs for `apps/web` and `apps/admin` because:
+  // Two jobs, both local:
+  //
+  //   1. Give `wrangler d1 ...` commands a binding, a database, and a
+  //      migrations directory, so schema work can happen before any Worker
+  //      exists. (The d1 section below; migration commands ignore the rest.)
+  //   2. Give `getPlatformProxy()` the bindings `next dev` needs — D1 and,
+  //      since Phase 9, a **locally simulated** R2 bucket.
+  //
+  // `r2_buckets` here does NOT mean a bucket exists in Cloudflare. Nothing in
+  // this file creates a remote resource: miniflare simulates the bucket under
+  // `.wrangler/state/v3`, with no account, no credentials and no network.
+  // Creating the real bucket is still a human action — see docs/DEPLOYMENT.md.
+  //
+  // It is deliberately separate from the eventual OpenNext deployment configs
+  // for `apps/web` and `apps/admin` because:
   //
   //   * Schema migrations are a repository-level concern owned by
   //     `migrations/`, not by either app. Both apps will eventually bind the
@@ -33,6 +44,14 @@
       "database_name": "portfolio-cms",
       "database_id": "1e85ce4f-d5e4-44e4-b589-e00992bc0b60",
       "migrations_dir": "migrations"
+    }
+  ],
+  // Simulated locally by miniflare. No bucket of this name exists in
+  // Cloudflare, and nothing here creates one.
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "portfolio-media"
     }
   ]
 }
