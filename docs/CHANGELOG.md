@@ -1,6 +1,39 @@
 
 # Changelog
 
+## 2026-08-08 — Fix: storage test file classified as binary
+
+Hygiene fix, one test file. **No production code, no policy change, no
+dependency change.**
+
+- **`apps/admin/scripts/storage-foundation-tests.mjs` contained 6 literal
+  `0x00` bytes**, so Git classified a JavaScript source file as binary: it
+  showed as `Bin 44015 bytes` with no line diff, making the file unreviewable
+  in a pull request and invisible to text tooling.
+- Two fixtures held them: the **GIF header** (`GIF89a` plus a 1×1 screen
+  descriptor — 5 NULs) and the **null-byte hostile filename** (1 NUL).
+- **Only the source representation changed.** The control bytes are now
+  written as JavaScript escapes — `\x00` in the GIF fixture, beside its
+  existing `\x01`, and `\u0000` in the filename. **The runtime values are
+  byte-for-byte identical**, and no hostile-input or path-safety assertion
+  was weakened or removed.
+- **+6 checks (234 → 240)** asserting the fixtures still carry *real* NUL
+  characters: the filename is 9 characters with `charCodeAt(4) === 0` rather
+  than the two-character text `\0`, and the GIF still encodes 5 NUL bytes and
+  is still refused by the sniffer. Without these, a future "fix" could delete
+  the NULs and still pass.
+- Proven separately: **source contains 0 literal NUL bytes**, and
+  `git diff --no-index` against an empty file reports **1170 text lines** for
+  the new content versus `-` `-` (binary) for the committed one.
+- **Repository-wide audit**: 205 tracked text/source files across `apps/`,
+  `packages/`, `docs/`, `.claude/`, and `CLAUDE.md` scanned — **none contains
+  a literal NUL byte**. The only binary files tracked are the two
+  `favicon.ico` assets, which are legitimately binary. **No `.gitattributes`
+  was added**; the defect was unintended bytes, not a misclassification.
+- `pnpm lint` **PASS** (0) · `pnpm typecheck` **PASS** (0) · `pnpm test`
+  **PASS** (0) — **2888 checks**, database **297** and admin **2591** ·
+  `pnpm build` **PASS** (0). All 2882 previous checks still pass.
+
 ## 2026-08-08 — Phase 9: storage seam and upload policy
 
 The reusable foundation beneath the future media service. **Phase 9 is not
@@ -31,7 +64,8 @@ complete.** Everything here sits below the UI and action layers.
   is an interface at all, since the media service's compensation paths are
   unreachable without injectable failure. Test-only; the suite asserts no
   application source imports it.
-- **`storage-foundation-tests.mjs` — 234 checks.**
+- **`storage-foundation-tests.mjs` — 234 checks**, later 240 (see the
+  NUL-byte hygiene entry above).
 
 ### Policy
 

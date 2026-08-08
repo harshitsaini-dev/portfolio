@@ -15,7 +15,7 @@ something passed without running it.
 | **Storage seam and upload policy** | **implemented, awaiting review** (this branch) |
 | Media CMS, upload UI, résumé UI, attachment UI, public delivery | **not started** |
 
-Baseline moved **2648 → 2882**; all 2648 previous checks still pass.
+Baseline moved **2648 → 2888**; all 2648 previous checks still pass.
 
 ## Phase 9 — storage foundation (implemented, awaiting review)
 
@@ -151,11 +151,17 @@ imports it**, so it cannot quietly become a second storage backend.
 | `pnpm install --frozen-lockfile` | **PASS** (exit 0) — lockfile unmodified |
 | `pnpm lint` | **PASS** (exit 0) |
 | `pnpm typecheck` | **PASS** (exit 0) |
-| `pnpm test` | **PASS** (exit 0) — **2882 real checks** |
+| `pnpm test` | **PASS** (exit 0) — **2888 real checks** |
 | `pnpm build` | **PASS** (exit 0) — admin routes unchanged, all still `ƒ (Dynamic)` |
 
-New suite: **storage foundation, 234 checks**. Subtotals: database **297**
-(unchanged — `packages/database` was not touched) and admin **2585**.
+New suite: **storage foundation, 240 checks**. Subtotals: database **297**
+(unchanged — `packages/database` was not touched) and admin **2591**.
+
+The suite shipped at 234 and gained **6** in a follow-up hygiene fix: two of
+its fixtures held **literal NUL bytes**, which made Git classify the whole
+JavaScript file as binary. The source now uses escapes, and the added checks
+assert the fixtures still carry **real** NUL characters at runtime — so the
+repair cannot be "finished" by quietly removing them.
 
 **The fake is kept honest by real storage.** The same suite runs the contract
 against a **real local simulated R2** created by `getPlatformProxy()` from a
