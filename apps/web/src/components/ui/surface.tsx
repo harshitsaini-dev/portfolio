@@ -1,4 +1,4 @@
-import type { ElementType, ReactNode } from "react";
+import type { ReactNode } from "react";
 
 type Tone = "raised" | "muted" | "outline";
 
@@ -15,7 +15,17 @@ interface SurfaceProps {
   children: ReactNode;
   tone?: Tone;
   /** Rendered element. Defaults to a plain div; pass `article`/`li` etc. */
-  as?: ElementType;
+  /**
+   * Rendered element. Defaults to a plain div; pass `article`/`li` etc.
+   *
+   * Typed as the HTML element names rather than `ElementType`. Installing
+   * `@react-three/fiber` augments `JSX.IntrinsicElements` with every Three.js
+   * object, and a bare `ElementType` then resolves to that union too — which
+   * made TypeScript infer `children: never` here, because a `<mesh>` and a
+   * `<div>` do not agree on what children are. Naming the elements this
+   * component is actually used as keeps the inference to HTML.
+   */
+  as?: keyof React.JSX.IntrinsicElements & ("div" | "article" | "li" | "section" | "aside");
   padded?: boolean;
   className?: string;
   "aria-labelledby"?: string;

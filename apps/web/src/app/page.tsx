@@ -6,6 +6,7 @@ import { Hero } from "@/components/hero";
 import { ProjectsSection } from "@/components/projects-section";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { HeroSceneMount } from "@/components/three/hero-scene-mount";
 import { SkillsSection } from "@/components/skills-section";
 import { getSiteContent } from "@/lib/content/site-content";
 
@@ -37,6 +38,14 @@ export default async function Home() {
       >
         Skip to main content
       </a>
+
+      {/*
+        The 3D layer: fixed to the viewport, behind everything, decorative.
+        It renders nothing until the browser has checked the CMS setting,
+        reduced motion, screen size and WebGL — and nothing on this page waits
+        for it, because every word below is server-rendered HTML.
+      */}
+      <HeroSceneMount config={content.scene} />
 
       <SiteHeader siteName={content.siteName} navigation={content.navigation} />
 

@@ -80,3 +80,165 @@
     }
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Entrance animations
+ *
+ * The reveals above are tied to scroll position. These run once on load, for
+ * the hero — which is already on screen when the page arrives and therefore
+ * never "enters" the viewport.
+ *
+ * They sit inside `prefers-reduced-motion: no-preference` for the same reason
+ * the reveals do: the initial hidden state must not exist for anyone whose
+ * browser will not animate it away. They do NOT need the `@supports` guard,
+ * because a plain `animation` with a time-based duration works everywhere.
+ * ------------------------------------------------------------------------- */
+
+@keyframes portfolio-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rise {
+    animation: portfolio-rise 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* A stagger, in the order the eye reads them. Delays are small: the point
+     is a sense of sequence, not a queue the visitor waits through. */
+  .rise-1 { animation-delay: 60ms; }
+  .rise-2 { animation-delay: 130ms; }
+  .rise-3 { animation-delay: 200ms; }
+  .rise-4 { animation-delay: 270ms; }
+  .rise-5 { animation-delay: 340ms; }
+
+  /**
+   * An underline that grows from the left on hover and focus.
+   *
+   * `focus-visible` as well as `hover` — an effect that only exists for a
+   * mouse tells a keyboard user less than the same page tells everybody else.
+   */
+  .link-underline {
+    position: relative;
+  }
+
+  .link-underline::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -2px;
+    height: 1px;
+    width: 100%;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .link-underline:hover::after,
+  .link-underline:focus-visible::after {
+    transform: scaleX(1);
+  }
+}
+
+/**
+ * A pressed state for buttons.
+ *
+ * Outside the reduced-motion guard on purpose: this is feedback that a click
+ * registered, not decoration, and the global rule already shortens its
+ * duration to near zero for anyone who asked for that. Removing the feedback
+ * entirely would make the button feel broken rather than calm.
+ */
+.press {
+  transition: transform 120ms ease;
+}
+
+.press:active {
+  transform: scale(0.98);
+}
+
+/* ---------------------------------------------------------------------------
+ * Typewriter
+ *
+ * The text is **fully present in the DOM** and merely clipped. That is the
+ * whole design: a screen reader reads it once, normally, and a search engine
+ * indexes it. The common implementation — appending characters with
+ * JavaScript — makes assistive technology announce the line again on every
+ * keystroke, which is unusable.
+ *
+ * ## Two elements, because `100%` has to mean the text
+ *
+ * The first version animated `width: 0 -> 100%` on a single inline-block. The
+ * percentage resolved against the **containing block**, not the text: in the
+ * hero that was the 784px paragraph, so the line "typed" far past its own
+ * end and left the caret stranded in the middle of the page as a stray
+ * coloured line. It was reported as exactly that.
+ *
+ * So the outer element is sized to the text with `max-content`, and the inner
+ * one animates to `100%` *of that*. The percentage now means what it reads as.
+ *
+ * ## The caret clears itself
+ *
+ * A border that stayed would be a permanent vertical line beside the text.
+ * The caret animation ends on `transparent` and holds it with `forwards`.
+ *
+ * As everywhere else here, the clipped state exists ONLY inside
+ * `prefers-reduced-motion: no-preference`. Without the animation the text is
+ * simply text — never a line stuck at zero width.
+ * ------------------------------------------------------------------------- */
+
+@keyframes portfolio-typewriter {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes portfolio-caret {
+  0%,
+  100% {
+    border-color: currentColor;
+  }
+  50% {
+    border-color: transparent;
+  }
+}
+
+@keyframes portfolio-caret-out {
+  to {
+    border-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Sized to the text, so the inner element's `100%` is the text's width. */
+  .typewriter {
+    display: inline-block;
+    width: max-content;
+    max-width: 100%;
+    /* Stops the inline-block adding descender space, which would otherwise
+       shift everything below the line. */
+    vertical-align: bottom;
+  }
+
+  .typewriter > span {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    border-right: 2px solid currentColor;
+    animation:
+      portfolio-typewriter 1.4s steps(var(--typewriter-chars, 20)) 300ms both,
+      /* Blinks a few times while typing — a caret that blinks forever is a
+         cursor visitors keep trying to click — then fades out for good. */
+      portfolio-caret 700ms step-end 300ms 3,
+      portfolio-caret-out 1ms linear 2.4s forwards;
+  }
+}

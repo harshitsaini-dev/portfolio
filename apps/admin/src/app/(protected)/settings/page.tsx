@@ -1,9 +1,16 @@
 import type { Metadata } from "next";
 
-import { saveSettingsAction } from "@/lib/actions/settings";
+import {
+  saveSceneSettingsAction,
+  saveSettingsAction,
+} from "@/lib/actions/settings";
 import { withAdminPage } from "@/lib/auth/protected-page";
 import { getAdminRepositories } from "@/lib/db/binding";
 import { getMediaOptions } from "@/lib/media/options";
+import {
+  emptySceneValues,
+  SceneForm,
+} from "@/components/settings/scene-form";
 import {
   emptySettingsValues,
   SettingsForm,
@@ -23,8 +30,9 @@ export const metadata: Metadata = {
 
 export default withAdminPage(async () => {
   const repos = await getAdminRepositories();
-  const [settings, mediaOptions] = await Promise.all([
+  const [settings, sceneSettings, mediaOptions] = await Promise.all([
     repos.siteSettings.get(),
+    repos.sceneSettings.get(),
     getMediaOptions(),
   ]);
 
@@ -58,6 +66,36 @@ export default withAdminPage(async () => {
             : emptySettingsValues
         }
       />
+
+      <section
+        aria-labelledby="scene-settings-heading"
+        className="mt-16 border-t border-subtle pt-10"
+      >
+        <h2
+          id="scene-settings-heading"
+          className="text-3xl font-semibold tracking-tight text-fg"
+        >
+          3D scene
+        </h2>
+        <p className="mt-3 text-sm text-fg-muted">
+          Off by default. Everything here grants permission — the browser makes
+          the final call.
+        </p>
+
+        <SceneForm
+          action={saveSceneSettingsAction}
+          initialValues={
+            sceneSettings
+              ? {
+                  isEnabled: sceneSettings.isEnabled,
+                  qualityPreset: sceneSettings.qualityPreset,
+                  isMobileEnabled: sceneSettings.isMobileEnabled,
+                  maxPixelRatio: String(sceneSettings.maxPixelRatio),
+                }
+              : emptySceneValues
+          }
+        />
+      </section>
     </div>
   );
 });

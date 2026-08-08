@@ -27,7 +27,10 @@
 import { revalidatePath } from "next/cache";
 
 import { ConflictError, NotFoundError } from "@portfolio/database";
-import { siteSettingsSaveSchema } from "@portfolio/schemas";
+import {
+  sceneSettingsSaveSchema,
+  siteSettingsSaveSchema,
+} from "@portfolio/schemas";
 
 import { requireAdminIdentity } from "@/lib/auth/guard";
 import { getAdminRepositories } from "@/lib/db/binding";
@@ -113,5 +116,43 @@ export async function saveSettingsAction(
   // This route *is* the settings editor, so there is nowhere to redirect to.
   revalidatePath(SETTINGS_PATH);
 
+  return success({ savedAt: saved.updatedAt });
+}
+
+/**
+ * 3D scene settings.
+ *
+ * A separate action from the site settings rather than more fields on that
+ * form: they are a different concern with a different audience, and putting
+ * them together would mean an editor changing the site name has to scroll
+ * past a pixel-ratio control.
+ */
+export async function saveSceneSettingsAction(
+  _previous: ActionState<SettingsMutationData>,
+  formData: FormData,
+): Promise<ActionState<SettingsMutationData>> {
+  await requireAdminIdentity();
+
+  const parsed = sceneSettingsSaveSchema.safeParse(readPayload(formData));
+  if (!parsed.success) {
+    return validationError(toFieldErrors(parsed.error.issues));
+  }
+
+  let saved;
+  try {
+    const repos = await getAdminRepositories();
+    saved = await repos.sceneSettings.upsert(parsed.data);
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      return notFoundError("The scene settings could not be found.");
+    }
+    if (error instanceof ConflictError) {
+      return conflictError("The scene settings could not be saved as requested.");
+    }
+    console.error("[admin] scene settings save failed", error);
+    return failureError();
+  }
+
+  revalidatePath(SETTINGS_PATH);
   return success({ savedAt: saved.updatedAt });
 }
