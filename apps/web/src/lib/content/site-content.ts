@@ -35,6 +35,7 @@ import "server-only";
 
 import type {
   Certification as CertificationRow,
+  SocialLink as SocialLinkRow,
   EducationEntry as EducationRow,
   MediaAsset,
   Profile as ProfileRow,
@@ -50,6 +51,8 @@ import { resolveSections, type SectionCopy } from "@/lib/content/sections";
 import type {
   Certification,
   ContentImage,
+  ResumeLink,
+  SocialProfile,
   EducationEntry,
   PlaceholderLink,
   Profile,
@@ -172,6 +175,7 @@ function toProject(
 ): Project {
   return {
     image: toImage(assets, row.iconMediaId),
+    cover: toImage(assets, row.coverMediaId),
     slug: row.slug,
     title: row.title,
     summary: row.summary,
@@ -243,6 +247,26 @@ function toSkillCategory(
   };
 }
 
+/**
+ * A social profile.
+ *
+ * The label is always rendered, even when a logo exists — an icon-only link
+ * is unusable without sight, and ambiguous with it. The logo is decoration
+ * beside the name, never a replacement for it.
+ */
+function toSocial(
+  row: SocialLinkRow,
+  assets: ReadonlyMap<string, MediaAsset>,
+): SocialProfile {
+  return {
+    id: row.id,
+    label: row.label,
+    platform: row.platform,
+    url: row.url,
+    image: toImage(assets, row.iconMediaId),
+  };
+}
+
 function toTool(row: ToolRow, assets: ReadonlyMap<string, MediaAsset>): Tool {
   return {
     image: toImage(assets, row.iconMediaId),
@@ -274,6 +298,8 @@ export async function getSiteContent(): Promise<SiteContent> {
     toolRows,
     mediaRows,
     sectionRows,
+    socialRows,
+    currentResume,
   ] = await Promise.all([
     repos.profile.get(),
     repos.projects.listWithRelations({ statuses: ["published"] }),
@@ -290,6 +316,10 @@ export async function getSiteContent(): Promise<SiteContent> {
     // the filter on, hiding a section in the CMS made it reappear with its
     // default title, because the resolver saw no override at all.
     repos.sections.list(),
+    repos.socialLinks.list({ visibleOnly: true }),
+    // The current résumé, if one is published. `null` is a valid state and
+    // the UI simply omits the download.
+    repos.resumes.getCurrent(),
   ]);
 
   const assets = new Map(mediaRows.map((asset) => [asset.id, asset]));
@@ -297,6 +327,17 @@ export async function getSiteContent(): Promise<SiteContent> {
 
   return {
     siteName: profileRow?.fullName ?? "Portfolio",
+    socials: socialRows.map((row) => toSocial(row, assets)),
+    // A résumé row can outlive its file only if the media service's ordering
+    // failed, which it reports; guarding here keeps a broken link off the
+    // page either way.
+    resume:
+      currentResume && currentResume.isVisible && assets.has(currentResume.mediaAssetId)
+        ? ({
+            label: currentResume.label,
+            href: `/media/${encodeURIComponent(currentResume.mediaAssetId)}`,
+          } satisfies ResumeLink)
+        : null,
     sections,
     // Derived from the resolved sections, so a hidden section cannot leave a
     // navigation link pointing at markup that is not on the page.

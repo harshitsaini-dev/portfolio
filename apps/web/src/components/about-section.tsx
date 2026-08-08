@@ -11,7 +11,12 @@ export function AboutSection({
   copy: SectionCopy;
 }) {
   return (
-    <Section id={copy.key} eyebrow={copy.eyebrow} title={copy.title}>
+    <Section
+      id={copy.key}
+      eyebrow={copy.eyebrow}
+      title={copy.title}
+      marker={copy.marker}
+    >
       <div className={`max-w-2xl space-y-5 ${type.body}`}>
         {profile.introduction.length === 0 ? (
           <p className={type.bodySm}>

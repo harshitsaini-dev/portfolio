@@ -171,7 +171,11 @@ export default async function ProjectPage({
         </article>
       </main>
 
-      <SiteFooter siteName={content.siteName} note={content.footerNote} />
+      <SiteFooter
+        siteName={content.siteName}
+        note={content.footerNote}
+        socials={content.socials}
+      />
     </>
   );
 }

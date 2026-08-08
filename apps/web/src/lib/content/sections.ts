@@ -46,6 +46,21 @@ export interface SectionCopy {
   readonly title: string;
   /** Shown in the page navigation. Shorter than the title. */
   readonly navLabel: string;
+  /**
+   * A single decorative marker rendered beside the eyebrow.
+   *
+   * **Always `aria-hidden` where it is rendered.** The heading beside it
+   * already says what the section is, and a screen reader announcing
+   * "rocket Projects" is worse than one announcing "Projects".
+   *
+   * Written as escapes rather than pasted characters so the file stays
+   * unambiguous in a diff and cannot be mangled by an editor's encoding.
+   *
+   * Not editable from the CMS: there is no column for it, and one is not
+   * worth a migration for a fixed six-item mapping. If an editor ever needs
+   * to change these, that is the point to add one.
+   */
+  readonly marker: string;
 }
 
 /**
@@ -58,36 +73,47 @@ export interface SectionCopy {
  * hardcoded value that cannot be changed.
  */
 const DEFAULTS: Record<SectionKey, SectionCopy> = {
-  about: { key: "about", eyebrow: "Profile", title: "About", navLabel: "About" },
+  about: {
+    key: "about",
+    eyebrow: "Profile",
+    title: "About",
+    navLabel: "About",
+    marker: "\u{1F44B}",
+  },
   projects: {
     key: "projects",
     eyebrow: "Selected work",
     title: "Projects",
     navLabel: "Projects",
+    marker: "\u{1F680}",
   },
   experience: {
     key: "experience",
     eyebrow: "Career",
     title: "Experience",
     navLabel: "Experience",
+    marker: "\u{1F4BC}",
   },
   education: {
     key: "education",
     eyebrow: "Background",
     title: "Education & certifications",
     navLabel: "Education",
+    marker: "\u{1F393}",
   },
   skills: {
     key: "skills",
     eyebrow: "Capabilities",
     title: "Skills & tools",
     navLabel: "Skills",
+    marker: "\u{1F9E0}",
   },
   contact: {
     key: "contact",
     eyebrow: "Contact",
     title: "Get in touch",
     navLabel: "Contact",
+    marker: "\u{1F4AC}",
   },
 };
 
@@ -132,6 +158,9 @@ export function resolveSections(rows: readonly SectionRow[]): SectionCopy[] {
             title: override.title.trim() || copy.title,
             eyebrow: override.eyebrow?.trim() || copy.eyebrow,
             navLabel: override.title.trim() || copy.navLabel,
+            // The marker stays with the key rather than the row: it says
+            // which section this is, not what the editor called it.
+            marker: copy.marker,
           }
         : copy,
       visible: override ? override.isVisible : true,
