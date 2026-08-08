@@ -8,6 +8,100 @@ something passed without running it.
 
 **Phase 9 — R2/media. IN PROGRESS.** Not complete.
 
+## Phase 10 — theme and settings CMS (branch `feat/theme-cms`)
+
+The `site_settings` row now drives the public site's name, description,
+default theme, accent colour, favicon and whether the contact section exists.
+
+### One accent column, two themes
+
+The design system has two accents — `#2547d0` in light, `#8ea6ff` in dark —
+because a colour that reads on white is often unreadable on near-black. The
+schema has one `accent_color`. Two consequences, both deliberate:
+
+* **The text drawn on the accent is computed, not stored.** Whether black or
+  white sits on top is a contrast question with a correct answer, so
+  `packages/ui/src/accent.ts` calculates it rather than adding a second field
+  the editor would have to reason about.
+* **The admin warns rather than refuses.** A dark accent on a dark background
+  is a real problem, but the editor may be about to pin the theme, or may
+  simply want it. Refusing would be the CMS overruling its owner.
+
+The warning threshold is **3:1, not 4.5:1**: the accent is used for eyebrows,
+links and the focus ring, whose WCAG minimum is 3:1. Holding it to the
+body-text threshold would reject usable brand colours for a rule that does not
+apply to them.
+
+### The accent never becomes CSS text
+
+`accentCustomProperties()` returns an object for React's `style` prop, so the
+editor's value is set as an inline custom property and never enters a
+stylesheet as text — there is no syntax to escape into. The schema restricts
+it to `#rrggbb`; this restricts what could be done with it if that ever
+failed. The project's rule is that the admin controls a theme configuration,
+never arbitrary CSS, and the layout is where that rule is kept.
+
+`--accent-soft` is derived with `color-mix` rather than stored, so the hero's
+wash follows the accent instead of becoming a second thing to keep in step.
+
+### `data-theme` is set only when pinned
+
+`tokens.css` has reserved `:root[data-theme="light"|"dark"]` since Phase 3.
+The attribute is written only for `light` or `dark`; `system` leaves it off so
+`prefers-color-scheme` decides, which is what "system" means. Writing
+`data-theme="system"` would match no rule and only look like it did something.
+
+### Migration 0004 — favicon
+
+Asked for during the slice. A separate column from `social_image_id`: a
+favicon renders at 16–32px, where a preview card's composition and text are
+unreadable. Applied **locally only**.
+
+A comment claiming the CMS favicon "replaces" the convention-based
+`src/app/favicon.ico` was wrong, and was corrected after measuring: the page
+emits **both**, that file first and the CMS one second. Browsers use the last
+suitable declaration, so the CMS icon wins — and the file stays as the
+fallback for a site whose settings have no favicon.
+
+### A test whose premise was wrong
+
+A test asserted that a favicon pointing at a missing asset falls back to none.
+It failed — because the foreign key **refuses** an id that does not exist, so
+that state is unreachable. Rewritten to assert the two mechanisms that
+actually hold the guarantee: the FK refuses an unknown id, and deleting the
+asset sets the column NULL rather than leaving a dangling reference.
+
+### The build caught what the tests could not
+
+Making the root layout read the CMS broke `next build`: Next prerenders
+`/_not-found` by default, the layout resolves a D1 binding, and the
+composition seam **correctly refuses** to hand one out in a production build.
+
+That refusal is the seam working as designed, not something to route around.
+The fix is `export const dynamic = "force-dynamic"` on the layout, which is
+also the honest statement — every response on this site now depends on the
+database. The home and project pages already declared it individually; the
+layout covers the routes with no page of their own.
+
+Worth recording separately: the failure was committed before being noticed,
+because the build ran in the same command as the commit. It was fixed in the
+same change, but the lesson is the ordering.
+
+### Tests
+
+**3289/3289 across 23 suites**; the web suite grew from 65 to 81 checks.
+
+### Browser-verified
+
+A near-black accent (`#111111`) showed 18.26:1 on light and 1.04:1 on dark and
+produced the low-contrast warning naming the dark background; `#7c3aed`
+cleared both and the warning disappeared. Saving it repainted the public site
+— `--accent`, a computed white `--accent-fg`, a matching `--ring`, a derived
+`--accent-soft`, and section eyebrows actually painted in it. Pinning dark set
+`data-theme="dark"`; disabling contact removed both the section and its
+navigation link; the chosen favicon was served from `/media/[id]` as
+`image/png` and declared last.
+
 ## Project case-study pages, and admin chrome (branch `feat/project-pages-and-admin-chrome`)
 
 ### `/projects/[slug]`

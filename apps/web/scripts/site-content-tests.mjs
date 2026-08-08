@@ -507,6 +507,105 @@ try {
     false,
   );
 
+
+  // =========================================================================
+  // Theme settings.
+  // =========================================================================
+  startGroup("Theme settings");
+
+  // With no settings row at all, the site still has to render.
+  equal("theme falls back to system", content.theme.defaultTheme, "system");
+  equal("no accent override", content.theme.accentColor, null);
+  equal("no favicon override", content.theme.favicon, null);
+  equal(
+    "contact is enabled by default -- a portfolio with no way to make contact is the wrong default",
+    content.isContactEnabled,
+    true,
+  );
+  check(
+    "the contact section is present when enabled",
+    content.sections.some((section) => section.key === "contact"),
+  );
+
+  await repos.siteSettings.upsert({
+    siteName: "Ada's Work",
+    siteDescription: "Notes and engines.",
+    defaultTheme: "dark",
+    accentColor: "#7c3aed",
+    faviconMediaId: described.id,
+    isContactEnabled: false,
+  });
+  const themed = await getSiteContent();
+
+  equal("the settings row owns the site name", themed.siteName, "Ada's Work");
+  equal("and the description", themed.siteDescription, "Notes and engines.");
+  equal("the pinned theme is carried", themed.theme.defaultTheme, "dark");
+  equal("the accent is carried", themed.theme.accentColor, "#7c3aed");
+  equal(
+    "the favicon resolves to a media URL",
+    themed.theme.favicon?.href,
+    `/media/${described.id}`,
+  );
+  equal(
+    "and declares the stored content type rather than guessing from the URL",
+    themed.theme.favicon?.type,
+    "image/png",
+  );
+
+  // Disabling contact must remove the section, or the navigation -- derived
+  // from the same list -- keeps a link pointing at markup that is not there.
+  check(
+    "disabling contact removes the section",
+    !themed.sections.some((section) => section.key === "contact"),
+    `got ${JSON.stringify(themed.sections.map((s) => s.key))}`,
+  );
+  check(
+    "and its navigation link",
+    !themed.navigation.some((item) => item.targetId === "contact"),
+  );
+
+  // A broken favicon link turns out to be unreachable rather than handled,
+  // and the guarantee is worth asserting rather than assuming. Two mechanisms
+  // hold it: the foreign key refuses an id that does not exist, and deleting
+  // the asset sets the column to NULL rather than leaving it dangling.
+  let refusedUnknownAsset = false;
+  try {
+    await repos.siteSettings.upsert({
+      siteName: "Ada's Work",
+      faviconMediaId: "no-such-asset-id",
+      isContactEnabled: true,
+    });
+  } catch {
+    refusedUnknownAsset = true;
+  }
+  check(
+    "the foreign key refuses a favicon id that does not exist",
+    refusedUnknownAsset,
+  );
+
+  const doomed = await repos.media.create({
+    storageKey: "media/doomed.png",
+    contentType: "image/png",
+    byteSize: 64,
+    altText: "About to be deleted",
+  });
+  await repos.siteSettings.upsert({
+    siteName: "Ada's Work",
+    faviconMediaId: doomed.id,
+    isContactEnabled: true,
+  });
+  check(
+    "a favicon can be set to a real asset",
+    (await getSiteContent()).theme.favicon !== null,
+  );
+
+  await repos.media.delete(doomed.id);
+  equal(
+    "deleting that asset clears the favicon rather than leaving a broken link",
+    (await getSiteContent()).theme.favicon,
+    null,
+  );
+
 } catch (error) {
   checks += 1;
   failures.push(`unexpected error: ${error?.message ?? error}`);

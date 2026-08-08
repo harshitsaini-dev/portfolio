@@ -168,8 +168,28 @@ export interface NavigationItem {
   readonly label: string;
 }
 
+/** What the theme CMS controls, resolved for rendering. */
+export interface SiteTheme {
+  /** `light` or `dark` pins the page; `system` leaves it to the visitor. */
+  readonly defaultTheme: "light" | "dark" | "system";
+  /** `#rrggbb`, or null to use the built-in accent. */
+  readonly accentColor: string | null;
+  /**
+   * The browser-tab icon, as a `/media/[id]` URL, or null for the built-in.
+   *
+   * Carries its content type too: a `<link rel="icon">` should declare it, and
+   * the value comes from the row rather than being guessed from the URL,
+   * which has no extension.
+   */
+  readonly favicon: { readonly href: string; readonly type: string } | null;
+}
+
 export interface SiteContent {
   readonly siteName: string;
+  readonly siteDescription: string | null;
+  readonly theme: SiteTheme;
+  /** Whether the contact section is shown at all. */
+  readonly isContactEnabled: boolean;
   readonly socials: readonly SocialProfile[];
   readonly resume: ResumeLink | null;
   /**

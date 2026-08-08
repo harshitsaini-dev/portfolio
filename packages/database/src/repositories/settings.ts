@@ -36,6 +36,7 @@ function toSiteSettings(row: Row): SiteSettings {
     ),
     accentColor: nullableString(SITE_ENTITY, row, "accent_color"),
     socialImageId: nullableString(SITE_ENTITY, row, "social_image_id"),
+    faviconMediaId: nullableString(SITE_ENTITY, row, "favicon_media_id"),
     isContactEnabled: requireBoolean(SITE_ENTITY, row, "is_contact_enabled"),
     updatedAt: requireString(SITE_ENTITY, row, "updated_at"),
   };
@@ -80,7 +81,8 @@ export function createSiteSettingsRepository(
         const row = await db
           .prepare(
             `SELECT site_name, site_description, default_theme, accent_color,
-                    social_image_id, is_contact_enabled, updated_at
+                    social_image_id, favicon_media_id, is_contact_enabled,
+                    updated_at
              FROM site_settings WHERE id = ?`,
           )
           .bind(SINGLETON_ID)
@@ -98,14 +100,16 @@ export function createSiteSettingsRepository(
           .prepare(
             `INSERT INTO site_settings
                (id, site_name, site_description, default_theme, accent_color,
-                social_image_id, is_contact_enabled, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                social_image_id, favicon_media_id, is_contact_enabled,
+                updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(id) DO UPDATE SET
                site_name = excluded.site_name,
                site_description = excluded.site_description,
                default_theme = excluded.default_theme,
                accent_color = excluded.accent_color,
                social_image_id = excluded.social_image_id,
+               favicon_media_id = excluded.favicon_media_id,
                is_contact_enabled = excluded.is_contact_enabled,
                updated_at = excluded.updated_at`,
           )
@@ -116,6 +120,7 @@ export function createSiteSettingsRepository(
             input.defaultTheme ?? "system",
             input.accentColor ?? null,
             input.socialImageId ?? null,
+            input.faviconMediaId ?? null,
             boolToInt(input.isContactEnabled ?? true),
             now,
           )

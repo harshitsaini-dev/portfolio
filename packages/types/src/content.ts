@@ -565,6 +565,13 @@ export const THEME_PREFERENCES = ["light", "dark", "system"] as const;
 export type ThemePreference = (typeof THEME_PREFERENCES)[number];
 
 export interface SiteSettings {
+  /**
+   * The browser-tab icon, referencing `media_assets`.
+   *
+   * Separate from `socialImageId`: a favicon is rendered at 16–32px, where a
+   * social preview's composition and text are unreadable.
+   */
+  readonly faviconMediaId: string | null;
   readonly siteName: string;
   readonly siteDescription: string | null;
   readonly defaultTheme: ThemePreference;
@@ -575,6 +582,7 @@ export interface SiteSettings {
 }
 
 export interface SiteSettingsInput {
+  readonly faviconMediaId?: string | null;
   readonly siteName: string;
   readonly siteDescription?: string | null;
   readonly defaultTheme?: ThemePreference;

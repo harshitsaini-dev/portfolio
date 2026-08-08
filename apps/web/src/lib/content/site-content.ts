@@ -300,6 +300,7 @@ export async function getSiteContent(): Promise<SiteContent> {
     sectionRows,
     socialRows,
     currentResume,
+    settings,
   ] = await Promise.all([
     repos.profile.get(),
     repos.projects.listWithRelations({ statuses: ["published"] }),
@@ -320,13 +321,43 @@ export async function getSiteContent(): Promise<SiteContent> {
     // The current résumé, if one is published. `null` is a valid state and
     // the UI simply omits the download.
     repos.resumes.getCurrent(),
+    repos.siteSettings.get(),
   ]);
 
   const assets = new Map(mediaRows.map((asset) => [asset.id, asset]));
-  const sections = resolveSections(sectionRows);
+  // A disabled contact section is dropped here rather than in the page, so
+  // the navigation — which is derived from this same list — cannot keep a
+  // link pointing at a section that is not rendered.
+  const sections = resolveSections(sectionRows).filter(
+    (section) => section.key !== "contact" || (settings?.isContactEnabled ?? true),
+  );
 
   return {
-    siteName: profileRow?.fullName ?? "Portfolio",
+    // The settings row owns the site's name once one exists. Before that
+    // the profile's own name is the best answer available, and better than
+    // the word "Portfolio".
+    siteName: settings?.siteName || profileRow?.fullName || "Portfolio",
+    siteDescription: settings?.siteDescription ?? null,
+    theme: {
+      defaultTheme: settings?.defaultTheme ?? "system",
+      accentColor: settings?.accentColor ?? null,
+      // Resolved from the already-loaded asset map, so this costs no extra
+      // query. A reference to a deleted asset yields null and the site falls
+      // back to the built-in icon rather than linking to nothing.
+      favicon: (() => {
+        const asset = settings?.faviconMediaId
+          ? assets.get(settings.faviconMediaId)
+          : undefined;
+        if (!asset) return null;
+        return {
+          href: `/media/${encodeURIComponent(asset.id)}`,
+          type: asset.contentType,
+        };
+      })(),
+    },
+    // Absent settings mean the CMS has never been opened, and a portfolio
+    // with no way to make contact is the wrong default.
+    isContactEnabled: settings?.isContactEnabled ?? true,
     socials: socialRows.map((row) => toSocial(row, assets)),
     // A résumé row can outlive its file only if the media service's ordering
     // failed, which it reports; guarding here keeps a broken link off the
