@@ -1,12 +1,12 @@
 # Testing
 
-## Current state (Phase 8 — Sections CMS implemented, awaiting review)
+## Current state (Phase 8 — COMPLETE)
 
-`pnpm test` runs **nineteen real suites and one no-op** — **2488 checks**.
-The 2245 verified after the Socials CMS all still pass on Windows and on
-GitHub Actions/Linux (PR #32 and its post-merge `main` run `31192174164`);
-the Sections CMS added the rest and **is not yet CI-verified**. What each one
-actually proves matters, so be precise:
+`pnpm test` runs **nineteen real suites and one no-op** — **2488 checks**,
+all passing on Windows and on GitHub Actions/Linux (PR #34 and its
+post-merge `main` run `31204188654`). The 2245 verified after the Socials
+CMS are all still among them and none were weakened. What each one actually
+proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |

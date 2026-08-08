@@ -481,7 +481,11 @@ migration low-friction later.
 
 ## Current status
 
-Through **Phase 7**: shared UI tokens, D1 schema, repository layer,
-authenticated admin shell, and one complete CMS vertical slice (projects).
-The remaining CMS entities (Phase 8), R2 uploads (Phase 9), and the
-public-site data conversion are not implemented.
+Through **Phase 8**: shared UI tokens, D1 schema, repository layer,
+authenticated admin shell, and the **complete CMS** — projects (Phase 7)
+plus all nine Phase 8 areas (technologies, profile, timeline, education,
+certifications, skills, tools, socials, sections).
+
+R2 uploads (Phase 9) and the public-site data conversion are **not
+implemented**: `apps/web` still renders placeholder content, and no section
+is yet mapped to a component by its `key`.
