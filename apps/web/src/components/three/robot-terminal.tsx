@@ -29,25 +29,32 @@ import { usePrefersReducedMotion } from "@/lib/hooks/use-prefers-reduced-motion"
 /**
  * What the robot says, cycled forever.
  *
- * Written as a machine narrating its own boot rather than a mascot greeting
- * the visitor: "hi, I am the guide" is the line every chatbot opens with and
- * says nothing. These say what the site actually is — that the content is
- * live from a database, that nothing is hardcoded, what is loaded right now.
+ * Two rules shaped this copy.
  *
- * They are static strings, not real telemetry. Reporting fabricated numbers
- * as though they were measurements would be a lie in a place nobody would
- * think to check, so nothing here claims a value it does not have.
+ * **Nothing names the infrastructure.** An earlier draft narrated
+ * "connecting to D1", "mounting media from R2". It looked authentic and it
+ * was a mistake: telling every visitor which database and which object store
+ * sit behind the site hands an attacker the first half of their homework,
+ * and it is decoration, not documentation. The stack belongs in the
+ * repository, not on the front page.
+ *
+ * **Nothing claims a measurement it does not have.** These are static
+ * strings. Printing invented counts or timings in the shape of telemetry
+ * would be a lie somewhere nobody would think to check.
+ *
+ * What is left is the machine talking about the work and the person, which
+ * is what a portfolio is for.
  */
 const LINES = [
   "> booting portfolio…",
-  "> connecting to D1…            ok",
-  "> mounting media from R2…      ok",
-  "> resolving theme tokens…      ok",
-  "> content: live from the CMS",
-  "> hardcoded copy: none",
-  "> every section here is editable",
+  "> loading projects…            ok",
+  "> loading experience…          ok",
+  "> rendering the good parts",
+  "> he builds things that load fast",
+  "> and still work with a keyboard",
+  "> everything here is editable",
   "> scroll — I'll come with you",
-  "> tip: I respect reduced motion",
+  "> I respect reduced motion",
   "> idle. waiting for input…",
 ] as const;
 

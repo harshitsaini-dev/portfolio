@@ -54,6 +54,32 @@ body {
   letter-spacing: -0.011em;
 }
 
+/**
+ * Hides the native cursor for the custom one.
+ *
+ * The class is added by `CustomCursor` **only after** its own cursor has
+ * rendered and received a real position, and removed again on unmount, on
+ * leaving the document and on losing window focus. Hiding first and drawing
+ * second is what leaves a visitor with no pointer at all.
+ *
+ * `!important` on the second rule because interactive elements set their own
+ * cursor (`pointer`, `text`) and would otherwise reveal the native one on
+ * exactly the elements the custom ring is meant to react to.
+ */
+.has-custom-cursor,
+.has-custom-cursor body {
+  cursor: none;
+}
+
+.has-custom-cursor a,
+.has-custom-cursor button,
+.has-custom-cursor input,
+.has-custom-cursor textarea,
+.has-custom-cursor select,
+.has-custom-cursor [role="button"] {
+  cursor: none !important;
+}
+
 ::selection {
   background: var(--selection-bg);
   color: var(--selection-fg);

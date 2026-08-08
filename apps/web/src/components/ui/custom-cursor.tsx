@@ -1,28 +1,32 @@
 "use client";
 
 /**
- * A custom cursor, for pointing devices only.
+ * A fully custom cursor: a dot that tracks exactly, and a ring that trails it.
  *
  * ## When it does not run
  *
- * Four conditions, and any one of them means the native cursor is left alone:
+ * Any one of these means the native cursor is left completely alone:
  *
- *   * **No fine pointer.** `(pointer: fine)` is false on touch, where there
- *     is no cursor to replace and a lagging dot would be nonsense.
- *   * **Reduced motion.** A dot that eases behind the pointer is motion the
+ *   * **No fine pointer** — `(pointer: fine)` is false on touch, where there
+ *     is no cursor to replace.
+ *   * **No hover** — same reasoning.
+ *   * **Reduced motion** — a ring that eases behind the pointer is motion the
  *     visitor asked not to have.
- *   * **Coarse or absent hover.** Same reasoning as the first.
- *   * **Before it has a position.** The dot is not rendered until the first
- *     real pointer event, so it never flashes at the origin on load.
  *
- * ## The native cursor is never hidden
+ * ## Hiding the native cursor, safely
  *
- * The usual implementation sets `cursor: none` on the body and draws its own.
- * That is a single point of failure: if the custom one fails to render, is
- * scrolled out of sync, or is blocked, the visitor has **no pointer at all**.
- * This draws an accent ring that trails the real cursor and leaves the system
- * one visible underneath — the enhancement can fail without taking the
- * ability to point with it.
+ * The visitor asked for a *fully* custom pointer, so the native one is
+ * hidden. That is a real risk: if the replacement fails to draw, someone is
+ * left with no pointer at all and no obvious way to recover.
+ *
+ * So the class that hides it is added **only after the custom cursor has
+ * actually rendered and received a real position** — never on mount, never
+ * optimistically. And it is removed again on unmount, on `pointerleave` at
+ * the document edge, and whenever the window loses focus, so a visitor who
+ * moves to another window or another tab always gets their own cursor back.
+ *
+ * The order matters: draw first, hide second. The reverse is what leaves
+ * people stranded.
  *
  * ## Why it writes to the DOM directly
  *
@@ -35,7 +39,11 @@ import { useEffect, useRef } from "react";
 
 import { usePrefersReducedMotion } from "@/lib/hooks/use-prefers-reduced-motion";
 
+/** Added to `<html>` to hide the native cursor. Defined in `globals.css`. */
+const HIDE_CLASS = "has-custom-cursor";
+
 export function CustomCursor() {
+  const dotRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
   const reducedMotion = usePrefersReducedMotion();
 
@@ -44,58 +52,108 @@ export function CustomCursor() {
     const canHover = window.matchMedia("(hover: hover)").matches;
     if (!fine || !canHover || reducedMotion) return;
 
-    // The eased position, updated per frame rather than per event so the ring
-    // trails the cursor instead of being welded to it.
+    const root = document.documentElement;
     const target = { x: -100, y: -100 };
-    const current = { x: -100, y: -100 };
+    const ring = { x: -100, y: -100 };
     let frame = 0;
     let interactive = false;
+    let hasPosition = false;
+
+    const show = () => {
+      // Only now is it safe to hide the native cursor: the replacement has a
+      // real position and is being drawn.
+      root.classList.add(HIDE_CLASS);
+    };
+
+    const restore = () => {
+      root.classList.remove(HIDE_CLASS);
+    };
 
     const onMove = (event: PointerEvent) => {
       target.x = event.clientX;
       target.y = event.clientY;
 
-      // Grow over anything a visitor can act on. `closest` rather than a
-      // tag check, so a click on an icon inside a link still counts.
+      if (!hasPosition) {
+        hasPosition = true;
+        // Place the ring at the first known position so it does not fly in
+        // from the corner.
+        ring.x = target.x;
+        ring.y = target.y;
+        show();
+      }
+
+      // Grow over anything actionable. `closest` rather than a tag check, so
+      // a click on an icon inside a link still counts.
       const el = event.target as Element | null;
       interactive = Boolean(
         el?.closest?.("a, button, input, textarea, select, [role='button']"),
       );
+
+      const dot = dotRef.current;
+      if (dot) {
+        // The dot tracks exactly — a pointer that lags is a pointer that
+        // feels broken. Only the ring is allowed to trail.
+        dot.style.transform = `translate3d(${target.x}px, ${target.y}px, 0) translate(-50%, -50%)`;
+      }
     };
 
     const tick = () => {
       // Framerate-independent easing: a fixed fraction per frame moves faster
       // on a 120Hz display than a 60Hz one.
-      const k = 0.18;
-      current.x += (target.x - current.x) * k;
-      current.y += (target.y - current.y) * k;
+      const k = 0.2;
+      ring.x += (target.x - ring.x) * k;
+      ring.y += (target.y - ring.y) * k;
 
-      const ring = ringRef.current;
-      if (ring) {
-        ring.style.transform = `translate3d(${current.x}px, ${current.y}px, 0) translate(-50%, -50%) scale(${interactive ? 1.8 : 1})`;
+      const node = ringRef.current;
+      if (node) {
+        node.style.transform = `translate3d(${ring.x}px, ${ring.y}px, 0) translate(-50%, -50%) scale(${interactive ? 1.9 : 1})`;
       }
       frame = requestAnimationFrame(tick);
     };
 
+    // A visitor who leaves the document or the window gets their own cursor
+    // back immediately — including when a dialog, a devtools panel or another
+    // application takes over.
+    const onLeave = (event: PointerEvent) => {
+      if (!event.relatedTarget) restore();
+    };
+
     window.addEventListener("pointermove", onMove, { passive: true });
+    document.addEventListener("pointerleave", onLeave);
+    window.addEventListener("blur", restore);
+    window.addEventListener("focus", () => {
+      if (hasPosition) show();
+    });
     frame = requestAnimationFrame(tick);
 
     return () => {
       window.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerleave", onLeave);
+      window.removeEventListener("blur", restore);
       cancelAnimationFrame(frame);
+      // Never leave the page without a pointer.
+      restore();
     };
   }, [reducedMotion]);
 
   if (reducedMotion) return null;
 
   return (
-    <div
-      ref={ringRef}
-      aria-hidden="true"
-      // `fixed` and above the page, but `pointer-events-none` so it can never
-      // intercept the click it is drawn around.
-      className="pointer-events-none fixed left-0 top-0 z-50 hidden h-6 w-6 rounded-full border border-accent/70 transition-[width,height,border-color] duration-200 sm:block"
-      style={{ willChange: "transform" }}
-    />
+    <>
+      {/* The dot: exact position, small, solid. */}
+      <div
+        ref={dotRef}
+        aria-hidden="true"
+        className="pointer-events-none fixed left-0 top-0 z-[60] hidden size-1.5 rounded-full bg-accent sm:block"
+        style={{ willChange: "transform" }}
+      />
+      {/* The ring: trails, and grows over anything actionable. */}
+      <div
+        ref={ringRef}
+        aria-hidden="true"
+        className="pointer-events-none fixed left-0 top-0 z-[60] hidden size-8 rounded-full border border-accent/60 transition-[border-color,background-color] duration-200 sm:block"
+        style={{ willChange: "transform" }}
+      />
+    </>
   );
 }
