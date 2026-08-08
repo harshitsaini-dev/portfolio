@@ -24,10 +24,20 @@ export function EducationSection({
   copy,
 }: EducationSectionProps) {
   return (
-    <Section id={copy.key} eyebrow={copy.eyebrow} title={copy.title}>
+    <Section
+      id={copy.key}
+      eyebrow={copy.eyebrow}
+      title={copy.title}
+      marker={copy.marker}
+    >
       <div className="grid gap-12 lg:grid-cols-2 lg:gap-10">
         <div>
-          <h3 className={type.minorHeading}>Education</h3>
+          <h3 className={`flex items-center gap-2 ${type.minorHeading}`}>
+            <span aria-hidden="true" className="text-base leading-none">
+              {"\u{1F3EB}"}
+            </span>
+            Education
+          </h3>
           {education.length === 0 ? (
             <p className={`mt-4 ${type.bodySm}`}>
               No education entries have been published yet.
@@ -63,7 +73,12 @@ export function EducationSection({
         </div>
 
         <div>
-          <h3 className={type.minorHeading}>Certifications</h3>
+          <h3 className={`flex items-center gap-2 ${type.minorHeading}`}>
+            <span aria-hidden="true" className="text-base leading-none">
+              {"\u{1F3C6}"}
+            </span>
+            Certifications
+          </h3>
           {certifications.length === 0 ? (
             <p className={`mt-4 ${type.bodySm}`}>
               No certifications have been published yet.

@@ -48,7 +48,12 @@ export default async function Home() {
           is inconsistent across browsers. -1 keeps it out of the normal tab
           order; it is only reachable by activating the skip link. */}
       <main id="main-content" tabIndex={-1} className="flex-1">
-        <Hero profile={content.profile} contact={content.contact} />
+        <Hero
+          profile={content.profile}
+          contact={content.contact}
+          socials={content.socials}
+          resume={content.resume}
+        />
 
         {/* Order comes from the CMS, not from this file. A section absent
             from the list was hidden by an editor, so it renders nothing —
@@ -102,7 +107,11 @@ export default async function Home() {
         })}
       </main>
 
-      <SiteFooter siteName={content.siteName} note={content.footerNote} />
+      <SiteFooter
+        siteName={content.siteName}
+        note={content.footerNote}
+        socials={content.socials}
+      />
     </>
   );
 }

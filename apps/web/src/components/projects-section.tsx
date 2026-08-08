@@ -1,20 +1,39 @@
-import { PlaceholderAction } from "@/components/placeholder-action";
 import Link from "next/link";
 
+import { PlaceholderAction } from "@/components/placeholder-action";
 import { Section } from "@/components/section";
-import type { SectionCopy } from "@/lib/content/sections";
 import { BadgeList } from "@/components/ui/badge";
 import { ContentImage } from "@/components/ui/content-image";
 import { Surface } from "@/components/ui/surface";
 import { type } from "@/components/ui/typography";
 import type { Project } from "@/data/types";
+import type { SectionCopy } from "@/lib/content/sections";
 
 function ProjectCard({ project }: { project: Project }) {
   const headingId = `project-${project.slug}-heading`;
 
   return (
     <li>
-      <Surface as="article" aria-labelledby={headingId} className="flex h-full flex-col">
+      <Surface
+        as="article"
+        aria-labelledby={headingId}
+        padded={false}
+        className="group flex h-full flex-col overflow-hidden transition-colors duration-150 hover:border-strong"
+      >
+        {project.cover ? (
+          // Decorative: the title, summary and technologies below say
+          // everything this image does, and announcing its alt text here
+          // would make a screen reader read the project twice.
+          <ContentImage
+            image={project.cover}
+            fluid
+            radius="rounded-none"
+            className="aspect-[16/9] border-b border-subtle"
+            decorative
+          />
+        ) : null}
+
+      <div className="flex flex-1 flex-col p-5 sm:p-6">
         <div className="flex items-baseline justify-between gap-4">
           <div className="flex items-center gap-3">
             {/* Decorative: the project title is right beside it. */}
@@ -53,6 +72,7 @@ function ProjectCard({ project }: { project: Project }) {
             />
           </div>
         </div>
+      </div>
       </Surface>
     </li>
   );
@@ -66,7 +86,12 @@ export function ProjectsSection({
   copy: SectionCopy;
 }) {
   return (
-    <Section id={copy.key} eyebrow={copy.eyebrow} title={copy.title}>
+    <Section
+      id={copy.key}
+      eyebrow={copy.eyebrow}
+      title={copy.title}
+      marker={copy.marker}
+    >
       {projects.length === 0 ? (
         <p className={type.bodySm}>
           No published projects yet. Projects marked draft or archived in the

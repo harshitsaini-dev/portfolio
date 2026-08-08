@@ -79,6 +79,8 @@ export interface Profile {
 export interface Project {
   /** The small mark shown beside the title. */
   readonly image: ContentImage | null;
+  /** The wide image at the head of the card, when the project has one. */
+  readonly cover: ContentImage | null;
   readonly slug: string;
   readonly title: string;
   readonly summary: string;
@@ -131,6 +133,28 @@ export interface Tool {
   readonly purpose: string;
 }
 
+/**
+ * A link to a profile elsewhere.
+ *
+ * `label` is what a visitor reads and what a screen reader announces, so it
+ * is never omitted even when a logo is present — an icon-only link is
+ * unusable without sight and ambiguous with it.
+ */
+export interface SocialProfile {
+  readonly id: string;
+  readonly label: string;
+  readonly platform: string;
+  readonly url: string;
+  readonly image: ContentImage | null;
+}
+
+/** The current résumé, when one is published. */
+export interface ResumeLink {
+  readonly label: string;
+  /** Points at `/media/[id]`, which serves the PDF inline. */
+  readonly href: string;
+}
+
 export interface ContactCallToAction {
   readonly heading: string;
   readonly body: string;
@@ -146,6 +170,8 @@ export interface NavigationItem {
 
 export interface SiteContent {
   readonly siteName: string;
+  readonly socials: readonly SocialProfile[];
+  readonly resume: ResumeLink | null;
   /**
    * The page's sections, already filtered to visible and sorted into render
    * order. The page maps over this rather than hardcoding a sequence.

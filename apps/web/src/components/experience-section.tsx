@@ -12,7 +12,12 @@ export function ExperienceSection({
   copy: SectionCopy;
 }) {
   return (
-    <Section id={copy.key} eyebrow={copy.eyebrow} title={copy.title}>
+    <Section
+      id={copy.key}
+      eyebrow={copy.eyebrow}
+      title={copy.title}
+      marker={copy.marker}
+    >
       {timeline.length === 0 ? (
         <p className={type.bodySm}>No experience has been published yet.</p>
       ) : null}

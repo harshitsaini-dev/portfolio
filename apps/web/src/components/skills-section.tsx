@@ -23,7 +23,12 @@ export function SkillsSection({
   copy,
 }: SkillsSectionProps) {
   return (
-    <Section id={copy.key} eyebrow={copy.eyebrow} title={copy.title}>
+    <Section
+      id={copy.key}
+      eyebrow={copy.eyebrow}
+      title={copy.title}
+      marker={copy.marker}
+    >
       {skillCategories.length === 0 ? (
         <p className={type.bodySm}>No skills have been published yet.</p>
       ) : null}
@@ -58,7 +63,13 @@ export function SkillsSection({
       </ul>
 
       <div className="mt-14">
-        <h3 className={type.minorHeading}>Tools</h3>
+        <h3 className={`flex items-center gap-2 ${type.minorHeading}`}>
+          {/* Decorative: the heading text names the group. */}
+          <span aria-hidden="true" className="text-base leading-none">
+              {"\u{1F6E0}"}
+            </span>
+          Tools
+        </h3>
         {tools.length === 0 ? (
           <p className={`mt-4 ${type.bodySm}`}>
             No tools have been published yet.
