@@ -20,7 +20,7 @@
 
 import { spawnSync } from "node:child_process";
 import { createRequire, registerHooks } from "node:module";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -720,6 +720,47 @@ try {
   check(
     "and stamps read_at, which is the repository's rule rather than the caller's",
     readBack.readAt !== null,
+  );
+
+
+  // =========================================================================
+  // Motion. A structural check, not a visual one.
+  // =========================================================================
+  startGroup("Scroll reveals");
+
+  // What this protects: the reveal must never hide content in a browser that
+  // cannot animate it, or for a visitor who asked for less motion. Both
+  // guarantees come from *where* the rule sits rather than from anything
+  // observable at runtime, so the source is what gets asserted -- a browser
+  // test cannot check the branch its own browser does not take.
+  const motionCss = readFileSync(
+    join(repoRoot, "packages", "ui", "src", "motion.css"),
+    "utf8",
+  );
+
+  const supportsIndex = motionCss.indexOf("@supports (animation-timeline: view())");
+  const reducedIndex = motionCss.indexOf("prefers-reduced-motion: no-preference");
+  const animationIndex = motionCss.indexOf("animation: portfolio-reveal");
+
+  check("the reveal is guarded by @supports", supportsIndex !== -1);
+  check(
+    "and by prefers-reduced-motion: no-preference",
+    reducedIndex !== -1,
+  );
+  check(
+    "the animation is declared INSIDE both guards, so a browser that cannot run it never applies the hidden state",
+    supportsIndex !== -1 &&
+      reducedIndex !== -1 &&
+      animationIndex > supportsIndex &&
+      animationIndex > reducedIndex,
+  );
+
+  // The hidden state must live in the keyframes, which only apply when the
+  // animation does -- never as a bare rule on `.reveal`.
+  const bareHidden = /\.reveal\s*\{[^}]*opacity:\s*0/.test(motionCss);
+  check(
+    "no bare `.reveal { opacity: 0 }` exists outside the keyframes",
+    !bareHidden,
   );
 
 } catch (error) {

@@ -48,7 +48,9 @@ export function Section({
       className="border-t border-subtle py-20 sm:py-24"
     >
       <Container>
-        <p className={`flex items-center gap-2 ${type.eyebrow}`}>
+        {/* The heading block reveals as one unit. The section body is a
+            separate reveal so a long list does not animate as a slab. */}
+        <p className={`reveal flex items-center gap-2 ${type.eyebrow}`}>
           {marker ? (
             <span aria-hidden="true" className="text-base leading-none">
               {marker}
@@ -56,13 +58,13 @@ export function Section({
           ) : null}
           {eyebrow}
         </p>
-        <h2 id={headingId} className={`mt-3 ${type.heading}`}>
+        <h2 id={headingId} className={`reveal mt-3 ${type.heading}`}>
           {title}
         </h2>
         {lead ? (
           <p className={`mt-4 max-w-2xl ${type.body}`}>{lead}</p>
         ) : null}
-        <div className="mt-10 sm:mt-12">{children}</div>
+        <div className="reveal-2 reveal mt-10 sm:mt-12">{children}</div>
       </Container>
     </section>
   );

@@ -10,6 +10,7 @@
     ".": "./src/index.ts",
     "./tokens.css": "./src/tokens.css",
     "./scrollbars.css": "./src/scrollbars.css",
+    "./motion.css": "./src/motion.css",
     "./shadcn.css": "./src/shadcn.css",
     "./lib/utils": "./src/lib/utils.ts",
     "./components/*": "./src/components/*.tsx"

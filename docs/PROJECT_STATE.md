@@ -8,6 +8,58 @@ something passed without running it.
 
 **Phase 9 — R2/media. IN PROGRESS.** Not complete.
 
+## Phase 12 — motion (branch `feat/motion`)
+
+Scroll reveals and hover polish, built on **CSS scroll-driven animations**
+rather than an animation library.
+
+### Why not Motion
+
+The project brief names Motion, and it was not used. The thing it would buy
+here — reveals as elements enter the viewport — is now a CSS feature, and the
+cost is not small: the public site ships two small client components and
+nothing else, and every element that animated would have to become one.
+
+A library stays the right answer for orchestration, layout transitions and
+gestures, and the 3D phases may well bring it in. It is not the right answer
+for "fade this in", and the decision is recorded so it can be revisited on its
+merits rather than re-argued.
+
+### Content is never hidden by something that might not run
+
+The most common failure of scroll reveals is an element stranded at
+`opacity: 0` because the mechanism meant to reveal it never ran — a failed
+script, an observer that never fired, a browser without support. That is a
+blank page, not a missing animation.
+
+The initial state lives **inside** `@supports (animation-timeline: view())`
+**and** inside `prefers-reduced-motion: no-preference`. A browser that cannot
+run the animation never applies the hidden state either. The failure mode is
+"no animation", and it is **structural rather than remembered**.
+
+### Restraint
+
+One reveal per element, 8px of travel, no slide-ins, scaling, rotation or
+bounce. At this content density more reads as a template rather than as craft.
+
+### Tests
+
+**3314/3314 across 23 suites.** The motion test is deliberately a **source**
+check rather than a browser one: both guarantees come from *where* the rule
+sits, and a browser test cannot check the branch its own browser does not
+take. It asserts the animation is declared inside both guards and that no bare
+`.reveal { opacity: 0 }` exists.
+
+Checked against a deliberately broken copy first — adding that bare rule makes
+it fail — so it tests the behaviour rather than agreeing with the code.
+
+### Browser-verified
+
+With support present, 12 below-fold reveals sit at opacity 0 and reach 1 when
+scrolled into view. Under emulated `prefers-reduced-motion: reduce`, **all 19
+reveals are visible and none are animating** — the hidden state is not applied
+at all.
+
 ## Phase 11 — contact form and inbox (branch `feat/contact-inbox`)
 
 The public contact form writes to D1, the admin reads and triages, and an
