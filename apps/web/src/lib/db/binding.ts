@@ -31,51 +31,36 @@ export function hasPublicDatabaseProvider(): boolean {
   return registeredProvider !== null;
 }
 
-const GLOBAL_PROXY_KEY = Symbol.for("@portfolio/web/platform-proxy");
-
-interface GlobalProxyState {
-  proxy?: { env: { DB: D1Like }; dispose: () => Promise<void> };
-  promise?: Promise<{ env: { DB: D1Like }; dispose: () => Promise<void> }>;
-}
-
-function getGlobalProxyState(): GlobalProxyState {
-  const g = globalThis as unknown as Record<symbol, GlobalProxyState>;
-  if (!g[GLOBAL_PROXY_KEY]) {
-    g[GLOBAL_PROXY_KEY] = {};
-  }
-  return g[GLOBAL_PROXY_KEY];
-}
+const devProxyKey = Symbol.for("portfolio.web.devD1Proxy");
+type DevProxyHolder = { [devProxyKey]?: Promise<D1Like> };
 
 async function resolveDevelopmentProxy(): Promise<D1Like> {
-  const state = getGlobalProxyState();
-  if (state.proxy) {
-    return state.proxy.env.DB;
-  }
-  if (!state.promise) {
-    state.promise = (async () => {
-      const path = await import("node:path");
-      const { getPlatformProxy } = await import("wrangler");
-      const rootDir = path.resolve(process.cwd(), "../..");
-      const configPath = path.join(rootDir, "wrangler.d1.jsonc");
+  const holder = globalThis as unknown as DevProxyHolder;
+  const existing = holder[devProxyKey];
+  if (existing) return existing;
 
-      return getPlatformProxy({
-        configPath,
-        environment: undefined,
-        persist: true,
-      }) as unknown as { env: { DB: D1Like }; dispose: () => Promise<void> };
-    })();
-  }
-  try {
-    state.proxy = await state.promise;
-    return state.proxy.env.DB;
-  } catch (cause) {
-    state.promise = undefined;
-    throw new PublicDatabaseUnavailableError(
-      `failed to initialize wrangler dev platform proxy: ${
-        cause instanceof Error ? cause.message : String(cause)
-      }`,
-    );
-  }
+  const created = (async () => {
+    // Dynamic runtime import via eval so Next.js bundler does not attempt
+    // to trace/package `wrangler` into production build assets.
+    const wranglerMod = (await eval('import("wrangler")')) as typeof import("wrangler");
+    const { getPlatformProxy } = wranglerMod;
+    const { resolve } = await import("node:path");
+
+    const repoRoot = resolve(process.cwd(), "..", "..");
+    const platform = await getPlatformProxy<{ DB: D1Like }>({
+      configPath: resolve(repoRoot, "wrangler.d1.jsonc"),
+      persist: { path: resolve(repoRoot, ".wrangler", "state", "v3") },
+      remoteBindings: false,
+    });
+
+    if (!platform.env?.DB) {
+      throw new PublicDatabaseUnavailableError("local platform proxy exposed no DB binding");
+    }
+    return platform.env.DB;
+  })();
+
+  holder[devProxyKey] = created;
+  return created;
 }
 
 export async function getPublicDatabase(): Promise<D1Like> {
@@ -91,13 +76,13 @@ export async function getPublicDatabase(): Promise<D1Like> {
     }
   }
 
-  if (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test") {
-    return resolveDevelopmentProxy();
+  if (process.env.NODE_ENV === "production") {
+    throw new PublicDatabaseUnavailableError(
+      "no D1 provider registered. Call setPublicDatabaseProvider(() => getCloudflareContext().env.DB) during production startup.",
+    );
   }
 
-  throw new PublicDatabaseUnavailableError(
-    "no provider registered. In production, call setPublicDatabaseProvider(() => getCloudflareContext().env.DB) during startup.",
-  );
+  return resolveDevelopmentProxy();
 }
 
 export async function getPublicRepositories(): Promise<Repositories> {

@@ -113,7 +113,8 @@ async function getDevelopmentDatabase(): Promise<D1Like> {
     // line is unreachable in production — `getAdminDatabase()` throws before
     // calling this function when NODE_ENV is "production", and Next inlines
     // that comparison at build time.
-    const { getPlatformProxy } = await import("wrangler");
+    const wranglerMod = (await eval('import("wrangler")')) as typeof import("wrangler");
+    const { getPlatformProxy } = wranglerMod;
     const { resolve } = await import("node:path");
 
     // The repo-root D1 management config, and the same `.wrangler/state/v3`
