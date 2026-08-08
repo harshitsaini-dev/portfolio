@@ -1,5 +1,6 @@
 import { PlaceholderAction } from "@/components/placeholder-action";
 import { Container } from "@/components/ui/container";
+import { ContentImage } from "@/components/ui/content-image";
 import { type } from "@/components/ui/typography";
 import type { ContactCallToAction, Profile } from "@/data/types";
 
@@ -31,6 +32,15 @@ export function Hero({ profile, contact }: HeroProps) {
       />
 
       <Container className="relative py-20 sm:py-28 lg:py-32">
+        {profile.image ? (
+          <ContentImage
+            image={profile.image}
+            size={96}
+            radius="rounded-full"
+            className="mb-8 border border-subtle"
+          />
+        ) : null}
+
         <p className={type.eyebrow}>{profile.role}</p>
 
         <h1 id="hero-heading" className={`mt-5 ${type.display}`}>
@@ -39,20 +49,30 @@ export function Hero({ profile, contact }: HeroProps) {
 
         <p className={`mt-6 max-w-xl ${type.lead}`}>{profile.tagline}</p>
 
-        <dl className="mt-10 flex flex-wrap gap-x-10 gap-y-4">
-          <div>
-            <dt className={type.fine}>Location</dt>
-            <dd className="mt-1 text-sm font-medium text-fg">
-              {profile.location}
-            </dd>
-          </div>
-          <div>
-            <dt className={type.fine}>Availability</dt>
-            <dd className="mt-1 text-sm font-medium text-fg">
-              {profile.availability}
-            </dd>
-          </div>
-        </dl>
+        {/* A definition list of empty values is worse than no list: it
+            announces "Location" to a screen reader and then says nothing.
+            Each row appears only when the editor filled it in, and the list
+            disappears entirely when neither is set. */}
+        {profile.location || profile.availability ? (
+          <dl className="mt-10 flex flex-wrap gap-x-10 gap-y-4">
+            {profile.location ? (
+              <div>
+                <dt className={type.fine}>Location</dt>
+                <dd className="mt-1 text-sm font-medium text-fg">
+                  {profile.location}
+                </dd>
+              </div>
+            ) : null}
+            {profile.availability ? (
+              <div>
+                <dt className={type.fine}>Availability</dt>
+                <dd className="mt-1 text-sm font-medium text-fg">
+                  {profile.availability}
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+        ) : null}
 
         <div className="mt-12 flex flex-wrap items-start gap-4">
           <PlaceholderAction

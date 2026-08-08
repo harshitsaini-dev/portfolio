@@ -7,18 +7,26 @@ import { ProjectsSection } from "@/components/projects-section";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { SkillsSection } from "@/components/skills-section";
-import { placeholderContent } from "@/data/placeholder-content";
+import { getSiteContent } from "@/lib/content/site-content";
 
 /**
- * Phase 2 static portfolio page.
+ * The public portfolio, rendered from the CMS.
  *
- * Every section renders from `placeholderContent` — a single temporary data
- * source — so replacing it with the repository/data layer later is a change
- * of import, not a rewrite of the UI. This is a Server Component; nothing on
- * this page needs client-side JavaScript.
+ * Every section still renders from a single content object, exactly as it did
+ * when that object was a static fixture — the swap the Phase 2 file was
+ * written to allow turned out to be one import, as intended.
+ *
+ * A Server Component, and it must stay one: `getSiteContent()` resolves a D1
+ * binding, which has no business in a browser bundle.
+ *
+ * Rendered per request rather than at build time. The point of a CMS is that
+ * an edit shows up without a deployment, and a statically prerendered page
+ * would keep serving whatever the content was when it was built.
  */
-export default function Home() {
-  const content = placeholderContent;
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const content = await getSiteContent();
 
   return (
     <>

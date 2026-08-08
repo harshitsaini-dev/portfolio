@@ -1,4 +1,5 @@
 import { Section } from "@/components/section";
+import { ContentImage } from "@/components/ui/content-image";
 import { type } from "@/components/ui/typography";
 import type { TimelineEntry } from "@/data/types";
 
@@ -9,6 +10,10 @@ export function ExperienceSection({
 }) {
   return (
     <Section id="experience" eyebrow="Career" title="Experience">
+      {timeline.length === 0 ? (
+        <p className={type.bodySm}>No experience has been published yet.</p>
+      ) : null}
+
       <ol className="space-y-10 border-l border-subtle pl-6 sm:pl-8">
         {timeline.map((entry) => {
           const headingId = `${entry.id}-heading`;
@@ -26,7 +31,11 @@ export function ExperienceSection({
                 <h3 id={headingId} className={`mt-1.5 ${type.subheading}`}>
                   {entry.role}
                 </h3>
-                <p className="mt-0.5 text-sm font-medium text-accent">
+                <p className="mt-0.5 flex items-center gap-2.5 text-sm font-medium text-accent">
+                  {/* Decorative: the organisation name is the same text. */}
+                  {entry.image ? (
+                    <ContentImage image={entry.image} size={20} decorative />
+                  ) : null}
                   {entry.organization}
                 </p>
                 <p className={`mt-3 max-w-2xl ${type.bodySm}`}>{entry.summary}</p>

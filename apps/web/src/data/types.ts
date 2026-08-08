@@ -1,18 +1,21 @@
 /**
- * PHASE 2 TEMPORARY CONTENT TYPES.
+ * VIEW MODELS for the public site.
  *
- * These shapes exist only so the Phase 2 static portfolio can render from a
- * single data source instead of scattering copy through JSX. They are NOT
- * the project's domain model.
+ * These are no longer the Phase 2 placeholder shapes. They are the models the
+ * page's components render, built from `@portfolio/types` by
+ * `@/lib/content/site-content.ts`.
  *
- * They will be REPLACED — not extended — by `@portfolio/types` and
- * `@portfolio/schemas` once the D1 schema (Phase 4) and repository/data
- * layer (Phase 5) exist. Field names deliberately echo the planned entities
- * in `docs/DATABASE.md` so that swap is mechanical, but nothing here implies
- * a database, repository, or validation layer exists today.
+ * They stay separate from the domain model on purpose, because they answer a
+ * different question. The domain has `startedOn` and `endedOn` as dates; a
+ * timeline card shows one string, "2024 – present", and deciding what that
+ * string says is a presentation concern. The domain has a join table of
+ * technology rows; a project card shows their names. Collapsing the two would
+ * either push formatting into the repository layer or push date arithmetic
+ * into JSX, and both are worse than a mapping function.
  *
- * Do not import these types outside `apps/web`, and do not promote them to
- * `packages/types`.
+ * The rule they inherit from Phase 2 still holds: **do not import these
+ * outside `apps/web`, and do not promote them to `packages/types`.** Nothing
+ * here is shared with the admin, which renders the domain model directly.
  */
 
 /**
@@ -22,11 +25,38 @@
  * an unavailable action is represented explicitly so the UI can render it
  * honestly (as disabled, with a reason) instead of misleading the reader.
  */
+/**
+ * A link that may not have a destination.
+ *
+ * Real content does not guarantee a URL: a project may have no repository, a
+ * certification no public credential. Rather than rendering a dead link or
+ * silently dropping the action, an unavailable one is represented explicitly
+ * so the UI can say why it is disabled.
+ *
+ * Still named `PlaceholderLink` for the components that consume it; the
+ * `unavailable` case now means "the editor supplied no URL" rather than
+ * "this phase has no URLs yet".
+ */
 export type PlaceholderLink =
   | { readonly status: "available"; readonly href: string; readonly label: string }
   | { readonly status: "unavailable"; readonly label: string; readonly reason: string };
 
+/**
+ * An image the public site can render.
+ *
+ * `id` addresses `/media/[id]`; `alt` is the description the editor wrote.
+ * Both or neither — an asset with no alt text is not renderable content, so
+ * the mapper drops it rather than emitting an image a screen reader cannot
+ * describe.
+ */
+export interface ContentImage {
+  readonly id: string;
+  readonly alt: string;
+}
+
 export interface Profile {
+  /** The owner's photograph, if one was chosen and described. */
+  readonly image: ContentImage | null;
   readonly name: string;
   readonly role: string;
   readonly tagline: string;
@@ -36,6 +66,8 @@ export interface Profile {
 }
 
 export interface Project {
+  /** The small mark shown beside the title. */
+  readonly image: ContentImage | null;
   readonly slug: string;
   readonly title: string;
   readonly summary: string;
@@ -46,6 +78,7 @@ export interface Project {
 }
 
 export interface TimelineEntry {
+  readonly image: ContentImage | null;
   readonly id: string;
   readonly role: string;
   readonly organization: string;
@@ -55,6 +88,7 @@ export interface TimelineEntry {
 }
 
 export interface EducationEntry {
+  readonly image: ContentImage | null;
   readonly id: string;
   readonly qualification: string;
   readonly institution: string;
@@ -63,6 +97,7 @@ export interface EducationEntry {
 }
 
 export interface Certification {
+  readonly image: ContentImage | null;
   readonly id: string;
   readonly title: string;
   readonly issuer: string;
@@ -71,6 +106,7 @@ export interface Certification {
 }
 
 export interface SkillCategory {
+  readonly image: ContentImage | null;
   readonly id: string;
   readonly name: string;
   readonly description: string;
@@ -78,6 +114,7 @@ export interface SkillCategory {
 }
 
 export interface Tool {
+  readonly image: ContentImage | null;
   readonly id: string;
   readonly name: string;
   readonly purpose: string;
