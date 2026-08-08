@@ -6,7 +6,9 @@ import { Hero } from "@/components/hero";
 import { ProjectsSection } from "@/components/projects-section";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { RobotTerminal } from "@/components/three/robot-terminal";
 import { HeroSceneMount } from "@/components/three/hero-scene-mount";
+import { CustomCursor } from "@/components/ui/custom-cursor";
 import { SkillsSection } from "@/components/skills-section";
 import { getSiteContent } from "@/lib/content/site-content";
 
@@ -46,6 +48,20 @@ export default async function Home() {
         for it, because every word below is server-rendered HTML.
       */}
       <HeroSceneMount config={content.scene} />
+
+      {/*
+        The robot's voice. Fixed at the foot of the viewport rather than
+        chased after the figure: the figure moves continuously, and a panel
+        of text that followed it would be unreadable. Only rendered when the
+        scene is allowed, because it is the scene's narration.
+      */}
+      {content.scene.isEnabled ? (
+        <div className="pointer-events-none fixed bottom-5 left-5 z-20 hidden lg:block">
+          <RobotTerminal />
+        </div>
+      ) : null}
+
+      <CustomCursor />
 
       <SiteHeader siteName={content.siteName} navigation={content.navigation} />
 

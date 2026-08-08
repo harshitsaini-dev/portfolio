@@ -243,7 +243,11 @@ function toSkillCategory(
     id: row.id,
     name: row.name,
     description: row.description ?? "",
-    skills: skills.map((skill) => skill.name),
+    skills: skills.map((skill) => ({
+      id: skill.id,
+      name: skill.name,
+      image: toImage(assets, skill.iconMediaId),
+    })),
   };
 }
 

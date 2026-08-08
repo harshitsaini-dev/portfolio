@@ -118,12 +118,26 @@ export interface Certification {
   readonly credential: PlaceholderLink;
 }
 
+/** A single skill, which may carry its own logo. */
+export interface Skill {
+  readonly id: string;
+  readonly name: string;
+  readonly image: ContentImage | null;
+}
+
 export interface SkillCategory {
   readonly image: ContentImage | null;
   readonly id: string;
   readonly name: string;
   readonly description: string;
-  readonly skills: readonly string[];
+  /**
+   * Skills as objects rather than names.
+   *
+   * They were `string[]`, which quietly discarded the `icon_media_id` every
+   * skill row has — the CMS could set a logo and the site had nowhere to put
+   * it.
+   */
+  readonly skills: readonly Skill[];
 }
 
 export interface Tool {
