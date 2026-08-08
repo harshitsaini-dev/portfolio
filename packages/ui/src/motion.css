@@ -1,0 +1,82 @@
+/**
+ * Scroll-reveal motion, built on CSS scroll-driven animations.
+ *
+ * Import after `tokens.css`.
+ *
+ * ## Why not an animation library
+ *
+ * The obvious choice is Motion, and the project brief names it. It was not
+ * used here because the thing it would buy — reveals as elements enter the
+ * viewport — is now a CSS feature, and the cost is not small: the public site
+ * currently ships two small client components and nothing else, and every
+ * element that animated would have to become one. A library remains the right
+ * answer for orchestration, layout transitions and gesture work, and the 3D
+ * phases may well bring it in. It is not the right answer for "fade this in".
+ *
+ * ## Content is never hidden by something that might not run
+ *
+ * The single most common failure of scroll reveals is an element left at
+ * `opacity: 0` because the mechanism meant to reveal it never ran — a script
+ * that failed, an observer that never fired, a browser without support. That
+ * is a blank page, not a missing animation.
+ *
+ * The initial state here lives **inside** `@supports (animation-timeline:
+ * view())` and inside `prefers-reduced-motion: no-preference`. A browser that
+ * cannot run the animation never applies the hidden state either, so the
+ * content simply renders. The failure mode is "no animation", which is the
+ * only acceptable one, and it is structural rather than remembered.
+ *
+ * ## Restraint
+ *
+ * One reveal per element, short, and translation measured in pixels rather
+ * than screenfuls. Everything moves 8px and fades; nothing slides in from the
+ * edge, scales, rotates or bounces. At this content density, more reads as a
+ * template rather than as craft.
+ */
+
+@keyframes portfolio-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    /**
+     * Reveal an element as it enters the viewport.
+     *
+     * `both` keeps the final state after the range ends, so an element that
+     * has been scrolled past does not fade back out — the animation is a
+     * one-way entrance, not a scrubbed effect tied to scroll position.
+     *
+     * The range starts at `entry 15%` rather than 0 so an element does not
+     * begin animating while it is still a sliver at the edge, and finishes
+     * well before it is centred.
+     */
+    .reveal {
+      animation: portfolio-reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 15% cover 35%;
+    }
+
+    /**
+     * A short delay, for items in a row.
+     *
+     * Applied per item rather than by nth-child so a caller decides what
+     * staggers. With a view timeline the delay is expressed in range units,
+     * not seconds — `animation-delay` does nothing here.
+     */
+    .reveal-2 {
+      animation-range: entry 20% cover 40%;
+    }
+
+    .reveal-3 {
+      animation-range: entry 25% cover 45%;
+    }
+  }
+}

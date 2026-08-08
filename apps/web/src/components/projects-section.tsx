@@ -18,7 +18,7 @@ function ProjectCard({ project }: { project: Project }) {
         as="article"
         aria-labelledby={headingId}
         padded={false}
-        className="group flex h-full flex-col overflow-hidden transition-colors duration-150 hover:border-strong"
+        className="reveal group flex h-full flex-col overflow-hidden transition-[colors,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-strong hover:shadow-md"
       >
         {project.cover ? (
           // Decorative: the title, summary and technologies below say

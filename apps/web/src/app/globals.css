@@ -7,6 +7,9 @@
 /* One scrollbar treatment across both apps, built from the same
    tokens. See packages/ui/src/scrollbars.css. */
 @import "@portfolio/ui/scrollbars.css";
+/* Scroll reveals. Built on CSS scroll-driven animations, so content is
+   never hidden by a mechanism that might not run — see the file. */
+@import "@portfolio/ui/motion.css";
 
 /* Tailwind only scans this app by default, so utilities used exclusively by
    the shared components would be absent from the generated stylesheet — a
