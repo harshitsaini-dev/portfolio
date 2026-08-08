@@ -119,7 +119,7 @@ export function MediaUploadForm({ action }: { action: UploadAction }) {
               setFileName(file?.name ?? null);
               setIsImage(file ? file.type.startsWith("image/") : true);
             }}
-            className="block w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-fg file:mr-4 file:rounded file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-on-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="block w-full rounded-md border border-subtle bg-surface px-3 py-2 text-sm text-fg file:mr-4 file:rounded file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-accent-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
           <p id={`${fieldId}-hint`} className="text-xs text-fg-muted">
             PNG, JPEG or WebP up to 5 MB, or a PDF up to 10 MB. The file&rsquo;s
@@ -168,13 +168,13 @@ export function MediaUploadForm({ action }: { action: UploadAction }) {
         <button
           type="submit"
           disabled={isPending}
-          className="inline-flex items-center rounded-md bg-accent px-4 py-2 text-sm font-medium text-on-accent transition-colors hover:bg-accent-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60"
+          className="inline-flex min-h-11 items-center justify-center rounded-md bg-accent px-4 text-sm font-medium text-accent-fg transition-colors duration-150 hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-70"
         >
           {isPending ? "Uploading…" : "Upload file"}
         </button>
         <Link
           href="/media"
-          className="inline-flex items-center rounded-md border border-border px-4 py-2 text-sm font-medium text-fg transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="inline-flex min-h-11 items-center justify-center rounded-md border border-strong bg-surface px-4 text-sm font-medium text-fg transition-colors duration-150 hover:bg-surface-muted"
         >
           Cancel
         </Link>

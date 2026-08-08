@@ -39,14 +39,14 @@ export default withAdminPage(async () => {
         </div>
         <Link
           href="/media/new"
-          className="inline-flex items-center rounded-md bg-accent px-4 py-2 text-sm font-medium text-on-accent transition-colors hover:bg-accent-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="inline-flex min-h-11 items-center justify-center rounded-md bg-accent px-4 text-sm font-medium text-accent-fg transition-colors duration-150 hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-70"
         >
           Upload file
         </Link>
       </div>
 
       {assets.length === 0 ? (
-        <p className="mt-10 rounded-md border border-border bg-surface p-6 text-sm text-fg-muted">
+        <p className="mt-10 rounded-md border border-subtle bg-surface p-6 text-sm text-fg-muted">
           Nothing uploaded yet. Files added here can be attached to projects
           later.
         </p>
@@ -61,7 +61,7 @@ export default withAdminPage(async () => {
               Uploaded media files, newest first
             </caption>
             <thead>
-              <tr className="border-b border-border text-xs uppercase tracking-wider text-fg-muted">
+              <tr className="border-b border-subtle text-xs uppercase tracking-wider text-fg-muted">
                 <th scope="col" className="py-3 pr-4 font-medium">
                   Description
                 </th>
@@ -78,7 +78,7 @@ export default withAdminPage(async () => {
             </thead>
             <tbody>
               {assets.map((asset) => (
-                <tr key={asset.id} className="border-b border-border/60">
+                <tr key={asset.id} className="border-b border-subtle/60">
                   <td className="py-3 pr-4 align-top text-fg">
                     {asset.altText ?? (
                       <span className="text-fg-muted">

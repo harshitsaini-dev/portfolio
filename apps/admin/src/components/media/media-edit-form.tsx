@@ -88,7 +88,7 @@ export function MediaEditForm({
         >
           Stored file
         </h2>
-        <dl className="grid grid-cols-1 gap-3 rounded-md border border-border bg-surface p-4 text-sm sm:grid-cols-2">
+        <dl className="grid grid-cols-1 gap-3 rounded-md border border-subtle bg-surface p-4 text-sm sm:grid-cols-2">
           <div>
             <dt className="text-fg-muted">Type</dt>
             <dd className="mt-1 text-fg">{contentType}</dd>
@@ -135,13 +135,13 @@ export function MediaEditForm({
         <button
           type="submit"
           disabled={isPending}
-          className="inline-flex items-center rounded-md bg-accent px-4 py-2 text-sm font-medium text-on-accent transition-colors hover:bg-accent-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60"
+          className="inline-flex min-h-11 items-center justify-center rounded-md bg-accent px-4 text-sm font-medium text-accent-fg transition-colors duration-150 hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-70"
         >
           {isPending ? "Saving…" : "Save changes"}
         </button>
         <Link
           href="/media"
-          className="inline-flex items-center rounded-md border border-border px-4 py-2 text-sm font-medium text-fg transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="inline-flex min-h-11 items-center justify-center rounded-md border border-strong bg-surface px-4 text-sm font-medium text-fg transition-colors duration-150 hover:bg-surface-muted"
         >
           Cancel
         </Link>
