@@ -54,6 +54,15 @@ export type PlaceholderLink =
 export interface ContentImage {
   readonly id: string;
   readonly alt: string;
+  /**
+   * Intrinsic pixel dimensions, when the upload recorded them.
+   *
+   * Used to reserve the right box before the bytes arrive, so a page does not
+   * reflow as images load. Null for an asset stored before dimensions were
+   * captured — the image still renders, it just cannot reserve space.
+   */
+  readonly width: number | null;
+  readonly height: number | null;
 }
 
 export interface Profile {
