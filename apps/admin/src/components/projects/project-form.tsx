@@ -24,6 +24,7 @@ import { useActionState, useEffect, useId, useRef, useState } from "react";
 import {
   PROJECT_LINK_KINDS,
   PROJECT_STATUSES,
+  type MediaAsset,
   type ProjectLinkKind,
   type ProjectStatus,
   type Technology,
@@ -50,8 +51,10 @@ export interface ProjectFormValues {
   periodLabel: string;
   startedOn: string;
   completedOn: string;
+  coverMediaId?: string | null;
   links: { label: string; url: string; kind: ProjectLinkKind }[];
   technologyIds: string[];
+  media: { mediaAssetId: string; caption: string | null }[];
 }
 
 export const emptyProjectValues: ProjectFormValues = {
@@ -65,8 +68,10 @@ export const emptyProjectValues: ProjectFormValues = {
   periodLabel: "",
   startedOn: "",
   completedOn: "",
+  coverMediaId: null,
   links: [],
   technologyIds: [],
+  media: [],
 };
 
 type ProjectAction = (
@@ -79,12 +84,14 @@ export function ProjectForm({
   projectId,
   initialValues,
   technologies,
+  mediaAssets = [],
   submitLabel,
 }: {
   action: ProjectAction;
   projectId?: string;
   initialValues: ProjectFormValues;
   technologies: readonly Technology[];
+  mediaAssets?: readonly MediaAsset[];
   submitLabel: string;
 }) {
   const fieldId = useId();
@@ -103,7 +110,6 @@ export function ProjectForm({
   useEffect(() => {
     if (isErrorResult(state)) summaryRef.current?.focus();
   }, [state]);
-
 
   function update<K extends keyof ProjectFormValues>(
     key: K,
@@ -124,9 +130,10 @@ export function ProjectForm({
     periodLabel: values.periodLabel,
     startedOn: values.startedOn,
     completedOn: values.completedOn,
+    coverMediaId: values.coverMediaId || null,
     links: values.links,
     technologyIds: values.technologyIds,
-    media: [],
+    media: values.media,
   });
 
   return (
@@ -295,14 +302,37 @@ export function ProjectForm({
         onChange={(ids) => update("technologyIds", ids)}
       />
 
-      <section aria-labelledby={`${fieldId}-media`} className="flex flex-col gap-3">
+      <section aria-labelledby={`${fieldId}-media`} className="flex flex-col gap-4">
         <h2 id={`${fieldId}-media`} className="text-sm font-semibold uppercase tracking-wider text-fg">
-          Media
+          Media & Cover Image
         </h2>
-        <p className="text-sm text-fg-muted">
-          Media associations require uploaded assets, which arrive with R2
-          storage in a later phase. No media can be attached yet.
-        </p>
+        <SelectField
+          id={`${fieldId}-coverMediaId`}
+          name="coverMediaId"
+          label="Cover Image"
+          value={values.coverMediaId ?? ""}
+          onChange={(val) => update("coverMediaId", val || null)}
+          options={[
+            { label: "None (No cover image)", value: "" },
+            ...mediaAssets
+              .filter((a) => a.contentType.startsWith("image/"))
+              .map((a) => ({
+                label: `${a.altText ?? a.storageKey} (${a.contentType})`,
+                value: a.id,
+              })),
+          ]}
+          hint="Select an image asset stored in R2 to use as the project cover."
+        />
+
+        {mediaAssets.length === 0 ? (
+          <p className="text-xs text-fg-muted">
+            No media assets uploaded yet. Upload images in the{" "}
+            <Link href="/media/new" className="text-accent hover:underline" target="_blank">
+              Media Library
+            </Link>{" "}
+            to attach them here.
+          </p>
+        ) : null}
       </section>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-subtle pt-6">

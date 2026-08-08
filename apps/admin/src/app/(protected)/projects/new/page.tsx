@@ -16,7 +16,10 @@ export const metadata: Metadata = {
 
 export default withAdminPage(async () => {
   const repos = await getAdminRepositories();
-  const technologies = await repos.technologies.list();
+  const [technologies, mediaAssets] = await Promise.all([
+    repos.technologies.list(),
+    repos.media.list(),
+  ]);
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -41,6 +44,7 @@ export default withAdminPage(async () => {
         action={createProjectAction}
         initialValues={emptyProjectValues}
         technologies={technologies}
+        mediaAssets={mediaAssets}
         submitLabel="Create project"
       />
     </div>

@@ -32,10 +32,12 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
     // equivalent, so relations are composed here from its existing methods
     // rather than widening the public API for one caller. Three bounded
     // queries, not N+1.
-    const [links, technologies, allTechnologies] = await Promise.all([
+    const [links, technologies, allTechnologies, projectMedia, allMediaAssets] = await Promise.all([
       repos.projects.listLinks(project.id),
       repos.projects.listTechnologies(project.id),
       repos.technologies.list(),
+      repos.projects.listMedia(project.id),
+      repos.media.list(),
     ]);
 
     return (
@@ -61,6 +63,7 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
           action={updateProjectAction}
           projectId={project.id}
           technologies={allTechnologies}
+          mediaAssets={allMediaAssets}
           submitLabel="Save changes"
           initialValues={{
             title: project.title,
@@ -73,12 +76,17 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
             periodLabel: project.periodLabel ?? "",
             startedOn: project.startedOn ?? "",
             completedOn: project.completedOn ?? "",
+            coverMediaId: project.coverMediaId ?? null,
             links: links.map((link) => ({
               label: link.label,
               url: link.url,
               kind: link.kind,
             })),
             technologyIds: technologies.map((technology) => technology.id),
+            media: projectMedia.map((m) => ({
+              mediaAssetId: m.mediaAssetId,
+              caption: m.caption,
+            })),
           }}
         />
 

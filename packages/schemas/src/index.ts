@@ -14,6 +14,7 @@ export * from "./education.ts";
 export * from "./media.ts";
 export * from "./profile.ts";
 export * from "./projects.ts";
+export * from "./resumes.ts";
 export * from "./sections.ts";
 export * from "./skills.ts";
 export * from "./socials.ts";
