@@ -28,7 +28,7 @@
 
 import { z } from "zod";
 
-import { THEME_PREFERENCES } from "@portfolio/types";
+import { SCENE_QUALITY_PRESETS, THEME_PREFERENCES } from "@portfolio/types";
 
 import { mediaReferenceCreate } from "./internal/media-reference.ts";
 
@@ -94,3 +94,32 @@ export const siteSettingsSaveSchema = z
   .strict();
 
 export type SiteSettingsSaveInput = z.infer<typeof siteSettingsSaveSchema>;
+
+/**
+ * 3D scene settings.
+ *
+ * Every field is a **permission**, not an instruction. The browser makes the
+ * final call after checking reduced motion, screen size and whether a WebGL
+ * context can actually be created — so enabling the scene here means "allowed
+ * to run", never "must run".
+ *
+ * The defaults match the column defaults, and both are off. A portfolio with
+ * no 3D is the shipped state rather than a fallback.
+ */
+export const sceneSettingsSaveSchema = z
+  .object({
+    isEnabled: z.boolean().default(false),
+    qualityPreset: z.enum(SCENE_QUALITY_PRESETS).default("balanced"),
+    isMobileEnabled: z.boolean().default(false),
+    /**
+     * Device-pixel-ratio ceiling.
+     *
+     * Bounded to match the column's CHECK. Above 2 the cost is real and the
+     * difference is not: rendering at 4x means sixteen times the pixels of 1x
+     * for a soft shape nobody is inspecting.
+     */
+    maxPixelRatio: z.number().min(0.5).max(4).default(2),
+  })
+  .strict();
+
+export type SceneSettingsSaveInput = z.infer<typeof sceneSettingsSaveSchema>;

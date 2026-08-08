@@ -44,7 +44,7 @@ export function SiteHeader({ siteName, navigation }: SiteHeaderProps) {
               <li key={item.targetId}>
                 <a
                   href={`/#${item.targetId}`}
-                  className={`inline-flex min-h-11 items-center whitespace-nowrap rounded-md px-3 text-sm font-medium transition-colors duration-150 ${actionVariant.quiet}`}
+                  className={`link-underline inline-flex min-h-11 items-center whitespace-nowrap rounded-md px-3 text-sm font-medium transition-colors duration-150 ${actionVariant.quiet}`}
                 >
                   {item.label}
                 </a>

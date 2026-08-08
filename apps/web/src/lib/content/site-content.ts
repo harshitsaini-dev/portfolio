@@ -301,6 +301,7 @@ export async function getSiteContent(): Promise<SiteContent> {
     socialRows,
     currentResume,
     settings,
+    sceneSettings,
   ] = await Promise.all([
     repos.profile.get(),
     repos.projects.listWithRelations({ statuses: ["published"] }),
@@ -322,6 +323,7 @@ export async function getSiteContent(): Promise<SiteContent> {
     // the UI simply omits the download.
     repos.resumes.getCurrent(),
     repos.siteSettings.get(),
+    repos.sceneSettings.get(),
   ]);
 
   const assets = new Map(mediaRows.map((asset) => [asset.id, asset]));
@@ -338,6 +340,14 @@ export async function getSiteContent(): Promise<SiteContent> {
     // the word "Portfolio".
     siteName: settings?.siteName || profileRow?.fullName || "Portfolio",
     siteDescription: settings?.siteDescription ?? null,
+    // Absent settings mean the CMS has never been opened. The column's own
+    // default is off, and a portfolio with no 3D is the shipped default
+    // rather than a fallback, so the absent case matches it.
+    scene: {
+      isEnabled: sceneSettings?.isEnabled ?? false,
+      isMobileEnabled: sceneSettings?.isMobileEnabled ?? false,
+      maxPixelRatio: sceneSettings?.maxPixelRatio ?? 2,
+    },
     theme: {
       defaultTheme: settings?.defaultTheme ?? "system",
       accentColor: settings?.accentColor ?? null,

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { Container } from "@/components/ui/container";
+import { ScrambleText } from "@/components/ui/scramble-text";
 import { type } from "@/components/ui/typography";
 
 interface SectionProps {
@@ -58,8 +59,10 @@ export function Section({
           ) : null}
           {eyebrow}
         </p>
+        {/* The heading resolves out of random characters as it scrolls in.
+            The real string is always in the DOM — see `ScrambleText`. */}
         <h2 id={headingId} className={`reveal mt-3 ${type.heading}`}>
-          {title}
+          <ScrambleText text={title} />
         </h2>
         {lead ? (
           <p className={`mt-4 max-w-2xl ${type.body}`}>{lead}</p>

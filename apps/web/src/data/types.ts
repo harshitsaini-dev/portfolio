@@ -184,8 +184,22 @@ export interface SiteTheme {
   readonly favicon: { readonly href: string; readonly type: string } | null;
 }
 
+/**
+ * What the 3D scene is allowed to do, from `scene_settings`.
+ *
+ * Every field is a permission rather than an instruction: the browser makes
+ * the final call after checking reduced motion, screen size and whether a
+ * WebGL context can actually be created.
+ */
+export interface SceneConfig {
+  readonly isEnabled: boolean;
+  readonly isMobileEnabled: boolean;
+  readonly maxPixelRatio: number;
+}
+
 export interface SiteContent {
   readonly siteName: string;
+  readonly scene: SceneConfig;
   readonly siteDescription: string | null;
   readonly theme: SiteTheme;
   /** Whether the contact section is shown at all. */

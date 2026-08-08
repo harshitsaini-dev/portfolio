@@ -2,6 +2,7 @@ import { PlaceholderAction } from "@/components/placeholder-action";
 import { Container } from "@/components/ui/container";
 import { ContentImage } from "@/components/ui/content-image";
 import { SocialRow } from "@/components/ui/social-row";
+import { Typewriter } from "@/components/ui/typewriter";
 import { actionVariant } from "@/components/ui/action";
 import { type } from "@/components/ui/typography";
 import type {
@@ -35,7 +36,12 @@ interface HeroProps {
  * behind the heading, on a decorative element hidden from assistive
  * technology and dropped entirely at mobile widths.
  */
-export function Hero({ profile, contact, socials, resume }: HeroProps) {
+export function Hero({
+  profile,
+  contact,
+  socials,
+  resume,
+}: HeroProps) {
   return (
     <section
       id="hero"
@@ -48,6 +54,7 @@ export function Hero({ profile, contact, socials, resume }: HeroProps) {
         className="pointer-events-none absolute -top-32 right-0 hidden h-96 w-96 rounded-full bg-accent-soft blur-3xl sm:block"
       />
 
+
       <Container className="relative py-20 sm:py-24 lg:py-32">
         <div className="flex flex-col gap-12 lg:flex-row lg:items-center lg:gap-16">
           <div className="min-w-0 flex-1">
@@ -58,7 +65,7 @@ export function Hero({ profile, contact, socials, resume }: HeroProps) {
               or to anyone who cannot distinguish it from the border.
             */}
             {profile.availability ? (
-              <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-subtle bg-surface px-3 py-1.5 text-xs font-medium text-fg-muted">
+              <p className="rise rise-1 mb-6 inline-flex items-center gap-2 rounded-full border border-subtle bg-surface px-3 py-1.5 text-xs font-medium text-fg-muted">
                 <span
                   aria-hidden="true"
                   className="size-1.5 rounded-full bg-accent"
@@ -67,21 +74,27 @@ export function Hero({ profile, contact, socials, resume }: HeroProps) {
               </p>
             ) : null}
 
-            <p className={type.eyebrow}>{profile.role}</p>
+            {/* The role types itself; the name does not. Delaying the one
+                thing a visitor came to read behind an effect is the wrong
+                trade, and an h1 that arrives letter by letter is worse for
+                anyone scanning. */}
+            <p className={`rise rise-2 ${type.eyebrow}`}>
+              <Typewriter text={profile.role} />
+            </p>
 
-            <h1 id="hero-heading" className={`mt-4 ${type.display}`}>
+            <h1 id="hero-heading" className={`rise rise-3 mt-4 ${type.display}`}>
               {profile.name}
             </h1>
 
             {profile.tagline ? (
-              <p className={`mt-6 max-w-xl ${type.lead}`}>{profile.tagline}</p>
+              <p className={`rise rise-4 mt-6 max-w-xl ${type.lead}`}>{profile.tagline}</p>
             ) : null}
 
             {profile.location ? (
               <p className={`mt-6 ${type.meta}`}>{profile.location}</p>
             ) : null}
 
-            <div className="mt-10 flex flex-wrap items-start gap-3">
+            <div className="rise rise-5 mt-10 flex flex-wrap items-start gap-3">
               <PlaceholderAction
                 action={contact.primaryAction}
                 variant="primary"
@@ -111,7 +124,7 @@ export function Hero({ profile, contact, socials, resume }: HeroProps) {
           </div>
 
           {profile.image ? (
-            <div className="order-first shrink-0 lg:order-none">
+            <div className="rise rise-3 order-first shrink-0 lg:order-none">
               <ContentImage
                 image={profile.image}
                 size={224}

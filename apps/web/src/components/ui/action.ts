@@ -14,7 +14,7 @@ export type ActionVariant = "primary" | "secondary" | "quiet";
 
 /** min-h-11 = 44px, the practical minimum touch target. */
 export const actionBase =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition-colors duration-150";
+  "press inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition-colors duration-150";
 
 export const actionVariant: Record<ActionVariant, string> = {
   primary: "bg-accent text-accent-fg hover:bg-accent/90",
