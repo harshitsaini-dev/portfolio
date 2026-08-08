@@ -6,17 +6,195 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 9 — R2/media. BLOCKED on review of the partial-update fix.**
+**Phase 9 — R2/media. IN PROGRESS.** Not complete.
 
-The Phase 9 audit pass is done and its blocker is now **fixed and verified**
-on `fix/project-technology-partial-updates`. **Phase 9 storage engineering
-resumes only after that fix is reviewed, merged, and its post-merge `main` CI
-is green** — the fix is a prerequisite, not Phase 9 work.
+| Step | State |
+| --- | --- |
+| Audit and architecture | **merged** — `e3321d7 docs: document phase 9 media foundation` |
+| Prerequisite partial-update regression | **merged** — `89f67f8 fix: preserve project and technology partial updates`, PR #37, post-merge `main` CI `31246283285` |
+| **Storage seam and upload policy** | **implemented, awaiting review** (this branch) |
+| Media CMS, upload UI, résumé UI, attachment UI, public delivery | **not started** |
 
-## Projects and Technologies partial-update fix (COMPLETE, awaiting review)
+Baseline moved **2648 → 2882**; all 2648 previous checks still pass.
 
-The defect the Phase 9 audit found, now repaired. Baseline moved
-**2488 → 2648**; every one of the 2488 previous checks still passes.
+## Phase 9 — storage foundation (implemented, awaiting review)
+
+The reusable layer beneath the future media service. **Everything here sits
+below the UI and action layers**: no Server Action, no route, no component,
+and no navigation entry was added, and **Media is still an unavailable
+`Phase 9` nav placeholder**.
+
+### What still does not exist
+
+- **No R2 bucket.** None has been created and none is named in any committed
+  file. Creating one is a human action against a billable Cloudflare account
+  — see `docs/DEPLOYMENT.md`.
+- **No bucket binding in any committed config.** `wrangler.d1.jsonc` was not
+  touched and still contains only the D1 binding.
+- No media service, upload handler, media CMS, résumé UI, project attachment
+  UI, cover-image UI, or public delivery route.
+- No migration change: `0001` untouched, **no `0002`**, and **no
+  `original_filename` column** — that decision stays open, as recorded in the
+  audit.
+- No new workspace package and no new runtime dependency.
+
+### The storage contract — `packages/types/src/storage.ts`
+
+`ObjectStorage`, declared **structurally**, exactly as `D1Like` already is,
+so no package imports a Cloudflare SDK — not even a type-only one.
+
+```
+put(key, body, options?)  get(key)  head(key)  delete(key)  list(options?)
+```
+
+Five operations, not the R2 API. Multipart uploads, conditional reads and
+writes, range requests, custom metadata, and bulk delete are all deliberately
+absent: every exposed method is one a future caller could reach for. **`list`
+earns its place only because orphan reconciliation is a documented
+requirement**, not a hypothetical one.
+
+`put` resolves to `StoredObject | null` because R2's conditional-write
+overload can decline to write. This application issues no conditional writes,
+so the future service treats a promise that resolves at all as success and
+never reads the value — the metadata it persists comes from its own validated
+input, never from what storage echoes back.
+
+### The seam — `apps/admin/src/lib/storage/binding.ts`
+
+`setAdminStorageProvider()` / `clearAdminStorageProvider()` /
+`getAdminStorage()`, mirroring the D1 seam, with **one deliberate
+difference**: it fails closed in **every** environment, not just production.
+
+`db/binding.ts` falls back to a local `getPlatformProxy()` binding in
+development because a real local D1 database exists. **There is no bucket to
+fall back to here**, so inventing a local development bucket would mean
+adding `r2_buckets` to a committed config for a resource that does not exist
+— the same premature deployment guess Phase 4 refused to make for D1. Failing
+closed is the correct state until the bucket is provisioned.
+
+There is deliberately **no environment-variable credential path**. An R2
+access key and secret are only needed by the S3 API, which this architecture
+does not use; a Worker binding carries no credentials at all. Asserted in
+tests: the seam's source contains no `R2_ACCESS_KEY_ID`,
+`R2_SECRET_ACCESS_KEY`, `R2_ACCOUNT_ID`, or `AWS_*` reference, and no
+hardcoded bucket name.
+
+### The upload policy — `packages/schemas/src/media.ts`
+
+Pure: no storage, no database, no clock, no randomness. The one value that
+must be unique is **injected**, which is why the policy is testable without a
+bucket and why it can live beside `internal/url.ts` and `internal/slug.ts`
+rather than inside the admin app.
+
+| Aspect | Decision |
+| --- | --- |
+| Accepted types | `image/png`, `image/jpeg`, `image/webp`, `application/pdf` — **four, and no more** |
+| SVG | **Excluded.** Active content, no committed table attaches a logo to a tool/technology/skill, and no approved sanitizer exists |
+| Detection | Byte signatures only, bounded to the first **16 bytes** |
+| Declared vs sniffed | Must agree; a mismatch is **rejected**, never silently corrected |
+| Canonical extensions | `png`, **`jpg`** (never `jpeg`), `webp`, `pdf` |
+| Image ceiling | **5 MiB** (`5 * 1024 * 1024`) |
+| PDF ceiling | **10 MiB** (`10 * 1024 * 1024`) |
+| Key grammar | `{namespace}/{id}.{ext}`, namespace ∈ `media` \| `resumes` |
+
+Both ceilings are **application-level editorial bounds chosen by us**. No
+Cloudflare platform limit is asserted or implied.
+
+**The ceiling follows the sniffed type, not the declared one**, so a PDF
+renamed to `.png` cannot borrow the image allowance and an oversized image
+cannot claim the PDF one.
+
+### The key contract
+
+`{namespace}/{uuidv7}.{extension}` — for example
+`media/019f8c2a-....png`. **No byte of user input reaches it.** The namespace
+is one of two literals, the id comes from the existing `uuidV7` generator
+that already produces row ids, and the extension is derived from the
+**sniffed** content type.
+
+That is the whole point: path traversal is **structurally impossible rather
+than filtered**, and there is no filename to sanitise. A sanitiser is a
+blocklist that must anticipate traversal sequences, control characters, null
+bytes, reserved device names, Unicode normalisation collisions, and
+case-insensitive clashes — and it stays wrong until the last one is found.
+
+The two namespaces carry the public/restricted classification, because
+`media_assets` has no privacy column and one is not being invented:
+
+- `media` — portfolio images, publicly addressable **by key**.
+- `resumes` — **never addressable by key**; the public site will resolve the
+  current, visible résumé through `is_current`/`is_visible`, so un-publishing
+  one actually stops serving it.
+
+**The filename is used for nothing.** It is not persisted (no column exists),
+not part of the key, and not consulted for validation — the sniffed bytes
+decide the type.
+
+### The test fake — `apps/admin/src/lib/storage/memory-storage.ts`
+
+In-memory, with one-shot fault injection on every operation. **This is why
+the contract is a structural interface at all**: the compensation paths the
+media service will need — put succeeded then the D1 insert failed; the D1
+delete succeeded then the object delete failed — are unreachable without
+injectable failure.
+
+Written in TypeScript rather than left as a `.mjs` helper so `tsc` proves it
+satisfies `ObjectStorage`. A fake that has drifted from the contract is worse
+than no fake: every test built on it keeps passing while describing something
+that cannot happen. The suite also asserts **no application source file
+imports it**, so it cannot quietly become a second storage backend.
+
+### Storage foundation verification
+
+| Command | Result |
+| --- | --- |
+| `pnpm install --frozen-lockfile` | **PASS** (exit 0) — lockfile unmodified |
+| `pnpm lint` | **PASS** (exit 0) |
+| `pnpm typecheck` | **PASS** (exit 0) |
+| `pnpm test` | **PASS** (exit 0) — **2882 real checks** |
+| `pnpm build` | **PASS** (exit 0) — admin routes unchanged, all still `ƒ (Dynamic)` |
+
+New suite: **storage foundation, 234 checks**. Subtotals: database **297**
+(unchanged — `packages/database` was not touched) and admin **2585**.
+
+**The fake is kept honest by real storage.** The same suite runs the contract
+against a **real local simulated R2** created by `getPlatformProxy()` from a
+throwaway config in a temp directory, and every semantic the fake claims is
+observed there first: missing `get`/`head` return `null`, deleting a missing
+key resolves rather than throwing, `put` overwrites silently, and a generated
+key is accepted verbatim. It also compiles Cloudflare's own **`R2Bucket`
+against `ObjectStorage`** using Wrangler-generated types, so "a real bucket
+satisfies this" is proven rather than hoped for.
+
+**No committed configuration file was read or written for any of that, no
+bucket was created, nothing went over the network, and CI needs no Cloudflare
+credentials.** The temp directory is deleted afterwards.
+
+### Stale phase-gating instructions, corrected
+
+The audit reported that `CLAUDE.md` and
+`.claude/skills/cloudflare-d1-r2/SKILL.md` still described Phase 1A and told
+future sessions **"Do not write D1/R2/Cloudflare-specific code in this
+phase"** — which directly contradicts Phase 9 and had already been false
+since Phase 4. Both were corrected with targeted edits, not rewritten:
+
+- `CLAUDE.md` — the phase summary now says Phase 9 and points at
+  `PROJECT_STATE.md` as the source of truth; the D1/R2 prohibition is
+  replaced by the rules that actually apply now (repository layer, both
+  fail-closed seams, local-only Cloudflare work). **Every security and
+  architecture rule was preserved**, and two were made stronger by naming the
+  storage seam explicitly.
+- The skill — status corrected to "D1 implemented, R2 foundation only, no
+  bucket", with the current contract, seam, policy, and the list of what is
+  still unbuilt.
+
+## Projects and Technologies partial-update fix (COMPLETE, merged)
+
+The defect the Phase 9 audit found, now repaired **and merged** as
+`89f67f8 fix: preserve project and technology partial updates`, verified by
+**Pull Request #37 on GitHub Actions/Linux** and again by the **post-merge
+`main` CI run `31246283285`**. It moved the baseline **2488 → 2648**; every
+one of the 2488 previous checks still passed.
 
 ### Root cause
 
@@ -141,11 +319,11 @@ D1. Inventing a fake partial-submit browser flow would have proved nothing
 that the real action call does not already prove. No component, form, route,
 or style was touched.
 
-## Phase 9 — R2/media (audit and architecture)
+## Phase 9 — R2/media (audit and architecture — merged)
 
-**Status: the audit is complete and its blocker is fixed above.** Storage
-implementation has not started and does not start until that fix is merged
-and CI-green.
+**Status: merged** as `e3321d7 docs: document phase 9 media foundation`. Its
+blocker was fixed and merged (above), and the storage foundation it designed
+is now implemented (above). What follows is the audit record.
 
 **Phase 8 — Remaining CMS is COMPLETE**, merged and CI-verified on `main`
 (`91334d1 docs: mark sections CMS and phase 8 complete`, Pull Request #35,
@@ -232,12 +410,12 @@ Phase 22** (fail-closed until then).
 
 ## Active task
 
-**Projects and Technologies partial-update fix.** Complete and verified
-locally on `fix/project-technology-partial-updates`; awaiting review, merge,
-and post-merge `main` CI. **Phase 9 storage implementation stays blocked
-until then.**
+**Phase 9 storage foundation.** Implemented and verified locally on
+`feat/r2-storage-foundation`; awaiting review, merge, and post-merge `main`
+CI. **Phase 9 is not complete** — the media service and every CMS surface
+above this layer remain unbuilt.
 
-## Phase 9 — R2/media (IN PROGRESS — audit and architecture)
+## Phase 9 — R2/media (audit record)
 
 ### Blocker: partial project and technology updates
 

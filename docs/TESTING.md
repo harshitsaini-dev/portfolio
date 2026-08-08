@@ -1,17 +1,16 @@
 # Testing
 
-## Current state (Phase 8 COMPLETE; partial-update fix awaiting review)
+## Current state (Phase 9 in progress — storage foundation added)
 
-`pnpm test` runs **nineteen real suites and one no-op** — **2648 checks**,
-all passing locally on Windows. The 2488 verified at the Phase 8 closure
-(PR #35, post-merge `main` run `31243357467`) are **all still among them and
+`pnpm test` runs **twenty real suites and one no-op** — **2882 checks**, all
+passing locally on Windows. The 2648 verified after the partial-update fix
+(PR #37, post-merge `main` run `31246283285`) are **all still among them and
 none were weakened**.
 
-The Phase 9 audit pass changed no code and added no tests. The
-**Projects/Technologies partial-update fix** then added **160**: Projects
-96 → **185**, Technologies 90 → **112**, and Server Action authorization
-562 → **611**. The database subtotal is unchanged at **297**, because the
-defect was at the validation boundary and no repository contract changed.
+The Phase 9 **storage foundation** added one new suite of **234**. Before it,
+the partial-update fix had added 160 (Projects 96 → 185, Technologies
+90 → 112, Server Action authorization 562 → 611). The database subtotal is
+unchanged at **297** — `packages/database` has not been touched since Skills.
 What each suite actually proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
@@ -29,11 +28,12 @@ What each suite actually proves matters, so be precise:
 | **Tools CMS** | **146** | the real schemas, and **real local D1** | The validation boundary, the shared URL policy, the `UNIQUE` name constraint on both create and rename, partial-patch safety, and the ordered CRUD lifecycle |
 | **Socials CMS** | **161** | the real schemas, and **real local D1** | The validation boundary, the **required** URL policy, that `platform` is free text rather than an enum, partial-patch safety, and the ordered CRUD lifecycle |
 | **Sections CMS** | **173** | the real schemas, and **real local D1** | The validation boundary, the canonical machine-key grammar, that **`key` cannot be renamed after creation**, partial-patch safety, and the ordered CRUD lifecycle |
+| **Storage foundation** | **234** | the pure upload policy, the real seam module, the in-memory fake, a **real local simulated R2**, and `tsc` over Wrangler-generated `R2Bucket` | The four-type allowlist with SVG excluded, byte-signature detection, declared/sniffed mismatch refusal, both size ceilings, path-safe generated keys, fault-injectable storage, and a seam that fails closed in every environment |
 | **Server Action authorization** | **611** | the **real exported action functions** for all eleven entities, against real local D1 | Unauthenticated mutations are denied and change nothing; partial updates preserve what they omit — **including a project's links, technology tags, and `project_media`**; unsafe URLs never reach a row; an in-use category cannot be deleted; a section key cannot be renamed; nothing leaks SQL |
 
-Subtotals: **admin 2351** (42 + 125 + 34 + 185 + 112 + 77 + 173 + 112 + 167 +
-233 + 146 + 161 + 173 + 611) and **database 297** (26 + 59 + 167 + 41 + 4,
-detailed below) — **2648 total**.
+Subtotals: **admin 2585** (42 + 125 + 34 + 185 + 112 + 77 + 173 + 112 + 167 +
+233 + 146 + 161 + 173 + 234 + 611) and **database 297** (26 + 59 + 167 + 41 +
+4, detailed below) — **2882 total**.
 
 The database subtotal moved 287 → **297** for the first time since the
 Technologies slice: Skills needed `getSkillById()` on the repository
@@ -318,42 +318,88 @@ new checks fail **23** (Projects), **4** (Technologies), and **8** (Server
 Action authorization) times against the old code, and pass against the new.
 A regression test that has never been observed failing is a guess.
 
-## Planned: Phase 9 media testing architecture
+## Phase 9 media testing architecture
 
-**Nothing below is implemented.** Recorded now because the testing strategy
+**The foundation layer is implemented** — `storage-foundation-tests.mjs`,
+**234 checks**. The service-level and browser layers below are still plans.
+This section was written before the code, because the testing strategy
 determined part of the architecture rather than following from it.
+
+### Three things keep the fake honest
+
+A fake that is more permissive than real storage is worse than no fake: every
+test built on it passes while describing something that cannot happen. Three
+mechanisms prevent that, all in the same suite and all offline:
+
+1. **`tsc` compiles Cloudflare's generated `R2Bucket` against
+   `ObjectStorage`.** If the contract ever declares something R2 does not
+   offer, or drops something it needs, this fails — the same technique
+   `d1-type-compatibility.mjs` already uses for `D1Like`.
+2. **A real local simulated R2** is created by `getPlatformProxy()` from a
+   throwaway config in a temp directory, and every semantic the fake claims
+   is observed there first: missing `get`/`head` return `null`, deleting a
+   missing key resolves rather than throwing, `put` overwrites silently, a
+   prefix listing excludes the other namespace, and a generated key is
+   accepted verbatim.
+3. **The fake is TypeScript**, so `pnpm typecheck` proves it implements the
+   contract, and the suite asserts **no application source file imports it**.
+
+None of that needs Cloudflare credentials, a real bucket, or the network, and
+no committed configuration file is read or written.
 
 ### The compensation branches are the whole point
 
 A media upload's interesting behaviour is not the happy path — it is what
 happens when one of two independent systems fails. Those branches are
-**unreachable without injectable failure**, so the storage adapter is
+**unreachable without injectable failure**, so the storage contract is
 declared as a structural interface specifically to allow an in-memory fake
-with fault injection (`failNextPut`, `failNextDelete`, `failNextGet`). That
-is the reason the seam exists, not a convenience added afterwards.
+with fault injection — `failNext(operation)`, one-shot on every one of the
+five operations, so a test can prove the *next* attempt succeeds without
+disarming anything. That is the reason the seam exists, not a convenience
+added afterwards.
 
 Two levels, both offline, mirroring how D1 is already tested:
 
 | Level | Backing | Proves |
 | --- | --- | --- |
-| **In-memory fake adapter** | a `Map`, with fault injection | policy, key generation, error mapping, and **every compensation path** |
+| **In-memory fake** | a `Map`, with fault injection | policy, key generation, error mapping, and **every compensation path** |
 | **Real local R2** | `getPlatformProxy()`, miniflare-backed, `remoteBindings: false` | that the real binding surface behaves as the fake claims |
 
 **No remote R2 in CI, ever** — no bucket, no credentials, no `--remote`, the
 same rule D1 already follows.
 
-### Unit tests
+### Unit tests — implemented
 
-Storage-key generation (server-generated, unique across many draws,
-path-safe, prefix correct, extension derived from the sniffed type and never
-from the filename); filename handling (traversal sequences, null bytes,
-control characters, over-long names, and Unicode all reaching the key as
-nothing at all); the MIME allowlist with **negative controls** — SVG, HTML,
-JavaScript, and a PDF renamed `.png` all rejected; byte-size bounds including
-exactly-at-limit and one-over; and error mapping, asserting that no adapter
-message, bucket name, or key format reaches the caller.
+Storage-key generation: 500 keys drawn and asserted all distinct, all
+matching the anchored grammar, and none containing `..`, a backslash, a
+leading slash, a double slash, whitespace, a null byte, an uppercase
+character, or any character `encodeURI` would escape. Both namespaces are
+covered, the extension is proven to come from the sniffed type, and `.jpeg`
+is proven never to appear. Unsafe ids are refused loudly rather than encoded,
+and the validator rejects eleven keys the generator could never produce.
 
-### Integration tests
+**Filename handling is asserted as an absence.** Ten hostile names —
+traversal sequences, a reserved device name, Unicode, a 400-character name,
+a script tag, an SQL fragment — are used to show the key contains none of
+them, and the suite asserts `buildStorageKey` **takes no filename parameter
+at all**. That is the guarantee: not a sanitiser that survived its test
+cases, but no path for user input to travel.
+
+The MIME allowlist carries **negative controls throughout**: thirteen types
+rejected by name (SVG first), and SVG, XML-prologue SVG, GIF, ZIP, a Windows
+executable, HTML, and a script all refused by content. Near-misses matter as
+much as matches — a truncated PNG signature, a one-byte-wrong PNG, `FF D8`
+without the third byte, RIFF-without-WEBP, `%PDF` without the hyphen, and a
+PDF signature at offset 1 are each rejected, and a signature placed beyond
+the 16-byte sniff window is proven **not** to be found.
+
+Size bounds cover exactly-at-limit, one-under, and one-over for both
+ceilings, plus one genuine 5 MiB allocation so the default path is exercised
+at the boundary rather than only the declared-size shortcut, and a proof that
+the ceiling follows the **sniffed** type so a renamed file cannot borrow the
+other allowance.
+
+### Integration tests — planned
 
 Against the fake adapter plus real local D1: a successful upload writes the
 object **and** the row and they agree; an R2 failure before D1 leaves **no
@@ -367,6 +413,10 @@ before it reaches the database; a missing object surfaces as a clean
 not-found rather than a crash; a duplicate storage key is refused **without**
 deleting the pre-existing object; and replacement leaves the old asset intact
 until the new one is fully persisted.
+
+None of that is built yet — it needs the media service, which is the next
+slice. What *is* built is everything it will run on: the fake, its faults,
+and the seam.
 
 Two authorization assertions carry over unchanged from the existing suites:
 `requireAdminIdentity()` runs **before a single byte is read or written**,

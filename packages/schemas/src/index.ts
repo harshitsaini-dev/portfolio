@@ -7,6 +7,11 @@
 // Both apps consume these so input validation is never duplicated per app.
 export * from "./certifications.ts";
 export * from "./education.ts";
+// Phase 9: the untrusted-BINARY boundary — upload policy, byte-signature
+// detection, and the storage-key grammar. Pure, and deliberately here rather
+// than in the admin app so the future media service, its tests, and any
+// public delivery route all agree on one policy.
+export * from "./media.ts";
 export * from "./profile.ts";
 export * from "./projects.ts";
 export * from "./sections.ts";
