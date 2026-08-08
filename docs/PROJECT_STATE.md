@@ -6,7 +6,12 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 8 — Remaining CMS. In progress.**
+**Phase 8 — Remaining CMS. COMPLETE**, on the merge of this closure.
+
+All nine CMS areas are implemented, merged, and CI-verified on `main`. This
+documentation branch is the formal closure; **Phase 9 engineering begins only
+after it is reviewed, merged, and its own post-merge `main` CI passes** — not
+on the strength of this branch alone.
 
 - **Technologies CMS: COMPLETE.** Merged into `main` as
   `97d6425 feat: add technologies CMS`, verified by **Pull Request #14 on
@@ -56,15 +61,16 @@ something passed without running it.
   GitHub Actions/Linux** and again by the **post-merge `main` CI run
   `31192174164`**. `main` is clean and synced after the merge. See
   *Phase 8 — Socials CMS* below.
-- **Sections CMS: implemented, awaiting review.** On
-  `feat/remaining-cms-sections`; not committed, not pushed, and **not
-  complete** — complete only after review, PR CI, merge, the post-merge
-  `main` run, and completion documentation. It is the **last Phase 8
-  entity**, but **Phase 8 does not close until it is formally closed**. See
-  *Phase 8 — Sections CMS* below.
+- **Sections CMS: COMPLETE.** Merged into `main` as
+  `5402186 feat: add sections CMS`, verified by **Pull Request #34 on
+  GitHub Actions/Linux** and again by the **post-merge `main` CI run
+  `31204188654`**. `main` is clean and synced after the merge. The **last of
+  the nine Phase 8 areas**. See *Phase 8 — Sections CMS* below.
 - **Phase 7:** Complete (merged to `main`, CI green).
-- **Phase 8 is NOT complete.** It is complete only when every entity it
-  covers is delivered and verified.
+- **Phase 9 — R2/media: NOT STARTED.** It becomes the next engineering task
+  only once this closure is reviewed, merged, and its post-merge `main` CI
+  is green. No R2 bucket, binding, or deployment resource has been created
+  or configured.
 
 Unchanged and still outstanding: the **remote `portfolio-cms` schema
 remains unapplied**, **Cloudflare Access dashboard configuration remains
@@ -73,9 +79,10 @@ Phase 22** (fail-closed until then).
 
 ## Active task
 
-**Sections CMS.** Implemented; awaiting review.
+**None.** The Sections CMS is merged and closed, and this documentation pass
+completes Phase 8. Phase 9 — R2/media is next and is not started.
 
-## Phase 8 — Sections CMS (implemented, awaiting review)
+## Phase 8 — Sections CMS (COMPLETE)
 
 The last Phase 8 entity, and the only one whose primary key-like column is
 **immutable after creation**.
@@ -1277,13 +1284,14 @@ fail-closed behaviour.
 
 ## Next suggested task
 
-Review the Sections CMS, then close it formally (commit → PR CI → merge →
-post-merge `main` run → completion documentation). **Phase 8 becomes
-complete only after that closure**, not on the strength of this branch.
+**Phase 9 — R2/media.** Not started. It begins only after this closure is
+reviewed, merged, and its post-merge `main` CI is green. Rationale is at the
+end of this file.
 
 ## Phase 8 — Sections CMS: verification actually performed
 
-Locally on Windows. **Not yet CI-verified** — no PR has been opened.
+Locally on Windows, and again on **GitHub Actions/Linux** for both PR #34
+and the post-merge `main` run:
 
 | Command | Result |
 | --- | --- |
@@ -1295,6 +1303,23 @@ Locally on Windows. **Not yet CI-verified** — no PR has been opened.
 
 Exit codes were read from the **commands themselves**, not from a wrapper's
 task status — the Socials slice showed those can disagree.
+
+### Continuous integration
+
+- **Pull Request #34 passed CI on GitHub Actions/Linux.**
+- The **post-merge `main` CI run `31204188654` passed.**
+- Linux therefore verified install, lint, typecheck, tests, and build for
+  the merged Sections CMS state.
+
+**One operational note, for the record:** the first push attempt failed with
+`Could not resolve host: github.com`, and the earliest `gh pr create`
+attempts failed because the branch did not yet exist on the remote. That was
+a **transient network/DNS problem on the workstation, not a repository or
+Git-history problem** — no history was rewritten and no recovery surgery was
+needed. Once connectivity returned,
+`git push -u origin feat/remaining-cms-sections` succeeded, PR #34 was
+created normally, its CI passed, it merged, and the post-merge `main` run
+passed.
 
 | Suite | Checks | Change |
 | --- | --- | --- |
@@ -2218,7 +2243,7 @@ Local test data and the temporary dev-auth file were removed afterwards.
 | Phase 5 — Repository/data layer | **Complete** (merged to `main`, CI green) |
 | Phase 6 — Admin foundation | **Complete** (merged to `main`, CI green) |
 | Phase 7 — Projects CMS vertical slice | **Complete** (merged to `main`, CI green) |
-| Phase 8 — Remaining CMS | **In progress** — Technologies, Profile, Timeline, Education, Certifications, Skills, Tools, and Socials CMS **complete**, plus the admin list overflow and timeline partial-update regression fixes (all merged, CI green); Sections CMS — the last entity — implemented and awaiting review |
+| Phase 8 — Remaining CMS | **Complete** on the merge of this closure — all nine CMS areas (Technologies, Profile, Timeline, Education, Certifications, Skills, Tools, Socials, Sections) merged and CI green, plus the admin list overflow and timeline partial-update regression fixes |
 
 Phases 9–22 are not started. See `docs/ROADMAP.md` for the authoritative
 full sequence.
@@ -2358,10 +2383,9 @@ than changed here.
 
 ## Phase 8 — known limitations (not blockers)
 
-- **Phase 8 is not complete.** All nine areas now have an implementation,
-  but **Sections is not yet reviewed or merged**. Phase 8 closes only once
-  Sections is reviewed, merged, CI-verified, and formally documented — an
-  implemented branch is not a closed phase.
+- **All nine Phase 8 areas are delivered, merged, and CI-verified.** The
+  phase closes on the merge of this documentation pass; Phase 9 engineering
+  starts only after that merge and its post-merge `main` CI.
 - **A skill cannot be moved between categories, and a section key cannot be
   renamed.** Both are deliberate contracts enforced at the schema, type, and
   repository layers, and both reject the attempted mutation rather than
@@ -4144,18 +4168,31 @@ with no persisted enum, so the CMS renders a plain text input rather than
 inventing a vocabulary. `createSocialLinkRepository` was used unchanged and
 no migration was needed.
 
-**Done, awaiting review: Sections CMS.** The prediction held exactly: `key`
-is the stable machine identifier, the Phase 5 repository already excluded it
-from the patch allowlist, and the CMS added the matching schema-level
-refusal so a rename is **rejected** rather than silently ignored.
-`createSectionRepository` and `getByKey()` were used unchanged, and no
-migration was needed.
+**Done and merged: `5402186 feat: add sections CMS`.** The prediction held
+exactly: `key` is the stable machine identifier, the Phase 5 repository
+already excluded it from the patch allowlist, and the CMS added the matching
+schema-level refusal so a rename is **rejected** rather than silently
+ignored. `createSectionRepository` and `getByKey()` were used unchanged, and
+no migration was needed.
 
-**Immediate next task: close Sections formally.** Review it, commit, open the
-PR, let CI pass, merge, confirm the post-merge `main` run, then do the
-documentation-only completion pass. **Phase 8 becomes COMPLETE at that
-point, and not before** — every one of its nine areas will then be delivered
-and verified.
+**With that, all nine Phase 8 CMS areas are delivered, merged and
+CI-verified**, and this documentation pass is the phase's formal closure.
 
-**After that, Phase 9 — R2/media.** Not started, and out of scope until
-Phase 8 is formally closed.
+**Next: Phase 9 — R2/media.** **Not started.** It covers Cloudflare R2
+integration for project media and résumé uploads, including upload
+validation. Three things are worth settling before any code:
+
+- **Nothing has been provisioned.** No R2 bucket exists, no binding is
+  declared, and no deployment resource has been configured or changed. The
+  `media_assets` and `resumes` tables are committed in migration `0001` and
+  have repositories, but no CMS surface and no storage behind them.
+- **It is the first phase that writes to a service other than D1**, so the
+  binding seam deserves the same fail-closed treatment `binding.ts` already
+  gives D1 — production resolution deferred rather than invented.
+- **Upload validation is untrusted input at a new boundary** — content type,
+  size, and filename all arrive from the client, and `media_assets.storage_key`
+  is `UNIQUE`, so the database stays the authority there as it does elsewhere.
+
+**Phase 9 engineering starts only after this closure is reviewed, merged,
+and its post-merge `main` CI is green** — not on the strength of this
+branch. It is not to be implemented until explicitly scoped and approved.

@@ -1,12 +1,39 @@
 
 # Changelog
 
-## 2026-08-07 — Phase 8: Sections CMS (branch `feat/remaining-cms-sections`)
+## 2026-08-08 — Phase 8 COMPLETE
 
-**Status: implemented, awaiting review. Not committed. Phase 8 remains IN
-PROGRESS** — Sections is the **last** of the nine Phase 8 areas, but Phase 8
-closes only after this is reviewed, merged, CI-verified, and formally
-documented. An implemented branch is not a closed phase.
+Documentation-only entry. No application, test, schema, repository, package,
+migration, config, CI, or Cloudflare resource changes.
+
+- **Phase 8 — Remaining CMS is complete**, on the merge of this closure. All
+  **nine** CMS areas are delivered, merged, and CI-verified on `main`:
+  Technologies, Profile, Timeline, Education, Certifications, Skills, Tools,
+  Socials, and Sections — alongside the admin populated-list overflow fix
+  and the timeline partial-update regression fix.
+- **Final baseline: 2488 real checks** — database **297**, admin **2191**.
+  The 2245 verified after Socials all still pass.
+- **`packages/database` ended Phase 8 with a single contract change** across
+  all nine areas: `getSkillById()` for the Skills slice. Every other entity
+  used the Phase 5 repositories exactly as they were, which was the point of
+  building them first.
+- **Migration `0001` was never edited and no `0002` was ever created.** Every
+  CMS surface was built from columns committed before Phase 8 began.
+- **Phase 9 — R2/media remains NOT STARTED.** It begins only after this
+  closure is reviewed, merged, and its post-merge `main` CI is green. No R2
+  bucket, binding, or deployment resource has been created or configured.
+- Remote `portfolio-cms` schema remains **intentionally unapplied**, remote
+  D1 was never mutated, no `--remote` runtime path exists, **Cloudflare
+  Access dashboard configuration remains pending**, and the production
+  OpenNext D1 provider remains deferred to Phase 22.
+
+## 2026-08-07 — Phase 8: Sections CMS
+
+**Status: merged.** Merged into `main` as `5402186 feat: add sections CMS`
+via **Pull Request #34**, which passed CI on GitHub Actions/Linux; the
+**post-merge `main` CI run `31204188654` passed** as well, covering install,
+lint, typecheck, tests, and build. Sections is the **last** of the nine
+Phase 8 areas.
 
 ### Added
 
@@ -51,7 +78,13 @@ is the Admin/data slice only.
 `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`,
 `pnpm test` (**2488 checks**, up from 2245 with all 2245 preserved), and
 `pnpm build` all **PASS**, with exit codes read from the commands themselves
-rather than a wrapper's task status. **Not yet CI-verified.**
+rather than a wrapper's task status — locally and on Linux for both PR #34
+and the post-merge `main` run. The first push failed with
+`Could not resolve host: github.com` and the earliest `gh pr create`
+attempts failed because the branch was not yet on the remote; that was a
+**transient network/DNS issue on the workstation, not a repository or Git
+problem**, and the push, PR, CI, and merge all proceeded normally once
+connectivity returned.
 Browser-checked by **manual Playwright MCP verification** — not automated
 E2E, which is Phase 20 — against real local D1: required key and title
 validation with error-summary focus, key-grammar rejection, a duplicate-key

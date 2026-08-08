@@ -235,8 +235,8 @@ values accepted and empty/over-long still rejected. It is also the first
 entity with **no nullable columns at all**. Test coverage grew to **2245 real
 checks**. Merged to `main` as `1d26dbd` with CI green on Linux.
 
-**Sections CMS: implemented, awaiting review — the last of the nine Phase 8
-areas.** Three `withAdminPage` routes over only the committed columns, with
+**Sections CMS: complete — the last of the nine Phase 8 areas.** Three
+`withAdminPage` routes over only the committed columns, with
 `createSectionRepository` (including its `getByKey()`) and the migration
 both unchanged, so `packages/database` was untouched and the database
 subtotal held at 297. The prediction held exactly: `key` is the stable
@@ -245,19 +245,29 @@ so the CMS added the matching schema refusal — an update carrying `key` is
 **rejected**, not silently ignored, and the edit UI shows the key as
 read-only context rather than a disabled input. Its grammar reuses the
 canonical `slugSchema`, with **no enum**, since the schema defines no closed
-set of keys. Test coverage grew to **2488 real checks**. **Not merged and
-not CI-verified yet.**
+set of keys. Test coverage grew to **2488 real checks**. Merged to `main` as
+`5402186` with CI green on Linux.
 
-**Phase 8 is therefore still IN PROGRESS.** It closes only once Sections is
-reviewed, merged, CI-verified, and formally documented — every other area is
-complete, but an implemented branch is not a closed phase. The remote
-database schema remains **intentionally unapplied**, and **Cloudflare Access
-dashboard configuration is still pending**.
+**Phase 8 is therefore COMPLETE** on the merge of its closure
+documentation. All nine CMS areas — Technologies, Profile, Timeline,
+Education, Certifications, Skills, Tools, Socials, Sections — are delivered,
+merged, and CI-verified, alongside the admin list-overflow and timeline
+partial-update regression fixes. The remote database schema remains
+**intentionally unapplied**, and **Cloudflare Access dashboard configuration
+is still pending**; both are deployment prerequisites carried into later
+phases, not Phase 8 gaps.
 
 ## Phase 9 — R2/media
 
 Cloudflare R2 integration for project media and resume uploads, including
 upload validation.
+
+**Not started.** Engineering begins only after the Phase 8 closure
+documentation is merged and its post-merge `main` CI is green. Nothing has
+been provisioned: no R2 bucket, no binding, and no deployment resource
+changed. The `media_assets` and `resumes` tables are committed in migration
+`0001` and already have repositories, but no CMS surface and no storage
+behind them.
 
 ## Phase 10 — Theme/settings
 
