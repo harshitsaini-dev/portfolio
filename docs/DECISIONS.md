@@ -3,6 +3,57 @@
 Notable architectural/tooling decisions and their rationale. Append new
 entries; do not delete history.
 
+## 2026-08-08 — Turbopack caches a failed package resolution
+
+### The symptom, and why it looks like broken code
+
+Adding a new CSS export to `packages/ui` and importing it from an app's
+`globals.css` makes `next dev` return **500 on every route** with:
+
+```
+CssSyntaxError: tailwindcss: .../globals.css:1:1:
+"./scrollbars.css" is not exported under the condition "style"
+from package .../node_modules/@portfolio/ui
+```
+
+The export is present, the symlink is correct, the target file exists, and
+`pnpm build` and CI both pass. Only the running dev server disagrees.
+
+### The cause
+
+Turbopack's persistent cache under the app's `.next` directory stores the
+*failed* resolution. Restarting the dev server is not enough — the new
+process reads the same cache back and fails identically.
+
+### The fix
+
+```
+pnpm dev:clean          # both apps
+```
+
+or, for one app, delete `apps/<app>/.next` and start `next dev` again. It is
+a build cache; nothing is lost.
+
+### How this was established, after getting it wrong twice
+
+The first occurrence was diagnosed as a missing `style` condition on the
+package's `exports` map, and a condition was added. The second occurrence,
+with a different file, disproved that: **with the condition reverted and the
+cache cleared, everything worked.** The controlled test is what settled it —
+one variable at a time, rather than changing two things and declaring victory.
+
+The `exports` change was reverted rather than committed, because a fix that
+carries a false explanation is worse than no fix: the next person to hit this
+would trust the comment and look in the wrong place.
+
+### Why nothing was changed in the codebase
+
+There is no configuration that makes Turbopack forget a failed resolution, and
+adding a cache-clearing step to the normal `dev` script would slow every start
+to fix something that happens only when a package's exports change. The
+`dev:clean` script exists for exactly that moment, and this entry is here so
+the symptom is searchable.
+
 ## 2026-08-08 — Phase 9 media service
 
 ### A key is reserved before writing, because `put` overwrites
