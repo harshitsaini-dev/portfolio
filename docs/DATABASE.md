@@ -227,6 +227,20 @@ never worked around; the SET NULL pair must be checked by the application
 before deleting, because the database will not raise. `media_assets` itself
 references nothing, so deleting an asset cascades to nothing.
 
+**Two repository methods now answer that question** (Phase 9 media service),
+each owned by the repository that owns the relation — the same ownership rule
+`countByTechnology()` follows, and for the same "can this be deleted?" reason:
+
+| Method | Relations | Index |
+| --- | --- | --- |
+| `projects.countMediaReferences(id)` → `{ covers, attachments }` | `projects.cover_media_id`, `project_media` | `idx_projects_cover_media`, `idx_project_media_asset` |
+| `resumes.countByMediaAsset(id)` → `number` | `resumes.media_asset_id` | `idx_resumes_media_asset` |
+
+`site_settings.social_image_id` needed no new method — the existing `get()`
+returns the singleton, and one row is not worth a query for. The project
+method uses **one statement with two indexed scalar subqueries** rather than
+two round trips, and neither method lists rows to filter them in memory.
+
 **`storage_key` is already immutable in code**, not just unique in the
 schema: `MEDIA_PATCH` in `packages/database/src/repositories/media.ts` omits
 it, so no update can rewrite it. A new object is a new asset row. That

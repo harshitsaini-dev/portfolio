@@ -503,8 +503,8 @@ configured in any committed file.**
 | Provider seam (`apps/admin/src/lib/storage/binding.ts`) | built, fails closed |
 | Upload policy + key grammar (`packages/schemas/src/media.ts`) | built, pure |
 | In-memory fake with fault injection | built, test-only |
-| Media service, compensation orchestration | **not built** |
-| Media CMS, upload UI, résumé UI, attachment UI | **not built** |
+| **Media service, compensation orchestration** (`apps/admin/src/lib/media/`) | **built** |
+| Media CMS, upload Server Action, résumé UI, attachment UI | **not built** |
 | Public delivery routes | **not built** |
 | R2 bucket, bucket binding, custom domain | **do not exist** |
 
@@ -533,16 +533,40 @@ so a key listing diffed against D1 identifies orphans exactly.
 Compensation is explicit, not implicit:
 
 - R2 put fails → nothing was written to D1; report failure.
-- R2 put succeeds, D1 insert fails → **delete the object just written**,
-  then report failure. Safe precisely because nothing can reference it yet.
+- R2 put succeeds, D1 insert fails → **check whether the row landed, then
+  decide.** An earlier revision of this list said simply "delete the object
+  just written ... safe precisely because nothing can reference it yet",
+  which was **wrong**: a thrown `create()` does not prove the insert did not
+  happen. The repository reads the row back *outside* its own try block, so a
+  read-back failure throws with the row committed, and deleting there strands
+  a live row pointing at a missing object — the residue this whole model
+  rules out. Verified against real local D1 during review.
+
+  The object is deleted **only when `getByStorageKey()` positively reports no
+  row**. If it reports a row, the object is kept (the two systems agree). If
+  the lookup itself throws, the object is kept and `cleanupRequired` is set:
+  an orphan is recoverable, a stranded row is not.
 - The compensating delete itself fails → log, report the original failure,
   leave the orphan for reconciliation. Never report success.
+- **Compensation does not promise zero residue.** In the indeterminate case
+  an object is deliberately retained that may have no row. That is the
+  tolerated direction, reported through `cleanupRequired` and a diagnostic
+  rather than hidden.
 - D1 delete succeeds, R2 delete fails → the editor's intent is satisfied;
   report success and record the orphan.
 - Duplicate storage key → the UNIQUE constraint is the authority. Keys are
   server-generated UUIDv7, so a collision means something is badly wrong:
   refuse, and **do not** delete the colliding object, because it belongs to
   the pre-existing row.
+
+  **Implementation added a step the plan had missed.** `put` overwrites an
+  existing key silently — measured, not assumed — so by the time D1 reports a
+  duplicate, the pre-existing object has *already been destroyed*. Refusing
+  afterwards is too late. The service therefore **reserves a key before
+  writing**, checking both `getByStorageKey()` (does an asset claim it?) and
+  `head()` (is an object there anyway, e.g. an orphan?), and regenerating if
+  either says occupied. The post-put conflict rule above still stands as the
+  handler for a genuine race.
 - Replacement fails partway → the old asset, its object, and every reference
   are untouched; only the new object is cleaned up.
 
@@ -599,6 +623,23 @@ Admin Server Action
       → Storage adapter (R2Like)      the only place object storage is touched
       → repos.media / repos.resumes   the only place metadata is written
 ```
+
+**The media service is now built** (`apps/admin/src/lib/media/service.ts`),
+with `composition.ts` as the single place that resolves the two bindings on
+its behalf. The service itself reaches for nothing and receives every
+dependency — storage, the media repository, the three repositories needed for
+reference safety, an id generator, and an optional diagnostic sink. That is
+what makes its compensation paths testable at all.
+
+Two things it deliberately does **not** do. It performs **no authorization**:
+it sits below the Server Action boundary and has no request context, so a
+check here would be a second, weaker copy of the real one. The future flow
+stays `Server Action → requireAdminIdentity() → parse → media service`, and
+**authorization must run before a byte is read or a binding is resolved** —
+an upload handler that parses a multipart body before authorizing has already
+spent the work an unauthenticated caller wanted it to spend. It also
+**never auto-detaches** a reference; a referenced asset is refused, because
+removing a published project's cover is an editorial act.
 
 React components never see the adapter, and Server Actions contain no raw
 storage calls — the same rule the repository layer already enforces for SQL.

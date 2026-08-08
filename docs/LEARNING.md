@@ -3,6 +3,112 @@
 Notes on things learned while building this project that are worth
 remembering for future work.
 
+## Phase 9 — media service
+
+### Measure the dependency's semantics before designing around them
+
+Two facts about `put` decided most of this slice, and neither was knowable
+from the type: an unconditional put never returns `null`, and a put overwrites
+silently. Both took one throwaway probe against a real local bucket.
+
+The first invalidated an instruction the foundation had written for its own
+future caller. The second turned "duplicate keys are practically impossible"
+from a reassurance into a data-loss hazard — because the destruction happens
+*before* the duplicate is detected, and nothing raises at the moment it
+happens.
+
+A plan written from types alone will be confidently wrong about anything the
+types cannot express, and "what does this return when it declines" and "what
+happens to the existing value" are exactly that kind of question.
+
+### The dangerous failure is the one that does not raise
+
+`project_media` and `resumes` are `ON DELETE RESTRICT` and would have thrown.
+`projects.cover_media_id` and `site_settings.social_image_id` are
+`ON DELETE SET NULL`: the delete succeeds and a published project quietly
+loses its cover image.
+
+The instinct is to write `try { delete } catch (fk) { ... }` and feel covered,
+because the loud half of the problem is handled. Half the references produce
+no error at all, so the catch block is a comfort rather than a control. When
+constraints in one table disagree about deletion, "does it throw?" stops being
+a usable proxy for "is it safe?".
+
+### A refusal that fires for the wrong reason still reads as a pass
+
+The collision test refused the second create and asserted the refusal, so it
+looked green. It was refusing on a **type mismatch** — the intruder payload
+was PDF bytes declared as PNG — and never reached the key reservation it
+existed to prove.
+
+Asserting the *reason*, not just the outcome, is what caught it. That is the
+same lesson the partial-update fix produced from the other direction: there,
+a preservation check passed because it inspected a field that could not fail;
+here, a refusal check passed because something refused earlier. Both are
+tests that would keep passing after the code they guard was deleted.
+
+### `Promise.all` on two fail-closed seams leaks the one that succeeds
+
+`getAdminMediaService()` originally resolved storage and repositories with
+`Promise.all`, which is the reflexive choice for two independent awaits. It
+was wrong in a way no type or unit test would show.
+
+The storage seam fails closed while no bucket exists, so the call always
+rejects. But `Promise.all` had already *started* the database resolution, and
+the database seam's development path spawns a real `getPlatformProxy()`
+workerd process. Nothing disposed it, because the function threw before it
+could return anything to dispose. Every failed call leaked a process.
+
+It surfaced as the **next test suite hanging**, several minutes later, with
+its own migration step wedged behind the orphan — which is about as far from
+the cause as a symptom can get. The tell was that the suite passed in
+isolation and only hung when run after this one.
+
+Resolving sequentially fixes it and is better anyway: the seam expected to be
+unavailable should decide first, so a request that cannot proceed never pays
+to open a binding. **Parallelism is not free when the operations acquire
+resources and one of them is expected to fail.**
+
+The test now pins the database provider before asserting the storage failure,
+and asserts the database provider is **never consulted** — so the leak cannot
+come back quietly.
+
+### A thrown write does not prove nothing was written
+
+The compensation logic assumed that if `create()` threw, the insert had not
+happened. That is true of the INSERT itself — it is wrapped in a try — but
+the repository then reads the row back *outside* that try, so a read-back
+failure throws with the row already committed. Compensating there deleted
+the object out from under a live row.
+
+The irony is exact: the mechanism whose entire purpose is preventing a
+metadata row that points at a missing object was the only thing that could
+produce one. Ordering the two writes correctly is necessary and not
+sufficient; the *recovery* path needs the same scrutiny as the happy path,
+because it runs precisely when the system is already misbehaving.
+
+The general rule: before undoing step A because step B failed, establish
+what step B actually did. "It threw" is not a state.
+
+Two follow-ons worth keeping. A failed *check* is a third state, not a
+synonym for "no" — writing `getByStorageKey(key).catch(() => null)` would
+have reintroduced the bug in one line while looking defensive. And the
+reviewing eye that caught it was reading the collaborator's error paths, not
+its success paths; every test in the suite passed both before and after.
+
+### Compensation has three outcomes, not two
+
+The obvious pair is "compensated" and "did not compensate". The third — the
+compensating action itself failing — is where the reporting goes wrong: it is
+tempting to surface the *cleanup* error, because it is the most recent thing
+that happened.
+
+The caller does not care that cleanup failed; they care that their upload did
+not happen. So the original failure stays primary, and the orphan travels as a
+separate signal to a separate audience. Getting that ordering right needed a
+test that arms two faults in sequence, which is only possible because the fake
+allows it.
+
 ## Phase 9 — storage foundation
 
 ### Check what the tooling can already do before designing around its absence
