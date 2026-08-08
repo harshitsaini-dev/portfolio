@@ -8,7 +8,8 @@
     "start": "next start -p 3000",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "node --conditions=react-server scripts/site-content-tests.mjs"
+    "test": "node --conditions=react-server scripts/site-content-tests.mjs",
+    "dev:clean": "node -e \"require('node:fs').rmSync('.next',{recursive:true,force:true})\" && next dev -p 3000"
   },
   "dependencies": {
     "@portfolio/database": "workspace:*",

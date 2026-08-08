@@ -9,13 +9,27 @@
  *
  * Import it after `tokens.css`, which defines the colours it uses.
  *
+ * ## Every scrollbar, not an opt-in
+ *
+ * This applied only to the page and to an opt-in class at first, on the
+ * reasoning that a horizontally scrolling table wants the platform's own
+ * affordance — sideways overflow is easy to miss, and a thinner bar makes it
+ * easier still.
+ *
+ * That was wrong in practice. The result was two different scrollbars on the
+ * same screen: a hairline down the page and the full platform control with
+ * stepper arrows inside the mobile navigation, which reads as an unstyled
+ * corner of an otherwise finished page. Consistency wins here, and the thumb
+ * stays clearly visible rather than being reduced to a sliver — discoverable
+ * and quiet are not in conflict.
+ *
  * ## Thinned, never hidden
  *
  * `scrollbar-width: none` would remove the only thing telling a mouse user
- * there is more content below the fold, while leaving the overflow in place.
+ * there is more content past the edge, while leaving the overflow in place.
  * The default control is replaced because its stepper arrows and full-width
- * track are desktop chrome sitting inside the page's own layout — not because
- * a scrollbar is unwanted.
+ * track are desktop chrome sitting inside the page's own layout — not
+ * because a scrollbar is unwanted.
  *
  * ## Two syntaxes on purpose
  *
@@ -25,37 +39,24 @@
  * a fallback for a different design.
  */
 
-/* The page scrollbar. `html` is what the browser paints the root scrollbar
-   from, so this has to sit here rather than on `body`. */
-html {
+/* `html` is what the browser paints the page scrollbar from, so it is named
+   explicitly as well as covered by the universal rule below. */
+html,
+* {
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
 }
 
-/**
- * Panes that scroll inside the page — the admin sidebar, and any future
- * scrollable panel. Opt-in rather than applied to every overflow container,
- * because a horizontally scrolling table wants the platform's own affordance:
- * sideways overflow is easy to miss, and a thinner bar makes it easier still.
- */
-.scroll-subtle {
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-strong) transparent;
-}
-
-html::-webkit-scrollbar,
-.scroll-subtle::-webkit-scrollbar {
+::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 
-html::-webkit-scrollbar-track,
-.scroll-subtle::-webkit-scrollbar-track {
+::-webkit-scrollbar-track {
   background: transparent;
 }
 
-html::-webkit-scrollbar-thumb,
-.scroll-subtle::-webkit-scrollbar-thumb {
+::-webkit-scrollbar-thumb {
   background-color: var(--border-strong);
   border-radius: var(--radius-full);
   /* Inset from the track edge so the thumb reads as a hairline rather than a
@@ -65,20 +66,30 @@ html::-webkit-scrollbar-thumb,
   background-clip: content-box;
 }
 
-html::-webkit-scrollbar-thumb:hover,
-.scroll-subtle:hover::-webkit-scrollbar-thumb {
+::-webkit-scrollbar-thumb:hover {
   background-color: var(--fg-muted);
 }
 
 /* The stepper arrows are the least useful part of the default control and the
    most visually intrusive. */
-html::-webkit-scrollbar-button,
-.scroll-subtle::-webkit-scrollbar-button {
+::-webkit-scrollbar-button {
   display: none;
 }
 
-/* A corner between two scrollbars, painted grey by default. */
-html::-webkit-scrollbar-corner,
-.scroll-subtle::-webkit-scrollbar-corner {
+/* The corner between two scrollbars, painted grey by default. */
+::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/**
+ * Retained as a no-op alias.
+ *
+ * The treatment is universal now, so this class adds nothing — but it is
+ * applied in markup, and a class that quietly stops existing is worse than
+ * one that explicitly means "this pane scrolls". Keep using it as
+ * documentation at the call site.
+ */
+.scroll-subtle {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
 }

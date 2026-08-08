@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { SiteNavMenu } from "@/components/site-nav-menu";
 import { Container } from "@/components/ui/container";
 import { actionVariant } from "@/components/ui/action";
 import type { NavigationItem } from "@/data/types";
@@ -18,24 +19,27 @@ interface SiteHeaderProps {
  * project page would look for a section that is not there and do nothing —
  * the kind of dead link that only appears on the second page you build.
  *
- * Still no JavaScript-driven mobile menu: on narrow viewports the nav scrolls
- * horizontally within its own container, which stays fully keyboard operable
- * and adds nothing to the client bundle. The dedicated mobile phase can
- * replace this with a disclosure pattern if the link count grows — doing it
- * now would be scope creep.
+ * Below `md` the links move into a menu button. The row used to scroll
+ * horizontally instead: that was keyboard operable, but it put a scrollbar
+ * inside the header and hid links past the edge with nothing announcing they
+ * were there. See `SiteNavMenu` for why the drawer is a native `<dialog>`.
  */
 export function SiteHeader({ siteName, navigation }: SiteHeaderProps) {
   return (
     <header className="sticky top-0 z-20 border-b border-subtle bg-bg/85 backdrop-blur-md">
-      <Container className="flex flex-col gap-2 py-3 sm:h-16 sm:flex-row sm:items-center sm:justify-between sm:gap-8 sm:py-0">
+      <Container className="flex h-16 items-center justify-between gap-4">
         <Link
           href="/"
           className="text-sm font-semibold tracking-tight text-fg transition-colors duration-150 hover:text-accent"
         >
           {siteName}
         </Link>
-        <nav aria-label="Sections">
-          <ul className="-mx-2 flex gap-0.5 overflow-x-auto sm:mx-0 sm:flex-wrap sm:gap-1">
+        <SiteNavMenu navigation={navigation} />
+
+        {/* The inline row appears only where every link fits, so it never
+            needs to scroll. */}
+        <nav aria-label="Sections" className="hidden md:block">
+          <ul className="flex flex-wrap gap-1">
             {navigation.map((item) => (
               <li key={item.targetId}>
                 <a
