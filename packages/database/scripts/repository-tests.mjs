@@ -923,6 +923,115 @@ try {
       repos.media.delete(a.id),
       (error) => error instanceof ConflictError,
     );
+
+    equal("countByMediaAsset finds the referencing résumé", await repos.resumes.countByMediaAsset(a.id), 1);
+    equal("and counts the second asset separately", await repos.resumes.countByMediaAsset(b.id), 1);
+    equal(
+      "an unreferenced asset counts zero",
+      await repos.resumes.countByMediaAsset("no-such-asset"),
+      0,
+    );
+    const shared = await repos.resumes.create({ label: "CV 2027", mediaAssetId: a.id });
+    equal("two résumés on one asset count two", await repos.resumes.countByMediaAsset(a.id), 2);
+    await repos.resumes.delete(shared.id);
+    equal("the count drops when a résumé is deleted", await repos.resumes.countByMediaAsset(a.id), 1);
+    await repos.resumes.delete(first.id);
+    equal(
+      "and reaches zero when the last reference goes",
+      await repos.resumes.countByMediaAsset(a.id),
+      0,
+    );
+    equal(
+      "the asset is then deletable",
+      await repos.media.delete(a.id),
+      true,
+    );
+  }
+
+  // -- Media asset reference counting --------------------------------------
+  //
+  // The question these answer is "is this asset safe to delete?", and it
+  // cannot be answered by trying: `project_media` is ON DELETE RESTRICT and
+  // raises, but `projects.cover_media_id` is ON DELETE SET NULL and would let
+  // the delete through while silently clearing a project's cover.
+  {
+    group("Media asset reference counts");
+    const { repos } = freshFixture();
+
+    const asset = await repos.media.create({
+      storageKey: "media/ref-target.png",
+      contentType: "image/png",
+      byteSize: 64,
+    });
+    const other = await repos.media.create({
+      storageKey: "media/unrelated.png",
+      contentType: "image/png",
+      byteSize: 64,
+    });
+
+    const none = await repos.projects.countMediaReferences(asset.id);
+    equal("an unreferenced asset has no covers", none.covers, 0);
+    equal("and no attachments", none.attachments, 0);
+
+    const covered = await repos.projects.create({
+      slug: "covered-project",
+      title: "Covered",
+      summary: "Uses the asset as its cover.",
+      coverMediaId: asset.id,
+    });
+    const withCover = await repos.projects.countMediaReferences(asset.id);
+    equal("a cover reference is counted", withCover.covers, 1);
+    equal("and is not confused with an attachment", withCover.attachments, 0);
+
+    const attaching = await repos.projects.create({
+      slug: "attaching-project",
+      title: "Attaching",
+      summary: "Attaches the asset in its gallery.",
+    });
+    await repos.projects.setMedia(attaching.id, [{ mediaAssetId: asset.id }]);
+    const both = await repos.projects.countMediaReferences(asset.id);
+    equal("an attachment is counted", both.attachments, 1);
+    equal("alongside the cover", both.covers, 1);
+
+    equal(
+      "an unrelated asset is unaffected",
+      (await repos.projects.countMediaReferences(other.id)).covers +
+        (await repos.projects.countMediaReferences(other.id)).attachments,
+      0,
+    );
+
+    // A second cover on the same asset counts twice.
+    await repos.projects.create({
+      slug: "second-covered",
+      title: "Second",
+      summary: "Also uses it as a cover.",
+      coverMediaId: asset.id,
+    });
+    equal(
+      "two projects covering one asset count two",
+      (await repos.projects.countMediaReferences(asset.id)).covers,
+      2,
+    );
+
+    // SET NULL really is what the schema does — the reason the count exists.
+    await repos.projects.setMedia(attaching.id, []);
+    equal(
+      "detaching drops the attachment count",
+      (await repos.projects.countMediaReferences(asset.id)).attachments,
+      0,
+    );
+    await repos.projects.update(covered.id, { coverMediaId: null });
+    equal(
+      "clearing one cover drops the count to one",
+      (await repos.projects.countMediaReferences(asset.id)).covers,
+      1,
+    );
+
+    equal(
+      "an unknown asset id counts zero rather than throwing",
+      (await repos.projects.countMediaReferences("no-such-asset")).covers,
+      0,
+    );
   }
 
   // -- SQL injection safety ------------------------------------------------

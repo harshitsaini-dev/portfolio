@@ -247,6 +247,19 @@ try {
     return db;
   });
 
+  const storageBinding = await import("../src/lib/storage/binding.ts");
+  const { createMemoryObjectStorage } = await import("../src/lib/storage/memory-storage.ts");
+  const memoryStorage = createMemoryObjectStorage();
+  storageBinding.setAdminStorageProvider(async () => memoryStorage);
+
+  const mediaActions = await import("../src/lib/actions/media.ts");
+  check(
+    "the real media action module exports all three mutations",
+    typeof mediaActions.uploadMediaAssetAction === "function" &&
+      typeof mediaActions.updateMediaAssetAction === "function" &&
+      typeof mediaActions.deleteMediaAssetAction === "function",
+  );
+
   const actions = await import("../src/lib/actions/projects.ts");
   check(
     "the real action module exports all three mutations",
@@ -3798,6 +3811,46 @@ try {
         /UNIQUE constraint/i.test(serialized)
       );
     }),
+  );
+
+  // =========================================================================
+  startGroup("Positive control — media actions work when authenticated");
+
+  enableDevelopmentIdentity();
+
+  const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0, 0, 0, 0, 0]);
+  const uploadForm = new FormData();
+  const fileBlob = new Blob([pngBytes], { type: "image/png" });
+  uploadForm.set("file", fileBlob, "hero.png");
+  uploadForm.set("purpose", "media");
+  uploadForm.set("altText", "Hero image test");
+
+  const authedUpload = await invoke(mediaActions.uploadMediaAssetAction, uploadForm);
+  equal("an authenticated upload redirects on success", authedUpload.kind, "redirect");
+  equal("it redirects to /media?created=1", authedUpload.to, "/media?created=1");
+
+  const mediaList = await repos.media.list();
+  check("the media asset really was inserted", mediaList.length > 0);
+  const uploadedAsset = mediaList[0];
+
+  const updateMediaForm = payloadForm({ altText: "Updated alt text" }, uploadedAsset.id);
+  const authedMediaUpdate = await invoke(mediaActions.updateMediaAssetAction, updateMediaForm);
+  equal("an authenticated media update redirects", authedMediaUpdate.kind, "redirect");
+  equal(
+    "alt text really was updated",
+    (await repos.media.getById(uploadedAsset.id))?.altText,
+    "Updated alt text",
+  );
+
+  const deleteMediaForm = new FormData();
+  deleteMediaForm.set("id", uploadedAsset.id);
+  const authedMediaDelete = await invoke(mediaActions.deleteMediaAssetAction, deleteMediaForm);
+  equal("an authenticated media delete redirects", authedMediaDelete.kind, "redirect");
+  equal("it redirects to /media", authedMediaDelete.to, "/media");
+  equal(
+    "the media asset really was deleted",
+    await repos.media.getById(uploadedAsset.id),
+    null,
   );
 
   // =========================================================================

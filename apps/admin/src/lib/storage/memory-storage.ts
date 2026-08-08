@@ -58,6 +58,16 @@ export interface MemoryObjectStorage extends ObjectStorage {
    * shape of the compensation paths, where exactly one step fails.
    */
   failNext(operation: FaultOperation, error?: Error): void;
+  /**
+   * Make the next `put` resolve to `null` **without storing anything**.
+   *
+   * Not a fault — this is R2's conditional-write decline, observed against a
+   * real local bucket: the promise resolves, the value is `null`, and the
+   * object is not written. It is modelled because that is precisely the case
+   * where "the promise resolved, so it worked" would persist metadata for a
+   * file that does not exist. One-shot, like `failNext`.
+   */
+  declineNextPut(): void;
   /** Disarm every armed fault. */
   clearFaults(): void;
   /** Keys currently held, in lexicographic order. Test inspection only. */
@@ -79,6 +89,7 @@ function toBytes(body: ArrayBuffer | Uint8Array): Uint8Array {
 export function createMemoryObjectStorage(): MemoryObjectStorage {
   const objects = new Map<string, StoredEntry>();
   const faults = new Map<FaultOperation, Error>();
+  let declineNext = false;
 
   /** Consume an armed fault for `operation`, if there is one. */
   function trip(operation: FaultOperation): void {
@@ -99,6 +110,11 @@ export function createMemoryObjectStorage(): MemoryObjectStorage {
       options?: PutObjectOptions,
     ): Promise<StoredObject | null> {
       trip("put");
+      if (declineNext) {
+        // Decline WITHOUT storing — the whole point of modelling this.
+        declineNext = false;
+        return null;
+      }
       const entry: StoredEntry = {
         bytes: toBytes(body),
         contentType: options?.httpMetadata?.contentType,
@@ -166,8 +182,13 @@ export function createMemoryObjectStorage(): MemoryObjectStorage {
       );
     },
 
+    declineNextPut(): void {
+      declineNext = true;
+    },
+
     clearFaults(): void {
       faults.clear();
+      declineNext = false;
     },
 
     keys(): string[] {

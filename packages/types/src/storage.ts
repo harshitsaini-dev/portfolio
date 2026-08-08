@@ -72,10 +72,22 @@ export interface ListedObjects {
  *   relies on that, because keys are generated per object and never reused.
  *
  * `put` resolves to `StoredObject | null` because R2's conditional-write
- * overload can decline to write. This application issues no conditional
- * writes, so the media service treats a promise that resolves *at all* as
- * success and does not read the value — the metadata it persists comes from
- * its own validated input, never from what storage echoes back.
+ * overload can **decline to write**. Measured against a real local bucket: an
+ * unconditional put always resolves to an object, while a conditional one
+ * that fails its precondition resolves to `null` **and stores nothing**.
+ *
+ * So `null` means *not written*, and a caller must treat it as a failure.
+ *
+ * > **Correction.** An earlier revision of this comment said the media
+ * > service "treats a promise that resolves *at all* as success and does not
+ * > read the value". That was unsafe: on a declined write it would persist a
+ * > metadata row pointing at an object that does not exist — precisely the
+ * > state the whole ordering model exists to prevent. The contract shape is
+ * > unchanged; only this rationale was wrong. `createMediaService` checks for
+ * > `null` explicitly and reports a storage failure.
+ *
+ * The metadata the service persists still comes from its own validated
+ * input, never from what storage echoes back — that part was right.
  */
 export interface ObjectStorage {
   put(

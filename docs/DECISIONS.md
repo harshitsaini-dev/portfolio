@@ -3,6 +3,111 @@
 Notable architectural/tooling decisions and their rationale. Append new
 entries; do not delete history.
 
+## 2026-08-08 — Phase 9 media service
+
+### A key is reserved before writing, because `put` overwrites
+
+The plan said a duplicate storage key should be refused and the colliding
+object left alone, on the grounds that it belongs to a pre-existing row. That
+is right, and it is also too late.
+
+`put` overwrites an existing key **silently** — measured, not assumed, by
+writing three bytes then five to one key against a real local bucket. So on a
+colliding key the sequence is: overwrite somebody's published image, *then*
+have D1 report a duplicate, *then* refuse. The refusal happens after the data
+is already gone, and nothing raises at the moment of destruction.
+
+So the service reserves a key first, checking **both** authorities and
+regenerating if either says occupied:
+
+- `getByStorageKey()` — does an asset already claim this key?
+- `head()` — is an object there anyway?
+
+Neither substitutes for the other. D1 alone misses an **orphan** from an
+earlier failed create, whose bytes are still somebody's until a reconciliation
+removes them. Storage alone misses a row whose object has vanished.
+
+The post-put conflict rule survives as the handler for a genuine race, where
+it is correct precisely because we can no longer tell whose object we are
+looking at.
+
+### `null` from `put` is a decline, not a quiet success
+
+The storage foundation's comment instructed the future service to "treat a
+promise that resolves *at all* as success and not read the value". Following
+it would have persisted a metadata row for an object that was never written —
+the exact state the entire ordering model exists to prevent.
+
+Measured: an unconditional `put` always resolves to an object; a conditional
+one that fails its precondition resolves to `null` **and stores nothing**. So
+`null` means *not written*. The contract shape did not need to change — only
+the rationale was wrong, and the comment now says so rather than being quietly
+deleted.
+
+The general point is worth keeping: a comment that tells a future caller how
+to interpret a return value is load-bearing, and it deserves the same
+verification as the code.
+
+### The delete pre-check is not defensive duplication
+
+Two of the four references into `media_assets` are `ON DELETE RESTRICT` and
+would block a delete on their own, so checking them first looks redundant.
+The other two are `ON DELETE SET NULL`, and there the database will **carry
+out the delete** while silently clearing a published project's cover image or
+the site's social share image.
+
+That asymmetry means "try it and catch the foreign-key error" is not a safety
+check at all — for half the references there is no error to catch, and the
+damage is invisible. Once the dangerous pair must be pre-checked anyway,
+pre-checking all four is simpler than two mechanisms, and it lets the refusal
+name every place the asset is used instead of surfacing them one failure at a
+time.
+
+### A referenced asset is refused, never auto-detached
+
+Detaching would make the delete succeed, which is superficially friendlier.
+It would also mean that tidying a media library silently removes a published
+project's cover image. Attachment and detachment are editorial acts with their
+own screens; a cleanup operation must not perform them as a side effect. Same
+stance the skills slice took when it refused to cascade-delete skills to make
+a category deletion succeed.
+
+### The service performs no authorization, deliberately
+
+It sits below the Server Action boundary and receives its dependencies rather
+than resolving them, so there is no request context here to authorize against.
+A check inside it would be a second, weaker copy of the real one, and the
+weaker copy is the one people trust.
+
+What the service *does* carry is the documented requirement:
+`requireAdminIdentity()` runs in the action, **before a byte is read and
+before a binding is resolved**. An upload handler that parses a multipart body
+first has already spent the work an unauthenticated caller wanted it to spend.
+
+### `width`, `height`, and `checksum` stay null
+
+All three columns exist and all three would be useful. Populating them needs
+either an image decoder or a hashing step, and this slice approved neither.
+
+A fabricated dimension is worse than a missing one: the public site would use
+it to reserve layout space and get it wrong, and nothing would ever flag the
+value as invented. `null` is honest and the columns remain available. A
+checksum via `crypto.subtle` is the obvious next addition — no dependency, and
+directly useful for reconciliation — but it is a decision, not a detail to
+slip in.
+
+### The diagnostic sink carries the key; the failure result does not
+
+Reconciling an orphan needs the storage key. Showing a user a storage key
+leaks the object layout. So the two travel separately: `MediaFailure` carries
+a bare `cleanupRequired` boolean, and the injected `onDiagnostic` callback
+carries the key for the server log.
+
+That split is why the boolean is safe to hand to a UI wholesale, which is what
+a future Server Action will want to do. The project has no logging subsystem
+and this slice did not invent one — the callback defaults to `console.error`
+in composition, matching what existing actions already do.
+
 ## 2026-08-08 — Phase 9 storage foundation
 
 Decisions taken while implementing the seam and policy the audit designed.

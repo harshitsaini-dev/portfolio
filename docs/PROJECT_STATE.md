@@ -11,13 +11,212 @@ something passed without running it.
 | Step | State |
 | --- | --- |
 | Audit and architecture | **merged** — `e3321d7 docs: document phase 9 media foundation` |
-| Prerequisite partial-update regression | **merged** — `89f67f8 fix: preserve project and technology partial updates`, PR #37, post-merge `main` CI `31246283285` |
-| **Storage seam and upload policy** | **implemented, awaiting review** (this branch) |
-| Media CMS, upload UI, résumé UI, attachment UI, public delivery | **not started** |
+| Prerequisite partial-update regression | **merged** — `89f67f8`, PR #37, post-merge `main` CI `31246283285` |
+| Storage seam and upload policy | **merged** — `79ad35b feat: add R2 storage foundation` |
+| Storage-test text-safety hygiene fix | **merged** — `3808983 fix: keep storage tests text-safe`, post-merge `main` CI `31251658312` |
+| **Media service** | **implemented, awaiting review** (this branch) |
+| Media CMS, upload action, résumé UI, attachment UI, public delivery | **not started** |
 
-Baseline moved **2648 → 2888**; all 2648 previous checks still pass.
+**No R2 bucket exists, no bucket binding is configured in any committed file,
+and no Cloudflare resource was created or mutated.** Baseline moved
+**2888 → 3089**; all 2888 previous checks still pass.
 
-## Phase 9 — storage foundation (implemented, awaiting review)
+## Phase 9 — media service (implemented, awaiting review)
+
+The cross-system orchestration layer between validated bytes, object storage,
+and D1 metadata. **Still no UI**: no upload action, no media CMS, no résumé
+or attachment screens, no public delivery, and **Media remains an unavailable
+`Phase 9` navigation placeholder**.
+
+### Why this layer exists at all
+
+R2 and D1 are two independent systems with **no shared transaction**. Every
+write therefore has a state where one side succeeded and the other did not.
+Left to call sites, each one invents its own half-correct recovery — so the
+recovery lives in exactly one place, and the ordering is chosen so the only
+reachable residue is the harmless one.
+
+**Metadata must never outlive its object.** An orphaned object is invisible,
+costs a little storage, and is exactly recoverable (`storage_key` is UNIQUE
+and `getByStorageKey()` exists). A metadata row pointing at a missing object
+is a broken image on a public portfolio.
+
+| Flow | Order | Failure leaves |
+| --- | --- | --- |
+| create | R2 put, **then** D1 insert | an object with no row |
+| delete | D1 delete, **then** R2 delete | an object with no row |
+
+### Two contract facts measured, not assumed
+
+Both were checked against a **real local simulated R2** before any code was
+written, and both changed the design:
+
+1. **An unconditional `put` never returns `null`; a conditional one returns
+   `null` and stores nothing.** So `null` means *declined*, and the service
+   treats it as a storage failure. **This corrects the storage foundation's
+   own rationale**, which said the service should "treat a promise that
+   resolves at all as success" — that would have persisted a metadata row for
+   a file that was never written, the precise state the ordering model
+   exists to prevent. The contract *shape* is unchanged; only the comment was
+   wrong, and it now says so.
+2. **`put` overwrites an existing key silently** — verified by writing 3 bytes
+   then 5 to the same key. That is what makes a key collision a data-loss bug
+   rather than a duplicate-row bug, and it is why the service preflights.
+
+### Collision safety — the case "UUIDs don't collide" does not cover
+
+Before writing, the service reserves a key by checking **both** authorities,
+and regenerates (up to five attempts) if either says occupied:
+
+- `media.getByStorageKey(key)` — does an asset already claim it?
+- `storage.head(key)` — is an object there anyway? This catches an **orphan**
+  from an earlier failed create, whose bytes are still somebody's until a
+  reconciliation removes them.
+
+Neither check substitutes for the other. Without the preflight, a colliding
+id would have R2 silently overwrite a published image, and D1 would only
+report the duplicate *afterwards* — if at all.
+
+Proven deterministically with an injected generator that always returns the
+same id: the colliding create is refused with `key_unavailable`, **no second
+put is issued**, and the existing object's bytes, D1 row, alt text, and
+content type are all byte-for-byte unchanged. The orphan variant is proven
+too.
+
+If a D1 `ConflictError` on `storage_key` still occurs (a genuine race), the
+service **does not delete the object** — that object may be what the winning
+row now points at, and deleting it would convert a failed upload into someone
+else's broken image. It reports failure and flags cleanup.
+
+### Create flow
+
+1. `evaluateUpload()` on the bytes — **storage is never touched for a
+   rejected upload**, so an unsupported, mismatched, empty, or oversized file
+   costs no write.
+2. **Alt-text invariant.** Migration `0001` says alt text is "required for
+   images", but the column is nullable with no CHECK — the schema cannot
+   express "required only for images", because nothing in the row
+   distinguishes an image from a PDF. So the rule lives here.
+3. Reserve a key (above).
+4. `put`, treating a throw **or a `null`** as failure.
+5. `media.create()` with the **sniffed** content type and real byte size.
+6. On D1 failure: **establish whether the row landed before touching the
+   object.** A thrown `create()` does not prove it did — see below. Only when
+   the row is positively absent is the compensating delete issued; success
+   then means no row and no object. If that delete also fails → **original
+   failure stays primary**, orphan flagged, diagnostic emitted, never a
+   success.
+
+### A thrown `create()` does not prove the row is absent
+
+Found in review, and it was a real data-integrity hole in the safety
+mechanism itself.
+
+`createMediaAssetRepository.create()` runs its `INSERT` inside a `try` and
+then reads the row back **outside** it. `getById()` has its own catch, so a
+read-back failure throws while the row is already committed. The service
+originally treated any non-conflict throw as "the insert did not happen" and
+deleted the object — stranding a live metadata row pointing at a missing
+file, **the one residue this entire ordering model exists to rule out**.
+
+Reproduced against real local D1 before the fix: one `media_assets` row, zero
+objects, and `cleanupRequired: false`, so nothing even flagged it.
+
+The compensation decision now distinguishes three states:
+
+| `getByStorageKey(key)` | Object | `cleanupRequired` | Why |
+| --- | --- | --- | --- |
+| returns a row | **kept** | `false` | Row and object agree; deleting is what would break it |
+| returns `null` | **deleted** | `false` | Row positively absent, so the object is provably unreferenced |
+| **throws** | **kept** | `true` | State unknown; an orphan is recoverable, a stranded row is not |
+
+The lookup is a real `try`/`catch`, deliberately **not**
+`getByStorageKey(key).catch(() => null)` — treating a failed lookup as "no
+row" is the same mistake as treating a declined `put` as a successful write,
+and it reintroduces the defect exactly.
+
+**This does not claim compensation leaves no residue under every failure.**
+In the indeterminate case an object is deliberately retained and may have no
+row; that is the tolerated direction, surfaced through `cleanupRequired` and
+an `indeterminate_persistence` diagnostic carrying the key, rather than
+pretended away.
+
+### Delete flow
+
+**All four references are checked before anything moves.** Two are
+`ON DELETE RESTRICT` (`resumes`, `project_media`) and would raise; two are
+`ON DELETE SET NULL` (`projects.cover_media_id`,
+`site_settings.social_image_id`) and the database would **carry out the
+delete while silently clearing a published project's cover or the site's
+social image**. Catching a foreign-key error is therefore not a safety check —
+for half the references there is no error to catch.
+
+A referenced asset is **refused, never auto-detached**: removing a cover is an
+editorial act, not a side effect of tidying a library. The message names every
+place it is used, so the editor learns all of them at once.
+
+Then D1 first, storage second. A failed D1 delete leaves storage untouched. A
+failed storage delete after a successful D1 delete returns **success with
+`objectRemoved: false`** — the editorial intent succeeded, nothing can resolve
+the asset any more, but the caller is told the difference rather than handed a
+clean result.
+
+### Persisted metadata — and what is honestly absent
+
+`storage_key`, sniffed `content_type`, real `byte_size`, trimmed `alt_text`.
+**`width`, `height`, and `checksum` are persisted as `null`.** Nothing in this
+slice can measure image dimensions or hash bytes without adding a decoder or a
+hashing step, and a fabricated value in a column the public site will trust is
+worse than an honest absence. `original_filename` was **not** added and no
+migration `0002` was created.
+
+### Repository extensions — two, both counting queries
+
+The existing surface could not answer "is this asset referenced?" without
+listing every project and filtering in memory, so two methods were added
+following the `countByTechnology` precedent, which exists for exactly this
+"can this be deleted?" reason:
+
+| Method | Relation | Index used |
+| --- | --- | --- |
+| `projects.countMediaReferences(id)` → `{covers, attachments}` | `projects.cover_media_id`, `project_media` | `idx_projects_cover_media`, `idx_project_media_asset` |
+| `resumes.countByMediaAsset(id)` → `number` | `resumes.media_asset_id` | `idx_resumes_media_asset` |
+
+`site_settings.social_image_id` needed nothing — the existing `get()` returns
+the singleton. Both new methods are owned by the repository that owns the
+relation, and both got canonical real-D1 tests: the database subtotal moved
+**297 → 315**.
+
+### A resource leak the implementation found in itself
+
+`getAdminMediaService()` first resolved the storage and database seams with
+`Promise.all`. **Both fail closed**, and storage always rejects while no
+bucket exists — but `Promise.all` had already started the database
+resolution, whose development path spawns a real `getPlatformProxy()`
+workerd process. Nothing disposed it, because the function threw before it
+could return anything to dispose. **Every failed call leaked a process.**
+
+It surfaced as the *next* test suite hanging minutes later, wedged behind the
+orphan — a symptom about as far from its cause as one can get. The tell was
+that the suite passed in isolation and only hung when run after this one.
+
+Now resolved sequentially, storage first, which is also the better order: the
+seam expected to be unavailable decides, and a request that cannot proceed
+never pays to open a binding. The suite asserts the database provider is
+**never consulted** when storage is unregistered, so it cannot come back.
+
+### `.env.example` cleanup
+
+The four S3-style R2 placeholders (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
+`R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`) were **removed**. They belong to the
+S3 API, which this project does not use — the delivery architecture was chosen
+partly so no long-lived access key exists anywhere, and the storage seam is
+asserted to read none of them. An unused credential placeholder is an
+invitation to populate it. `DATABASE_URL` is equally unused (D1 is a binding,
+not a connection string) but was left in place with an honest note, as
+removing it was outside this task's scope.
+
+## Phase 9 — storage foundation (merged)
 
 The reusable layer beneath the future media service. **Everything here sits
 below the UI and action layers**: no Server Action, no route, no component,
@@ -416,10 +615,10 @@ Phase 22** (fail-closed until then).
 
 ## Active task
 
-**Phase 9 storage foundation.** Implemented and verified locally on
-`feat/r2-storage-foundation`; awaiting review, merge, and post-merge `main`
-CI. **Phase 9 is not complete** — the media service and every CMS surface
-above this layer remain unbuilt.
+**Phase 9 media service.** Implemented and verified locally on
+`feat/media-service`; awaiting review, merge, and post-merge `main` CI.
+**Phase 9 is not complete** — every CMS surface above this layer, the upload
+Server Action, and public delivery remain unbuilt.
 
 ## Phase 9 — R2/media (audit record)
 

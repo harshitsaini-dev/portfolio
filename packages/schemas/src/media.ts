@@ -405,3 +405,36 @@ export function evaluateUpload(candidate: UploadCandidate): UploadPolicyResult {
     isImage: isImageContentType(detected),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Media Asset Mutation Schemas
+// ---------------------------------------------------------------------------
+
+export const mediaAssetAltTextSchema = z
+  .string()
+  .trim()
+  .max(500, "Alt text must be 500 characters or fewer")
+  .transform((value) => (value.length === 0 ? null : value))
+  .nullable();
+
+/**
+ * An update patch for a MediaAsset.
+ *
+ * Currently only `altText` can be edited by an admin.
+ * `storage_key`, `content_type`, `byte_size` are unpatchable.
+ */
+export const mediaAssetUpdateSchema = z
+  .object({
+    altText: mediaAssetAltTextSchema.optional(),
+  })
+  .strict();
+
+export type MediaAssetUpdateInput = z.infer<typeof mediaAssetUpdateSchema>;
+
+/** Identifies a media asset for update/delete. */
+export const mediaAssetIdSchema = z
+  .string()
+  .trim()
+  .min(1, "Required")
+  .max(64, "Too long");
+
