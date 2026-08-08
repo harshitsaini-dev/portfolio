@@ -1,5 +1,6 @@
 import { PlaceholderAction } from "@/components/placeholder-action";
 import { Section } from "@/components/section";
+import type { SectionCopy } from "@/lib/content/sections";
 import { ContentImage } from "@/components/ui/content-image";
 import { Surface } from "@/components/ui/surface";
 import { type } from "@/components/ui/typography";
@@ -8,6 +9,7 @@ import type { Certification, EducationEntry } from "@/data/types";
 interface EducationSectionProps {
   education: readonly EducationEntry[];
   certifications: readonly Certification[];
+  copy: SectionCopy;
 }
 
 /**
@@ -19,13 +21,10 @@ interface EducationSectionProps {
 export function EducationSection({
   education,
   certifications,
+  copy,
 }: EducationSectionProps) {
   return (
-    <Section
-      id="education"
-      eyebrow="Background"
-      title="Education & certifications"
-    >
+    <Section id={copy.key} eyebrow={copy.eyebrow} title={copy.title}>
       <div className="grid gap-12 lg:grid-cols-2 lg:gap-10">
         <div>
           <h3 className={type.minorHeading}>Education</h3>

@@ -46,6 +46,7 @@ import type {
 } from "@portfolio/types";
 
 import { getSiteRepositories } from "@/lib/db/binding";
+import { resolveSections, type SectionCopy } from "@/lib/content/sections";
 import type {
   Certification,
   ContentImage,
@@ -59,15 +60,14 @@ import type {
   Tool,
 } from "@/data/types";
 
-/** Navigation is structural, not editorial: it names the page's sections. */
-const NAVIGATION = [
-  { targetId: "about", label: "About" },
-  { targetId: "projects", label: "Projects" },
-  { targetId: "experience", label: "Experience" },
-  { targetId: "education", label: "Education" },
-  { targetId: "skills", label: "Skills" },
-  { targetId: "contact", label: "Contact" },
-] as const;
+/**
+ * The page's sections, resolved from the CMS.
+ *
+ * Exposed on the content object so the page can render them in order, and so
+ * the navigation is derived from the same list rather than declared twice —
+ * a nav item pointing at a hidden section is a link to nothing.
+ */
+export type { SectionCopy };
 
 /**
  * Resolve a media reference into something renderable.
@@ -268,6 +268,7 @@ export async function getSiteContent(): Promise<SiteContent> {
     categoryRows,
     toolRows,
     mediaRows,
+    sectionRows,
   ] = await Promise.all([
     repos.profile.get(),
     repos.projects.listWithRelations({ statuses: ["published"] }),
@@ -277,13 +278,27 @@ export async function getSiteContent(): Promise<SiteContent> {
     repos.skills.listWithSkills({ visibleOnly: true }),
     repos.tools.list({ visibleOnly: true }),
     repos.media.list(),
+    // Deliberately NOT `visibleOnly`. Sections are the one read here that
+    // wants the hidden rows too: `resolveSections` has to tell "no row, so
+    // use the default" apart from "a row that says hide this", and a
+    // visible-only query collapses both into an absent row. Measured — with
+    // the filter on, hiding a section in the CMS made it reappear with its
+    // default title, because the resolver saw no override at all.
+    repos.sections.list(),
   ]);
 
   const assets = new Map(mediaRows.map((asset) => [asset.id, asset]));
+  const sections = resolveSections(sectionRows);
 
   return {
     siteName: profileRow?.fullName ?? "Portfolio",
-    navigation: NAVIGATION,
+    sections,
+    // Derived from the resolved sections, so a hidden section cannot leave a
+    // navigation link pointing at markup that is not on the page.
+    navigation: sections.map((section) => ({
+      targetId: section.key,
+      label: section.navLabel,
+    })),
     profile: toProfile(profileRow, assets),
     projects: projectRows.map((project) =>
       toProject(

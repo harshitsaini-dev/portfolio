@@ -1,3 +1,5 @@
+import type { SectionCopy } from "@/lib/content/sections";
+
 /**
  * VIEW MODELS for the public site.
  *
@@ -135,6 +137,11 @@ export interface NavigationItem {
 
 export interface SiteContent {
   readonly siteName: string;
+  /**
+   * The page's sections, already filtered to visible and sorted into render
+   * order. The page maps over this rather than hardcoding a sequence.
+   */
+  readonly sections: readonly SectionCopy[];
   readonly navigation: readonly NavigationItem[];
   readonly profile: Profile;
   readonly projects: readonly Project[];

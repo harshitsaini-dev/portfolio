@@ -8,6 +8,63 @@ something passed without running it.
 
 **Phase 9 — R2/media. IN PROGRESS.** Not complete.
 
+## Section manager drives the public page (branch `feat/section-order-and-project-pages`)
+
+The `sections` table now controls the public page's order, headings and
+visibility. Section headings are no longer written in JSX.
+
+### Rows override defaults; they do not replace them
+
+The obvious rule — "the table is the page" — has a cliff in it. The table
+starts empty, so the first row an editor created would silently delete six
+sections from the site. Nobody adding a "Projects" section expects About and
+Contact to vanish.
+
+So `lib/content/sections.ts` declares the renderable keys and their default
+copy, and a row **overrides** the matching key: position, title, eyebrow,
+visibility. Hiding is `is_visible = 0`, which is what that column is for;
+deleting a row means "no override", not "no section". A row whose key matches
+no component is ignored — the admin's section form accepts any slug, so
+validating the key against the renderable list belongs there, and is a
+follow-up.
+
+The page navigation is derived from the same resolved list, so a hidden
+section cannot leave a link pointing at markup that is not on the page.
+
+### A bug the browser caught that the types could not
+
+Sections were first read with `visibleOnly: true`, matching every other
+public read. That is exactly wrong here: it removes the hidden row from the
+result, and the resolver cannot tell "no row, use the default" apart from "a
+row that says hide this". **Measured in the browser** — hiding Contact in the
+CMS made it reappear on the public site with its default title.
+
+Fixed by reading every section row and letting `isVisible` decide. The test
+added for it was checked against the reverted fix first: it fails in four
+places, so it is testing the behaviour rather than agreeing with the code.
+
+### A wrong diagnosis, recorded because the reasoning is the reusable part
+
+`next dev` returned 500 for the admin with `"./shadcn.css" is not exported
+under the condition "style"`. The export existed, the symlink was correct,
+the target file was there, and `next build` passed. The change made in
+response — declaring an explicit `style` condition on the CSS exports — was
+then tested by reverting it: with plain-string exports and a cleared
+`apps/admin/.next`, everything worked. **The cause was a stale Turbopack
+cache**, left by the branch rebasing, and the exports change was reverted
+rather than committed with a justification that was not true.
+
+### Tests
+
+**3259/3259 across 23 suites**; the web suite grew from 40 to 53 checks.
+
+### Browser-verified
+
+Creating a `contact` section with position 0 and title "Say hello" moved it to
+the top of the page, retitled its heading, and reordered the navigation to
+match. Hiding it removed both the section and its navigation link. Re-showing
+it restored both.
+
 ## Public site reads the CMS (branch `feat/public-site-data`)
 
 `apps/web` is no longer placeholder content. The home page renders from D1

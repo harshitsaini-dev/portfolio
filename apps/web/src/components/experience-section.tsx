@@ -1,15 +1,18 @@
 import { Section } from "@/components/section";
+import type { SectionCopy } from "@/lib/content/sections";
 import { ContentImage } from "@/components/ui/content-image";
 import { type } from "@/components/ui/typography";
 import type { TimelineEntry } from "@/data/types";
 
 export function ExperienceSection({
   timeline,
+  copy,
 }: {
   timeline: readonly TimelineEntry[];
+  copy: SectionCopy;
 }) {
   return (
-    <Section id="experience" eyebrow="Career" title="Experience">
+    <Section id={copy.key} eyebrow={copy.eyebrow} title={copy.title}>
       {timeline.length === 0 ? (
         <p className={type.bodySm}>No experience has been published yet.</p>
       ) : null}
