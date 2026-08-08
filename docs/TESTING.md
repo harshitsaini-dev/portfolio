@@ -1,12 +1,17 @@
 # Testing
 
-## Current state (Phase 8 — COMPLETE)
+## Current state (Phase 8 COMPLETE; Phase 9 audit adds no tests)
 
 `pnpm test` runs **nineteen real suites and one no-op** — **2488 checks**,
 all passing on Windows and on GitHub Actions/Linux (PR #34 and its
-post-merge `main` run `31204188654`). The 2245 verified after the Socials
-CMS are all still among them and none were weakened. What each one actually
-proves matters, so be precise:
+post-merge `main` run `31204188654`, and again on the Phase 8 closure PR #35
+and its post-merge run `31243357467`). The 2245 verified after the Socials
+CMS are all still among them and none were weakened.
+
+**The Phase 9 audit pass changed no code and added no tests**, so the total
+is unchanged at 2488. It did establish that two of these suites claim more
+than they prove — see *Partial updates must preserve what they omit* below.
+What each one actually proves matters, so be precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
@@ -233,9 +238,29 @@ position; delete removing only the target with the other surviving; and
 
 ## Partial updates must preserve what they omit
 
-A rule now asserted for every entity whose update schema exists, because it
-has bitten twice — once in education (caught before merge) and once in
-timeline (caught after).
+A rule asserted for **nine of the eleven** entities, because it has now
+bitten three times — once in education (caught before merge), once in
+timeline (caught after), and once in projects and technologies (found by the
+Phase 9 audit, still open).
+
+> **Correction (Phase 9 audit).** This section previously said the rule was
+> asserted "for every entity whose update schema exists", and the Server
+> Action authorization row above says the suite proves "partial updates
+> preserve what they omit". **Both overstate the coverage.** Neither
+> `projects` nor `technologies` has a partial-update assertion, and both
+> still derive their update shape with `.partial()` from a defaulted create
+> shape. `projects-tests.mjs` asserts only that a single-field update
+> *parses*, and its "untouched fields are preserved" check happens to inspect
+> `summary`, which carries no default — so it passes for the wrong reason.
+> Measured behaviour: a title-only update through the real
+> `updateProjectAction` resets `status`, `isFeatured`, `position`, and four
+> nullable columns, and deletes every link, technology tag, and
+> `project_media` row. See `docs/PROJECT_STATE.md`. **Not yet fixed.**
+>
+> This is the third time the same defect has appeared, and every time it
+> survived because a test asserted *parse success* instead of *persisted
+> state*. Retrofitting the assertion below to Projects and Technologies is
+> the prerequisite work.
 
 **Deriving an update schema as `createSchema.partial()` is unsafe when any
 field carries `.default()`.** `.partial()` makes the key optional but does
@@ -261,6 +286,71 @@ always did. It is:
 
 That last one is the important shape: assert the **state after the write**,
 not merely that the mutation returned without error.
+
+## Planned: Phase 9 media testing architecture
+
+**Nothing below is implemented.** Recorded now because the testing strategy
+determined part of the architecture rather than following from it.
+
+### The compensation branches are the whole point
+
+A media upload's interesting behaviour is not the happy path — it is what
+happens when one of two independent systems fails. Those branches are
+**unreachable without injectable failure**, so the storage adapter is
+declared as a structural interface specifically to allow an in-memory fake
+with fault injection (`failNextPut`, `failNextDelete`, `failNextGet`). That
+is the reason the seam exists, not a convenience added afterwards.
+
+Two levels, both offline, mirroring how D1 is already tested:
+
+| Level | Backing | Proves |
+| --- | --- | --- |
+| **In-memory fake adapter** | a `Map`, with fault injection | policy, key generation, error mapping, and **every compensation path** |
+| **Real local R2** | `getPlatformProxy()`, miniflare-backed, `remoteBindings: false` | that the real binding surface behaves as the fake claims |
+
+**No remote R2 in CI, ever** — no bucket, no credentials, no `--remote`, the
+same rule D1 already follows.
+
+### Unit tests
+
+Storage-key generation (server-generated, unique across many draws,
+path-safe, prefix correct, extension derived from the sniffed type and never
+from the filename); filename handling (traversal sequences, null bytes,
+control characters, over-long names, and Unicode all reaching the key as
+nothing at all); the MIME allowlist with **negative controls** — SVG, HTML,
+JavaScript, and a PDF renamed `.png` all rejected; byte-size bounds including
+exactly-at-limit and one-over; and error mapping, asserting that no adapter
+message, bucket name, or key format reaches the caller.
+
+### Integration tests
+
+Against the fake adapter plus real local D1: a successful upload writes the
+object **and** the row and they agree; an R2 failure before D1 leaves **no
+row**; a D1 failure after a successful put leaves **no object** because the
+compensating delete ran; a compensating-delete failure reports the original
+error and never a success; delete removes both; an R2 delete failure still
+reports success and records the orphan; a delete blocked by `ON DELETE
+RESTRICT` leaves the object **untouched**, proving the D1-first ordering; a
+delete that would silently null a project cover is refused by the service
+before it reaches the database; a missing object surfaces as a clean
+not-found rather than a crash; a duplicate storage key is refused **without**
+deleting the pre-existing object; and replacement leaves the old asset intact
+until the new one is fully persisted.
+
+Two authorization assertions carry over unchanged from the existing suites:
+`requireAdminIdentity()` runs **before a single byte is read or written**,
+asserted with a consultation counter on the storage provider that stays flat
+across every denied call — the same technique already used for the database
+provider — and no error path leaks a bucket name, key, credential, or SQL.
+
+### Browser verification (later slices, not the foundation)
+
+Upload of a valid asset, rejection of an invalid type, rejection of an
+oversized file, preview rendering, attachment to a project, delete,
+replacement, full keyboard operability, visible focus, responsive behaviour
+in the **populated** state, confidentiality, and a clean console. These are
+**manual Playwright MCP checks**, not automated CI E2E, and must be described
+that way.
 
 ## Sections CMS tests (Phase 8)
 

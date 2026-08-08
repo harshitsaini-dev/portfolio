@@ -3,6 +3,141 @@
 Notable architectural/tooling decisions and their rationale. Append new
 entries; do not delete history.
 
+## 2026-08-08 — Phase 9 R2/media architecture
+
+Decisions taken in the audit pass. No code was written; these constrain the
+implementation slices that follow.
+
+### The failure ordering is the design, not an error-handling detail
+
+D1 and R2 cannot be written atomically, and pretending otherwise is how
+media libraries end up full of broken images. Rather than add retries or a
+queue, the two writes are **ordered so the failure state is the harmless
+one**: R2 before D1 on create, D1 before R2 on delete. Both orderings leave
+the same residue when they break — an object nobody references — and never
+the opposite one, a row pointing at a file that is not there.
+
+The asymmetry is deliberate: an orphaned object is invisible, costs almost
+nothing, and is exactly recoverable because `storage_key` is UNIQUE and
+`getByStorageKey()` already exists. A dangling reference is a broken image on
+a public portfolio. They are not equally bad, so the design does not treat
+them as equally likely to be tolerated.
+
+### Delete safety is checked in the service, because the schema disagrees with itself
+
+Two of the four foreign keys into `media_assets` are RESTRICT and two are
+SET NULL. So `DELETE FROM media_assets` succeeding proves only that no
+résumé or project attachment referenced it — a project **cover image** and
+the **social share image** are cleared silently.
+
+The RESTRICT pair is surfaced to the editor and never worked around, matching
+the stance Technologies and Skills already took. The SET NULL pair is checked
+by the media service *before* the delete, because the database will not
+raise. This is not a workaround for the schema; SET NULL is right for those
+columns — losing a cover should not block deleting a project. It just means
+the database is not the only place the question gets asked.
+
+### The storage key is generated, never derived from the upload
+
+`{prefix}/{uuidv7}.{ext}` — server-generated, using the same `runtime.newId()`
+that already produces row ids, with the extension derived from the **sniffed**
+content type.
+
+The alternative, sanitising the uploaded filename into a key, was rejected
+outright. Sanitising is a blocklist by another name: it has to anticipate
+traversal sequences, control characters, null bytes, reserved Windows names,
+Unicode normalisation collisions, and case-insensitive clashes, and it stays
+wrong until the last one is found. Generating the key means **no
+user-supplied byte is in it**, so there is nothing to sanitise and path
+traversal is structurally impossible rather than filtered.
+
+Uniqueness stays the database's: the UNIQUE constraint is the authority, and
+the application does not pre-check for a free key, because that check is a
+race the constraint already wins. Same reasoning Tools applied to its UNIQUE
+name.
+
+### Classification lives in the key prefix, because the schema has no column for it
+
+`media_assets` has no privacy, kind, or visibility column, and inventing one
+would mean a migration. The key prefix is the only per-object classification
+available without changing the schema, and it is enough: public portfolio
+images under one prefix served by key, résumés under another and **never
+addressable by key**.
+
+That second half matters more than the prefix does. A résumé served from a
+stable path (`/resume`, resolving through `is_current` and `is_visible`)
+rather than by object key means un-publishing it actually stops serving it.
+Serving it by key would mean anyone who ever saw the URL keeps it forever,
+which is precisely the property a public bucket has and the reason one was
+not chosen.
+
+### Private bucket over public bucket or presigned URLs
+
+Presigned URLs need S3-API credentials — a long-lived access key id and
+secret — in an application that currently holds **no credentials of any
+kind**, since both D1 and R2 are reached by binding. Adding a secret to avoid
+writing a route is a bad trade, and expiring URLs also defeat the year-long
+caching these assets should get.
+
+A public custom-domain bucket makes every object world-readable by key,
+including résumés, removes the ability to stop serving anything, and requires
+DNS and a custom domain while deployment is still Phase 22.
+
+Reading a private bucket through an application route needs no secrets,
+caches at the edge so the bucket is rarely touched at all (which is what
+keeps this inside the R2 free tier), and keeps one delivery path to reason
+about.
+
+### SVG is excluded, on evidence rather than reflex
+
+The audit looked for the requirement before ruling on the risk. **There
+isn't one**: no committed table attaches a logo or icon to a tool,
+technology, or skill — `tools` has `name`, `purpose`, `url`; `technologies`
+has `name`, `slug`, `category`; neither has a media column. The only media
+consumers in the schema are project images, the social share image, and
+résumés, and none of them wants an SVG.
+
+So enabling SVG would mean adding a sanitizer dependency and an
+active-content attack surface to serve a need that does not exist. If logos
+are wanted later they will need a migration to attach media to those tables
+anyway, and the safe-delivery question can be answered then, with a
+requirement to design against.
+
+### The uploaded filename is persisted nowhere, because there is nowhere to persist it
+
+`media_assets` has no filename, title, or display-label column. Rather than
+repurpose `alt_text` as a filename field — which would corrupt the one column
+whose meaning is load-bearing for accessibility — the filename is used only
+to cross-check the sniffed extension and then discarded.
+
+Adding `original_filename` in a migration `0002` is a reasonable future
+choice and would improve the media library. It is **not** taken here: the
+audit's remit was to find whether the committed schema can support Phase 9,
+and it can. Changing the schema for ergonomics is a separate decision with
+its own review.
+
+### No new package for storage
+
+The adapter contract goes in `packages/types` beside the existing structural
+`D1Like`; the upload policy and key grammar go in `packages/schemas` beside
+`internal/url.ts` and `internal/slug.ts`; the adapter, binding seam, and
+media service live in `apps/admin/src/lib/`.
+
+A `packages/storage` would only be justified if `apps/web` needed storage
+behaviour, and it does not — the public site needs a URL, not an adapter.
+Creating a package for a single consumer adds a workspace edge, a build
+target, and a place for the boundary to blur, for no reuse.
+
+### The test fake is why the seam exists
+
+The compensation paths — put succeeds then insert fails, delete succeeds then
+object delete fails — are the branches most likely to be wrong and are
+**unreachable without injectable failure**. That requirement, not tidiness,
+is why the adapter is a structural interface: it makes an in-memory fake with
+fault injection possible, which makes those branches testable at all. Real
+local R2 through `getPlatformProxy()` then proves the fake is honest about
+the real surface.
+
 ## 2026-08-07 — Phase 8 Sections CMS
 
 ### The section key reuses the canonical slug grammar, and defines no enum
