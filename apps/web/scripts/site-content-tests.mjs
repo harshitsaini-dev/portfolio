@@ -606,6 +606,122 @@ try {
     null,
   );
 
+
+  // =========================================================================
+  // Contact form. The only untrusted-input boundary on this site.
+  // =========================================================================
+  startGroup("Contact form");
+
+  const {
+    contactMessageSchema,
+    isTooFast,
+    HONEYPOT_FIELD,
+    MINIMUM_COMPLETION_MS,
+  } = await import("@portfolio/schemas");
+
+  const validMessage = {
+    senderName: "Ada Lovelace",
+    senderEmail: "ada@example.com",
+    subject: "Collaboration",
+    body: "I would like to talk about a project.",
+    startedAt: 1_700_000_000_000,
+  };
+
+  check(
+    "a well-formed message parses",
+    contactMessageSchema.safeParse(validMessage).success,
+  );
+  equal(
+    "a blank subject becomes null rather than an empty string",
+    contactMessageSchema.safeParse({ ...validMessage, subject: "  " }).data?.subject,
+    null,
+  );
+
+  // The honeypot. A human never fills it; a naive bot fills everything.
+  check(
+    "a filled honeypot is rejected",
+    !contactMessageSchema.safeParse({
+      ...validMessage,
+      [HONEYPOT_FIELD]: "http://spam.example",
+    }).success,
+  );
+  check(
+    "an absent honeypot is fine -- it must not be required",
+    contactMessageSchema.safeParse(validMessage).success,
+  );
+
+  // Length ceilings, so one request cannot write megabytes.
+  check(
+    "an over-long body is rejected",
+    !contactMessageSchema.safeParse({
+      ...validMessage,
+      body: "x".repeat(4001),
+    }).success,
+  );
+  check(
+    "an over-long name is rejected",
+    !contactMessageSchema.safeParse({
+      ...validMessage,
+      senderName: "x".repeat(121),
+    }).success,
+  );
+  check(
+    "a malformed email is rejected",
+    !contactMessageSchema.safeParse({
+      ...validMessage,
+      senderEmail: "not-an-address",
+    }).success,
+  );
+  check(
+    "an unknown field is rejected outright rather than stripped",
+    !contactMessageSchema.safeParse({ ...validMessage, isAdmin: true }).success,
+  );
+  check(
+    "a missing timestamp is rejected",
+    !contactMessageSchema.safeParse({
+      senderName: "Ada",
+      senderEmail: "ada@example.com",
+      body: "Hello",
+    }).success,
+  );
+
+  // The timing check is pure and takes the clock as an argument, so it can be
+  // asserted exactly rather than by sleeping.
+  const now = 1_700_000_010_000;
+  check(
+    "a submission inside the minimum window is too fast",
+    isTooFast(now - (MINIMUM_COMPLETION_MS - 1), now),
+  );
+  check(
+    "a submission past the window is not",
+    !isTooFast(now - (MINIMUM_COMPLETION_MS + 1), now),
+  );
+
+  // The write itself, through the real repository.
+  const before = (await repos.contactMessages.list()).length;
+  await repos.contactMessages.create({
+    senderName: "Ada Lovelace",
+    senderEmail: "ada@example.com",
+    subject: "Collaboration",
+    body: "I would like to talk about a project.",
+    sourceCountry: null,
+  });
+  const stored = await repos.contactMessages.list();
+  equal("the message is stored", stored.length, before + 1);
+  equal("and arrives unread", stored[0]?.status, "unread");
+  equal(
+    "with no country when the header is absent -- no IP is ever stored",
+    stored[0]?.sourceCountry,
+    null,
+  );
+
+  const readBack = await repos.contactMessages.setStatus(stored[0].id, "read");
+  equal("marking read updates the status", readBack.status, "read");
+  check(
+    "and stamps read_at, which is the repository's rule rather than the caller's",
+    readBack.readAt !== null,
+  );
+
 } catch (error) {
   checks += 1;
   failures.push(`unexpected error: ${error?.message ?? error}`);

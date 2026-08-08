@@ -68,7 +68,7 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
     items: [
       { label: "Media", href: "/media" },
       { label: "Settings", href: "/settings" },
-      { label: "Inbox", availableIn: "Phase 11" },
+      { label: "Inbox", href: "/inbox" },
     ],
   },
 ];
