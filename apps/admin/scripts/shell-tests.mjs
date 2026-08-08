@@ -388,6 +388,174 @@ try {
     })(),
   );
 
+  // ---- The protected route-handler invariant -----------------------------
+  //
+  // The sibling of the page invariant above, and it exists because that one
+  // does not cover route handlers: it discovers `page.*` only, so the first
+  // `route.ts` added under `(protected)/` was enforced by nothing at all.
+  //
+  // A route handler is arguably the sharper edge. A page at least renders
+  // inside a layout that resolves an identity; a handler runs on its own and
+  // returns whatever it builds. `(protected)` is a routing convention — it
+  // groups URLs, it does not authorize them.
+  //
+  // What this enforces: in every exported HTTP method, the FIRST statement is
+  // `await requireAdminIdentity()`. Not "the file mentions the guard", and
+  // not "the guard is called somewhere" — a handler that resolves a binding,
+  // reads a parameter, or fetches a row before authorizing has already done
+  // the work an unauthenticated caller wanted it to do.
+  startGroup("Protected route-handler invariant");
+
+  const protectedRoutes = readdirSync(protectedDir, {
+    recursive: true,
+    withFileTypes: true,
+  })
+    .filter((entry) => entry.isFile() && /^route\.(ts|js)$/.test(entry.name))
+    .map((entry) => join(entry.parentPath ?? protectedDir, entry.name));
+
+  const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
+
+  /** Strips comments so a mention inside prose cannot satisfy the check. */
+  function withoutComments(source) {
+    return source.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
+  }
+
+  /**
+   * True when every exported handler opens with the awaited guard.
+   *
+   * The body is located by scanning past the parameter list to the opening
+   * brace, then only its first statement is considered. Returns false when
+   * the file exports no handler this check recognises — a route file should
+   * fail loudly rather than pass vacuously.
+   */
+  function guardsBeforeAnythingElse(source) {
+    const clean = withoutComments(source);
+    let found = 0;
+
+    for (const method of HTTP_METHODS) {
+      const signature = new RegExp(
+        "export\\s+(?:async\\s+)?function\\s+" + method + "\\s*\\(",
+      ).exec(clean);
+      if (!signature) continue;
+      found += 1;
+
+      // Walk past the parameter list: the first `{` after the signature may
+      // belong to a destructured or inline-typed argument rather than the body.
+      let depth = 0;
+      let index = signature.index + signature[0].length - 1;
+      for (; index < clean.length; index += 1) {
+        if (clean[index] === "(") depth += 1;
+        else if (clean[index] === ")") {
+          depth -= 1;
+          if (depth === 0) break;
+        }
+      }
+      if (depth !== 0) return false;
+
+      const bodyStart = clean.indexOf("{", index);
+      if (bodyStart === -1) return false;
+
+      const body = clean.slice(bodyStart + 1).trimStart();
+      if (!/^await\s+requireAdminIdentity\s*\(/.test(body)) return false;
+    }
+
+    return found > 0;
+  }
+
+  check(
+    "at least one protected route handler was discovered",
+    protectedRoutes.length > 0,
+    "searched " + protectedDir,
+  );
+
+  for (const routePath of protectedRoutes) {
+    const source = readFileSync(routePath, "utf8");
+    const name = routePath
+      .slice(routePath.indexOf("(protected)"))
+      .replace(/\\/g, "/");
+    check(
+      name + " awaits requireAdminIdentity as its first statement",
+      guardsBeforeAnythingElse(source),
+      "a route handler runs on its own; the (protected) segment does not authorize it",
+    );
+    check(
+      name + " imports the guard from the auth module",
+      /from\s+["']@\/lib\/auth\/guard["']/.test(source),
+    );
+  }
+
+  // Negative controls, in memory for the same reason the page fixtures are:
+  // adding a real unguarded route would be the vulnerability under test.
+  const rejectedRoutes = [
+    {
+      label: "a handler with no guard at all",
+      source: "export async function GET() {\n  return new Response('secret');\n}\n",
+    },
+    {
+      label: "a handler that resolves a binding before authorizing",
+      source:
+        "export async function GET() {\n" +
+        "  const repos = await getAdminRepositories();\n" +
+        "  await requireAdminIdentity();\n" +
+        "  return Response.json(await repos.media.list());\n}\n",
+    },
+    {
+      label: "a handler that calls the guard without awaiting it",
+      source:
+        "export async function GET() {\n" +
+        "  requireAdminIdentity();\n" +
+        "  return new Response('secret');\n}\n",
+    },
+    {
+      label: "a file that only mentions the guard in a comment",
+      source:
+        "// This route is protected by requireAdminIdentity() upstream.\n" +
+        "export async function GET() {\n  return new Response('secret');\n}\n",
+    },
+    {
+      label: "a second method that forgets the guard the first one has",
+      source:
+        "export async function GET() {\n" +
+        "  await requireAdminIdentity();\n" +
+        "  return new Response('ok');\n}\n" +
+        "export async function DELETE() {\n" +
+        "  return new Response('deleted');\n}\n",
+    },
+    {
+      label: "a file exporting no recognised handler",
+      source: "export const runtime = 'edge';\n",
+    },
+  ];
+
+  for (const fixture of rejectedRoutes) {
+    check(
+      "the route invariant REJECTS " + fixture.label,
+      !guardsBeforeAnythingElse(fixture.source),
+    );
+  }
+
+  check(
+    "the route invariant ACCEPTS a handler that guards first",
+    guardsBeforeAnythingElse(
+      "export async function GET(_request, context) {\n" +
+        "  await requireAdminIdentity();\n" +
+        "  const { id } = await context.params;\n" +
+        "  return new Response(id);\n}\n",
+    ),
+  );
+
+  check(
+    "the route invariant ACCEPTS a handler with an inline-typed context object",
+    guardsBeforeAnythingElse(
+      "export async function GET(\n" +
+        "  _request: Request,\n" +
+        "  context: { params: Promise<{ id: string }> },\n" +
+        "): Promise<Response> {\n" +
+        "  await requireAdminIdentity();\n" +
+        "  return new Response('ok');\n}\n",
+    ),
+  );
+
   // ---- Scroll-container containment --------------------------------------
   startGroup("Horizontal scroll containment");
 

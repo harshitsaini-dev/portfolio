@@ -6,6 +6,7 @@ import { withAdminPage } from "@/lib/auth/protected-page";
 import { getAdminRepositories } from "@/lib/db/binding";
 import { updateMediaAssetAction } from "@/lib/actions/media";
 import { MediaEditForm } from "@/components/media/media-edit-form";
+import { MediaThumbnail } from "@/components/media/media-thumbnail";
 import { DeleteMediaForm } from "@/components/media/delete-media-form";
 
 /**
@@ -35,6 +36,18 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(async ({
       <h1 className="mt-3 text-3xl font-semibold tracking-tight text-fg">
         Edit file
       </h1>
+
+      {/* The editor is about to describe this file, so showing it is the
+          point. Decorative here: `label` is rendered as text beside it. */}
+      <div className="mt-6 flex items-center gap-4">
+        <MediaThumbnail
+          id={asset.id}
+          contentType={asset.contentType}
+          alt=""
+          size="lg"
+        />
+        <p className="min-w-0 break-words text-sm text-fg-muted">{label}</p>
+      </div>
 
       <MediaEditForm
         action={updateMediaAssetAction}
