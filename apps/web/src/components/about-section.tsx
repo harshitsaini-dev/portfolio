@@ -1,10 +1,17 @@
 import { Section } from "@/components/section";
+import type { SectionCopy } from "@/lib/content/sections";
 import { type } from "@/components/ui/typography";
 import type { Profile } from "@/data/types";
 
-export function AboutSection({ profile }: { profile: Profile }) {
+export function AboutSection({
+  profile,
+  copy,
+}: {
+  profile: Profile;
+  copy: SectionCopy;
+}) {
   return (
-    <Section id="about" eyebrow="Profile" title="About">
+    <Section id={copy.key} eyebrow={copy.eyebrow} title={copy.title}>
       <div className={`max-w-2xl space-y-5 ${type.body}`}>
         {profile.introduction.length === 0 ? (
           <p className={type.bodySm}>

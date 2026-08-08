@@ -356,6 +356,95 @@ try {
     content.certifications[0].issued,
     "2023",
   );
+
+  // =========================================================================
+  // Section order, retitling and hiding.
+  // =========================================================================
+  startGroup("Section resolution");
+
+  const defaults = await getSiteContent();
+  equal(
+    "with no rows, every known section renders",
+    defaults.sections.length,
+    6,
+  );
+  equal(
+    "and in the declared default order",
+    defaults.sections.map((section) => section.key).join(","),
+    "about,projects,experience,education,skills,contact",
+  );
+  equal(
+    "navigation is derived from the same list",
+    defaults.navigation.map((item) => item.targetId).join(","),
+    defaults.sections.map((section) => section.key).join(","),
+  );
+
+  // A row overrides position and copy for its key.
+  const contactRow = await repos.sections.create({
+    key: "contact",
+    title: "Say hello",
+    position: 0,
+    isVisible: true,
+  });
+  const reordered = await getSiteContent();
+  equal(
+    "a row moves its section to the given position",
+    reordered.sections[0].key,
+    "contact",
+  );
+  equal(
+    "a row retitles its section",
+    reordered.sections[0].title,
+    "Say hello",
+  );
+  equal(
+    "sections with no row keep their relative order after it",
+    reordered.sections.map((section) => section.key).join(","),
+    "contact,about,projects,experience,education,skills",
+  );
+  equal(
+    "the navigation label follows the new title",
+    reordered.navigation[0].label,
+    "Say hello",
+  );
+  equal(
+    "a row does NOT delete the sections that have no row",
+    reordered.sections.length,
+    6,
+  );
+
+  // Hiding. This is the case that broke in the browser: reading sections with
+  // `visibleOnly` removed the hidden row entirely, which the resolver could
+  // not tell apart from "no row", so the section reappeared with its default
+  // title. The fix is to read every row and let `isVisible` decide.
+  await repos.sections.update(contactRow.id, { isVisible: false });
+  const hidden = await getSiteContent();
+  check(
+    "hiding a section removes it from the page",
+    !hidden.sections.some((section) => section.key === "contact"),
+    `got ${JSON.stringify(hidden.sections.map((s) => s.key))}`,
+  );
+  check(
+    "and removes its navigation link, leaving nothing pointing at it",
+    !hidden.navigation.some((item) => item.targetId === "contact"),
+  );
+  equal("the other five still render", hidden.sections.length, 5);
+
+  // A key no component knows about is ignored rather than rendered empty.
+  await repos.sections.create({
+    key: "podcast",
+    title: "Podcast",
+    position: 1,
+    isVisible: true,
+  });
+  const unknown = await getSiteContent();
+  check(
+    "an unknown section key is ignored",
+    !unknown.sections.some((section) => section.key === "podcast"),
+    `got ${JSON.stringify(unknown.sections.map((s) => s.key))}`,
+  );
+  equal("and changes nothing else", unknown.sections.length, 5);
+
 } catch (error) {
   checks += 1;
   failures.push(`unexpected error: ${error?.message ?? error}`);

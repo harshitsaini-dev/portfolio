@@ -1,4 +1,5 @@
 import { Section } from "@/components/section";
+import type { SectionCopy } from "@/lib/content/sections";
 import { BadgeList } from "@/components/ui/badge";
 import { ContentImage } from "@/components/ui/content-image";
 import { Surface } from "@/components/ui/surface";
@@ -8,6 +9,7 @@ import type { SkillCategory, Tool } from "@/data/types";
 interface SkillsSectionProps {
   skillCategories: readonly SkillCategory[];
   tools: readonly Tool[];
+  copy: SectionCopy;
 }
 
 /**
@@ -15,9 +17,13 @@ interface SkillsSectionProps {
  * with", and separating them produced two thin sections with no meaningful
  * distinction for the reader. Each keeps its own `<h3>`.
  */
-export function SkillsSection({ skillCategories, tools }: SkillsSectionProps) {
+export function SkillsSection({
+  skillCategories,
+  tools,
+  copy,
+}: SkillsSectionProps) {
   return (
-    <Section id="skills" eyebrow="Capabilities" title="Skills & tools">
+    <Section id={copy.key} eyebrow={copy.eyebrow} title={copy.title}>
       {skillCategories.length === 0 ? (
         <p className={type.bodySm}>No skills have been published yet.</p>
       ) : null}

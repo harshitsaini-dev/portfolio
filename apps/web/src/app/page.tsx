@@ -49,18 +49,57 @@ export default async function Home() {
           order; it is only reachable by activating the skip link. */}
       <main id="main-content" tabIndex={-1} className="flex-1">
         <Hero profile={content.profile} contact={content.contact} />
-        <AboutSection profile={content.profile} />
-        <ProjectsSection projects={content.projects} />
-        <ExperienceSection timeline={content.timeline} />
-        <EducationSection
-          education={content.education}
-          certifications={content.certifications}
-        />
-        <SkillsSection
-          skillCategories={content.skillCategories}
-          tools={content.tools}
-        />
-        <ContactSection contact={content.contact} />
+
+        {/* Order comes from the CMS, not from this file. A section absent
+            from the list was hidden by an editor, so it renders nothing —
+            and because the navigation is derived from the same list, no link
+            can point at a section that is not here. */}
+        {content.sections.map((copy) => {
+          switch (copy.key) {
+            case "about":
+              return (
+                <AboutSection key={copy.key} copy={copy} profile={content.profile} />
+              );
+            case "projects":
+              return (
+                <ProjectsSection
+                  key={copy.key}
+                  copy={copy}
+                  projects={content.projects}
+                />
+              );
+            case "experience":
+              return (
+                <ExperienceSection
+                  key={copy.key}
+                  copy={copy}
+                  timeline={content.timeline}
+                />
+              );
+            case "education":
+              return (
+                <EducationSection
+                  key={copy.key}
+                  copy={copy}
+                  education={content.education}
+                  certifications={content.certifications}
+                />
+              );
+            case "skills":
+              return (
+                <SkillsSection
+                  key={copy.key}
+                  copy={copy}
+                  skillCategories={content.skillCategories}
+                  tools={content.tools}
+                />
+              );
+            case "contact":
+              return (
+                <ContactSection key={copy.key} copy={copy} contact={content.contact} />
+              );
+          }
+        })}
       </main>
 
       <SiteFooter siteName={content.siteName} note={content.footerNote} />

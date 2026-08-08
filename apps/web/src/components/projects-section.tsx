@@ -1,5 +1,6 @@
 import { PlaceholderAction } from "@/components/placeholder-action";
 import { Section } from "@/components/section";
+import type { SectionCopy } from "@/lib/content/sections";
 import { BadgeList } from "@/components/ui/badge";
 import { ContentImage } from "@/components/ui/content-image";
 import { Surface } from "@/components/ui/surface";
@@ -50,13 +51,15 @@ function ProjectCard({ project }: { project: Project }) {
   );
 }
 
-export function ProjectsSection({ projects }: { projects: readonly Project[] }) {
+export function ProjectsSection({
+  projects,
+  copy,
+}: {
+  projects: readonly Project[];
+  copy: SectionCopy;
+}) {
   return (
-    <Section
-      id="projects"
-      eyebrow="Selected work"
-      title="Projects"
-    >
+    <Section id={copy.key} eyebrow={copy.eyebrow} title={copy.title}>
       {projects.length === 0 ? (
         <p className={type.bodySm}>
           No published projects yet. Projects marked draft or archived in the
