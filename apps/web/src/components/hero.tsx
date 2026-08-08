@@ -124,12 +124,38 @@ export function Hero({
           </div>
 
           {profile.image ? (
-            <div className="rise rise-3 order-first shrink-0 lg:order-none">
+            /*
+              The portrait, designed for a **cut-out** — a transparent PNG of
+              the person rather than a rectangular headshot.
+              
+              That decides the treatment. A frame, a border or a rounded panel
+              would draw a box around something that has no edges, which is
+              exactly what makes a cut-out look pasted on. So there is none:
+              the figure stands on the page, with a soft accent glow behind it
+              for separation from the background, and `object-contain` so it is
+              never cropped.
+              
+              `order-first` puts it above the text on narrow screens while
+              keeping it second in the DOM, so a screen reader and a keyboard
+              reach the name and actions before a decorative photograph.
+            */
+            <div className="rise rise-3 relative order-first shrink-0 lg:order-none">
+              {/* The glow. Decorative, behind, and the one place the sanctioned
+                  accent wash appears at this size. */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[24rem] w-[24rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent-soft blur-3xl sm:h-[32rem] sm:w-[32rem]"
+              />
               <ContentImage
                 image={profile.image}
-                size={224}
-                radius="rounded-2xl"
-                className="border border-subtle shadow-md"
+                size={520}
+                radius="rounded-none"
+                // Sized in `rem` against the viewport rather than by the
+                // pixel value above, which only reserves the box before the
+                // bytes arrive. A cut-out is the second subject of the hero,
+                // not a thumbnail beside it, so it is given the height to
+                // read as a person.
+                className="relative h-[26rem] w-auto object-contain drop-shadow-2xl sm:h-[34rem] lg:h-[38rem]"
               />
             </div>
           ) : null}

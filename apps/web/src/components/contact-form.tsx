@@ -101,7 +101,7 @@ export function ContactForm() {
   }
 
   return (
-    <form action={formAction} className="flex max-w-xl flex-col gap-5">
+    <form action={formAction} className="flex max-w-lg flex-col gap-4">
       <input ref={startedAtRef} type="hidden" name="startedAt" defaultValue="" />
 
       {/* The honeypot. See the module comment for why it is positioned
@@ -136,6 +136,9 @@ export function ContactForm() {
         {state.status === "error" ? state.message : ""}
       </p>
 
+      {/* Name and email share a row from `sm` up: two short fields stacked
+          made the form twice as tall as it needed to be. */}
+      <div className="grid gap-4 sm:grid-cols-2">
       <div className="flex flex-col gap-1.5">
         <label
           htmlFor={`${fieldId}-name`}
@@ -192,6 +195,7 @@ export function ContactForm() {
           errors={fieldErrors.senderEmail}
         />
       </div>
+      </div>
 
       <div className="flex flex-col gap-1.5">
         <label
@@ -229,7 +233,7 @@ export function ContactForm() {
           id={`${fieldId}-body`}
           name="body"
           required
-          rows={6}
+          rows={4}
           maxLength={4000}
           aria-describedby={
             fieldErrors.body ? `${fieldId}-body-error` : undefined

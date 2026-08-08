@@ -70,9 +70,12 @@ const SHOULDER_Y = 0.34;
  * 60% of the screen height once the canvas became full-viewport. At 0.45 it
  * was a speck. 0.62 puts it near 40%, which is present without dominating.
  *
- * `x = 0.95` maps to about 815px on a 1280px viewport — the gap between the
- * text column and the portrait. At 2.15 it sat directly behind the portrait
- * and was invisible on the hero, which is the other thing that went wrong.
+ * The gap it used to sit in closed when the portrait became a large tilted
+ * panel, so it moved down and left and got smaller: it is a companion at the
+ * foot of the composition now rather than a second focal point competing
+ * with the photograph. Positions were checked against the rendered hero
+ * rather than reasoned about — every previous guess was wrong in one
+ * direction or the other.
  *
  * `y` is negative because the group's origin is at the torso, not the centre
  * of the figure: the head reaches roughly 1.0 units above it at this scale.
@@ -81,9 +84,9 @@ const SHOULDER_Y = 0.34;
  * clipped it. Sitting lower with a smaller sway keeps the whole figure in
  * frame at every scroll position.
  */
-const ROBOT_HOME_X = 0.95;
-const ROBOT_HOME_Y = -0.25;
-const ROBOT_SCALE = 0.62;
+const ROBOT_HOME_X = -0.55;
+const ROBOT_HOME_Y = -1.15;
+const ROBOT_SCALE = 0.42;
 
 /**
  * How far it travels as the page scrolls.
@@ -95,6 +98,15 @@ const ROBOT_SCALE = 0.62;
  */
 const SCROLL_SWAY_X = 1.15;
 const SCROLL_SWAY_Y = 0.55;
+
+/**
+ * How far it travels toward and away from the camera.
+ *
+ * Bounded well short of the camera at z = 5: crossing the near plane would
+ * clip the figure through the screen, and even approaching it makes the
+ * perspective distort unpleasantly.
+ */
+const SCROLL_DEPTH = 1.3;
 
 /** How often the robot waves, and for how long, in seconds. */
 const WAVE_CYCLE_SECONDS = 8;
@@ -201,11 +213,21 @@ export function Robot({ animate }: { animate: boolean }) {
       const targetX =
         ROBOT_HOME_X + Math.sin(scroll * Math.PI * 3) * SCROLL_SWAY_X;
 
+      // Depth, so the figure appears to move toward and away from the
+      // viewer. Driven by moving it along Z rather than by scaling it: with a
+      // perspective camera, distance changes apparent size *and* parallax,
+      // and scaling only changes size — which reads as an object growing
+      // rather than approaching.
+      const targetZ =
+        Math.sin(scroll * Math.PI * 2.5) * SCROLL_DEPTH +
+        Math.sin(time * 0.45) * 0.25;
+
       // Eased, not tracked. A figure pinned rigidly to scroll position reads
       // as a scrollbar; one that lags behind reads as company.
       const k = 1 - Math.exp(-3 * delta);
       root.current.position.y += (targetY - root.current.position.y) * k;
       root.current.position.x += (targetX - root.current.position.x) * k;
+      root.current.position.z += (targetZ - root.current.position.z) * k;
 
       root.current.rotation.z = Math.sin(time * 0.6) * 0.03;
     }
