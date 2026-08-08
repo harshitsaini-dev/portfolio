@@ -190,8 +190,23 @@ service layer once it exists. Types shared between layers live in
 
 ## Partial-update semantics across the CMS (Phase 8)
 
-Every entity with an update action shares one contract, now enforced by
-construction rather than by convention:
+Every entity with an update action is *intended* to share one contract.
+
+> **Correction (Phase 9 audit).** An earlier revision of this section claimed
+> the contract was "now enforced by construction rather than by convention".
+> **That was not true**, and the claim is withdrawn. Two merged modules still
+> derive their update shape with `.partial()` from a defaulted create shape —
+> `packages/schemas/src/projects.ts` and
+> `packages/schemas/src/technologies.ts` — so for those two entities the
+> contract below is violated: a partial project update silently resets
+> `status`, `isFeatured`, `position`, and the nullable text/date columns, and
+> **wipes every project link, technology tag, and `project_media`
+> attachment**; a technology rename silently clears `category`. Measured
+> against real local D1 through the real Server Action, not inferred. The
+> defect is reported in `docs/PROJECT_STATE.md` and is **not yet fixed**.
+> Nine of the eleven entities do satisfy the contract.
+
+The contract itself is unchanged:
 
 - **Omitted field → preserve the persisted value.** Update schemas are
   declared independently of create schemas, with `.optional()` fields and
@@ -472,12 +487,165 @@ Phase 7 stops at the admin. `apps/web` still renders its Phase 2
 placeholder module and was not touched; the ROADMAP scopes this phase to
 CRUD "through the data layer" and says nothing about public rendering.
 
+## Object storage: the planned R2 architecture (Phase 9)
+
+**Planned, not built.** No bucket, binding, adapter, or upload path exists.
+This section records the architecture chosen from the migration `0001` audit
+so the implementation slices stay consistent.
+
+### The governing constraint: D1 and R2 are two systems, not one transaction
+
+There is no distributed transaction across D1 and R2 and none will be
+faked. Every flow is designed so that the *failure* state is a harmless one,
+chosen by ordering the two writes deliberately:
+
+| Order | Failure leaves | Verdict |
+| --- | --- | --- |
+| **Create: R2 put, then D1 insert** | an object with no row — invisible, costs storage, reconcilable | acceptable |
+| Create: D1 insert, then R2 put | a row pointing at a **missing object** — a broken image on the public site | rejected |
+| **Delete: D1 delete, then R2 delete** | an object with no row | acceptable |
+| Delete: R2 delete, then D1 delete | a row pointing at a **missing object** | rejected |
+
+The rule that falls out: **metadata must never outlive its object, and an
+orphaned object is always preferred to a dangling reference.** An orphan is
+recoverable — `storage_key` is UNIQUE and `getByStorageKey()` already exists,
+so a key listing diffed against D1 identifies orphans exactly.
+
+Compensation is explicit, not implicit:
+
+- R2 put fails → nothing was written to D1; report failure.
+- R2 put succeeds, D1 insert fails → **delete the object just written**,
+  then report failure. Safe precisely because nothing can reference it yet.
+- The compensating delete itself fails → log, report the original failure,
+  leave the orphan for reconciliation. Never report success.
+- D1 delete succeeds, R2 delete fails → the editor's intent is satisfied;
+  report success and record the orphan.
+- Duplicate storage key → the UNIQUE constraint is the authority. Keys are
+  server-generated UUIDv7, so a collision means something is badly wrong:
+  refuse, and **do not** delete the colliding object, because it belongs to
+  the pre-existing row.
+- Replacement fails partway → the old asset, its object, and every reference
+  are untouched; only the new object is cleaned up.
+
+### Delete safety is not the same as delete success
+
+The four foreign keys into `media_assets` disagree deliberately:
+`resumes` and `project_media` are `ON DELETE RESTRICT`, while
+`projects.cover_media_id` and `site_settings.social_image_id` are
+`ON DELETE SET NULL`. So a `DELETE` that **succeeds** may still have silently
+removed a project's cover image.
+
+The RESTRICT pair is load-bearing and is surfaced, never worked around — the
+same stance Technologies and Skills already take. The SET NULL pair has to be
+checked by the media service *before* deleting, because the database will not
+object. Detach-first stays the rule for all four.
+
+### The binding seam mirrors the database one
+
+`apps/admin/src/lib/db/binding.ts` already solves this exact problem for D1:
+a provider seam, registration for tests and for the future Phase 22 runtime,
+a cached local `getPlatformProxy()` for `next dev`, and a **fail-closed**
+production path rather than an invented global. Storage gets the same shape
+and the same reasons — `setAdminStorageProvider()`, no production fallback,
+`remoteBindings: false`, no credentials anywhere.
+
+The adapter is declared **structurally**, as `D1Like` already is, so the
+packages import no Cloudflare types and the surface we depend on is written
+down in one place:
+
+```
+put(key, body, options) | get(key) | head(key) | delete(key) | list(options)
+```
+
+A real `R2Bucket` satisfies it; so does an in-memory fake.
+
+### Layering
+
+```
+Admin Server Action
+  → requireAdminIdentity()            auth first, before a byte is read
+  → Zod + binary validation           MIME sniff, size, dimension parse
+  → Media Service                     orchestration and compensation
+      → Storage adapter (R2Like)      the only place object storage is touched
+      → repos.media / repos.resumes   the only place metadata is written
+```
+
+React components never see the adapter, and Server Actions contain no raw
+storage calls — the same rule the repository layer already enforces for SQL.
+**No new package**: the adapter contract goes in `packages/types`, the upload
+policy and key grammar in `packages/schemas` beside `internal/url.ts` and
+`internal/slug.ts`, and the adapter, seam, and service in
+`apps/admin/src/lib/`. A `packages/storage` would be justified only when
+`apps/web` needs more than a URL string, which it does not.
+
+### Delivery: private bucket, application-controlled
+
+Public bucket access and presigned URLs were both considered and rejected.
+
+- **Presigned URLs need S3-API credentials** — an access key id and secret,
+  long-lived, in a Workers app that otherwise holds none. A binding needs no
+  credentials at all. Presigned URLs also carry expiry, which defeats CDN
+  caching for images that should cache for a year.
+- **A public custom-domain bucket** makes every object world-readable by key,
+  including résumés, removes any ability to stop serving something, and needs
+  DNS and a custom domain now — while deployment is Phase 22.
+- **A private bucket read through an app route** keeps one delivery path,
+  caches at the edge (`Cache-Control: public, max-age=31536000, immutable`,
+  safe because keys are immutable and replacement mints a new key), needs no
+  secrets, and stays comfortably inside the R2 free tier because cached hits
+  never reach the bucket.
+
+Public and restricted assets are separated by **storage-key prefix**, because
+`media_assets` has no privacy column and inventing one would need a
+migration. Portfolio images live under a public prefix and are served by key;
+résumés live under their own prefix and are **never addressable by key** —
+the public site serves the current, visible résumé from a stable path, so
+un-publishing it actually stops serving it.
+
+### Uploads are untrusted input, and the client is not consulted
+
+The browser's `accept` attribute, the filename, the filename extension, the
+client `Content-Type`, and any client-reported size or dimensions are all
+treated as hints with **no authority**. The server sniffs magic bytes to
+determine the real type, requires it to be in the allowlist, and rejects a
+mismatch between the sniffed type and the declared one rather than quietly
+preferring the sniff — disagreement means a broken client or a probe.
+
+The allowlist is derived from what the schema can actually be used for:
+**PNG, JPEG, and WebP** for images, **PDF** for résumés. It is not broadened
+speculatively.
+
+**SVG is excluded.** An SVG is an active-content document, not an image, and
+the audit found no product requirement for one: no committed table attaches
+a logo or icon to a tool, technology, or skill. Enabling it would mean adding
+a sanitizer dependency and a large attack surface to serve a need that does
+not exist yet. If logos are wanted later they will need a migration anyway,
+and the safe-delivery strategy can be designed then.
+
+Because there is no filename column, the uploaded filename is persisted
+**nowhere**: it is used only to cross-check the extension, then discarded.
+Path traversal is structurally impossible rather than filtered — the key is
+generated server-side as `{prefix}/{uuidv7}.{ext}` with the extension derived
+from the sniffed type, so no user-supplied byte reaches the key.
+
+`width` and `height` are parsed from the image header server-side and stored,
+so the public site can reserve layout space and avoid layout shift. Variants
+are **not** generated: one row is one object and `storage_key` is UNIQUE, so
+a variant set cannot be modelled without a migration. Resizing belongs at
+delivery time.
+
 ## Deployment target (future)
 
 Cloudflare Workers, via OpenNext for Next.js. No Cloudflare-specific code
 or config exists in Phase 1A. Application code should avoid Node-only APIs
 without edge equivalents where reasonably avoidable, to keep this
 migration low-friction later.
+
+For R2 this is a live constraint rather than a future one: the upload path
+must use `File`/`Blob`/`ArrayBuffer`, Web Streams, and `crypto.subtle` for
+the checksum — never `node:crypto`, `node:fs`, or `Buffer`. All of those are
+available in both Node 24 and workerd, so the same code runs in tests and in
+production.
 
 ## Current status
 
@@ -486,6 +654,13 @@ authenticated admin shell, and the **complete CMS** — projects (Phase 7)
 plus all nine Phase 8 areas (technologies, profile, timeline, education,
 certifications, skills, tools, socials, sections).
 
-R2 uploads (Phase 9) and the public-site data conversion are **not
-implemented**: `apps/web` still renders placeholder content, and no section
-is yet mapped to a component by its `key`.
+**Phase 9 (R2/media) is in progress as an audit and architecture pass only.**
+The R2 architecture above is a plan: no bucket, binding, adapter, service,
+upload path, or media CMS surface exists, and no Cloudflare resource has been
+created. The public-site data conversion is likewise **not implemented** —
+`apps/web` still renders placeholder content, and no section is yet mapped to
+a component by its `key`.
+
+One defect in merged code is open and reported rather than fixed: partial
+project and technology updates do not preserve what they omit. See the
+correction under *Partial-update semantics* above.

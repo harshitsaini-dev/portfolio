@@ -262,12 +262,37 @@ phases, not Phase 8 gaps.
 Cloudflare R2 integration for project media and resume uploads, including
 upload validation.
 
-**Not started.** Engineering begins only after the Phase 8 closure
-documentation is merged and its post-merge `main` CI is green. Nothing has
-been provisioned: no R2 bucket, no binding, and no deployment resource
-changed. The `media_assets` and `resumes` tables are committed in migration
-`0001` and already have repositories, but no CMS surface and no storage
-behind them.
+**In progress — audit and architecture only.** The Phase 8 closure is merged
+(`91334d1`, PR #35) and its post-merge `main` CI run `31243357467` passed, so
+Phase 9 has begun. The first pass audited the media domain against migration
+`0001` and the committed repositories and produced an implementation plan;
+**no storage code was written.**
+
+Still true, and unchanged by this pass: **nothing has been provisioned.** No
+R2 bucket, no binding, no deployment resource. The `media_assets`,
+`resumes`, and `project_media` tables are committed in migration `0001` and
+`repos.media` / `repos.resumes` / the project aggregate's `setMedia` already
+exist and are tested — but there is no object storage behind them and no CMS
+surface.
+
+The audit found one **blocker in already-merged code**: `projectUpdateSchema`
+and `technologyUpdateSchema` are still derived with `.partial()` from
+defaulted create shapes, so a partial project update silently clears
+unmentioned columns and wipes every link, technology tag, and
+**`project_media` attachment**. It was reported rather than fixed, per the
+task's scope rules. See `docs/PROJECT_STATE.md`. The project-media
+attachment slice is blocked on it.
+
+Planned slice order:
+
+1. Fix the partial-update defect in Projects and Technologies (prerequisite,
+   not Phase 9 work proper).
+2. Storage seam and pure policy — binding provider, `R2Like` adapter
+   contract, in-memory fake, storage-key generator, MIME/size policy.
+3. Media library CMS — upload, list, alt text, delete, with compensation.
+4. Project media attachment and project cover image.
+5. Résumé upload and the current-résumé surface.
+6. Public delivery routes for images and the current résumé.
 
 ## Phase 10 — Theme/settings
 

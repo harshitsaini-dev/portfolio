@@ -6,12 +6,23 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 8 — Remaining CMS. COMPLETE**, on the merge of this closure.
+**Phase 9 — R2/media. IN PROGRESS (audit and architecture only).**
 
-All nine CMS areas are implemented, merged, and CI-verified on `main`. This
-documentation branch is the formal closure; **Phase 9 engineering begins only
-after it is reviewed, merged, and its own post-merge `main` CI passes** — not
-on the strength of this branch alone.
+**Phase 8 — Remaining CMS is COMPLETE**, merged and CI-verified on `main`
+(`91334d1 docs: mark sections CMS and phase 8 complete`, Pull Request #35,
+post-merge `main` CI run `31243357467`). Baseline at closure: **2488 real
+checks**.
+
+Phase 9 has started with an **audit-and-architecture pass only**. No R2
+bucket exists, no binding is configured, no object storage code was written,
+and no media CMS surface was built. What this pass produced is the
+implementation plan recorded below and in `ARCHITECTURE.md`, `DATABASE.md`,
+`DECISIONS.md`, `TESTING.md`, and `DEPLOYMENT.md`.
+
+**The audit found a cross-cutting defect in already-merged code and stopped
+rather than fixing it** — see *Blocker: partial project and technology
+updates* below. It is reported, not repaired, and it blocks one specific
+Phase 9 slice.
 
 - **Technologies CMS: COMPLETE.** Merged into `main` as
   `97d6425 feat: add technologies CMS`, verified by **Pull Request #14 on
@@ -67,10 +78,11 @@ on the strength of this branch alone.
   `31204188654`**. `main` is clean and synced after the merge. The **last of
   the nine Phase 8 areas**. See *Phase 8 — Sections CMS* below.
 - **Phase 7:** Complete (merged to `main`, CI green).
-- **Phase 9 — R2/media: NOT STARTED.** It becomes the next engineering task
-  only once this closure is reviewed, merged, and its post-merge `main` CI
-  is green. No R2 bucket, binding, or deployment resource has been created
-  or configured.
+- **Phase 9 — R2/media: IN PROGRESS, audit and architecture only.** The
+  media domain has been audited against migration `0001` and the committed
+  repositories, and an implementation plan is recorded. **No R2 bucket,
+  binding, adapter, service, upload handler, or CMS surface exists.** No
+  Cloudflare resource was created or mutated.
 
 Unchanged and still outstanding: the **remote `portfolio-cms` schema
 remains unapplied**, **Cloudflare Access dashboard configuration remains
@@ -79,8 +91,221 @@ Phase 22** (fail-closed until then).
 
 ## Active task
 
-**None.** The Sections CMS is merged and closed, and this documentation pass
-completes Phase 8. Phase 9 — R2/media is next and is not started.
+**Phase 9 — R2/media foundation: audit and architecture.** Documentation
+only; no code changed. Awaiting review of the plan below, and a decision on
+the reported blocker.
+
+## Phase 9 — R2/media (IN PROGRESS — audit and architecture)
+
+### Blocker: partial project and technology updates
+
+**Discovered during this audit, in already-merged code. Reported, not
+fixed** — the task's scope rules require stopping rather than expanding into
+completed CMS areas.
+
+`docs/ARCHITECTURE.md` states the project rule: *"Update shapes must not be
+derived with `.partial()` when fields carry `.default()`."* Two modules still
+violate it:
+
+```
+packages/schemas/src/projects.ts:130      projectUpdateSchema     = projectCreateSchema.partial();
+packages/schemas/src/technologies.ts:73   technologyUpdateSchema  = technologyCreateSchema.partial();
+```
+
+This is the **same defect class** as the timeline partial-update regression
+fixed in `c345131`. It was measured, not inferred. Calling the **real,
+unmodified `updateProjectAction`**, authenticated, against **real local D1**,
+with a payload mentioning only `title`:
+
+| Field | Before | After a title-only update |
+| --- | --- | --- |
+| `status` | `published` | **`draft`** |
+| `isFeatured` | `true` | **`false`** |
+| `position` | `7` | **`0`** |
+| `description` | prose | **`null`** |
+| `periodLabel` / `startedOn` / `completedOn` | set | **`null`** |
+| `project_links` | 1 | **0** |
+| `project_technologies` | 1 | **0** |
+| **`project_media`** | **1** | **0** |
+
+The action reported success and redirected. `projectUpdateSchema.parse({
+title })` yields **11 keys**, including `media: []`, `links: []`, and
+`technologyIds: []`; `applyRelations` treats a defaulted `[]` as "replace
+with nothing", so `setMedia`, `setLinks`, and `setTechnologies` all wipe.
+`coverMediaId` survived only because it is absent from the schema entirely
+— which is itself a gap, see below.
+
+Technologies is the milder case: `technologyUpdateSchema.parse({ name })`
+returns `{ name, category: null }`, so **renaming a technology silently
+clears its category**.
+
+**Why the existing suites did not catch it.** `projects-tests.mjs:222`
+asserts only that a single-field update *parses* (`partial.success`), never
+what the parsed patch contains; `projects-tests.mjs:377` checks that
+`summary` survives, and `summary` carries no default, so it passes for the
+wrong reason. The `.partial()`-safety group added for every entity from
+Education onward was never retrofitted to Projects or Technologies. This is
+`LEARNING.md`'s own lesson — *"the test caught it because it asserted
+persisted state, not parse success"* — reappearing in the two modules
+written before that lesson existed.
+
+**Why it blocks Phase 9 specifically.** `project_media` is the attachment
+table the media CMS is built on. Shipping media attachment onto an update
+path that silently detaches every asset would make the defect user-visible
+for the first time, and would look like Phase 9 broke it.
+
+**Not reachable through the admin UI today**, because the project form
+always submits the complete object — exactly as with the timeline
+regression. The exported Server Action contract is what is unsafe.
+
+### Audited media schema — read from migration `0001`, not from docs
+
+```
+media_assets
+  id TEXT PK
+  | storage_key  TEXT NOT NULL UNIQUE   -- "Object key within the R2 bucket"
+  | content_type TEXT NOT NULL
+  | byte_size    INTEGER NOT NULL CHECK (byte_size >= 0)
+  | width        INTEGER CHECK (width  IS NULL OR width  > 0)
+  | height       INTEGER CHECK (height IS NULL OR height > 0)
+  | checksum     TEXT
+  | alt_text     TEXT
+  | created_at | updated_at
+-- no index beyond the PK and the UNIQUE on storage_key
+
+resumes
+  id TEXT PK | label TEXT NOT NULL
+  | media_asset_id TEXT NOT NULL REFERENCES media_assets(id) ON DELETE RESTRICT
+  | is_current INTEGER NOT NULL DEFAULT 0 CHECK (is_current IN (0,1))
+  | is_visible INTEGER NOT NULL DEFAULT 1 CHECK (is_visible IN (0,1))
+  | created_at | updated_at
+UNIQUE INDEX idx_resumes_single_current ON (is_current) WHERE is_current = 1
+INDEX idx_resumes_media_asset ON (media_asset_id)
+
+project_media
+  id TEXT PK
+  | project_id     TEXT NOT NULL REFERENCES projects(id)      ON DELETE CASCADE
+  | media_asset_id TEXT NOT NULL REFERENCES media_assets(id)  ON DELETE RESTRICT
+  | caption TEXT
+  | position INTEGER NOT NULL DEFAULT 0 CHECK (position >= 0)
+  | created_at                      -- no updated_at
+  UNIQUE (project_id, media_asset_id)
+INDEX idx_project_media_project_position ON (project_id, position)
+INDEX idx_project_media_asset            ON (media_asset_id)
+```
+
+**Every foreign key pointing at `media_assets` — four, and they disagree:**
+
+| Referrer | Column | Nullable | Delete rule |
+| --- | --- | --- | --- |
+| `resumes` | `media_asset_id` | NOT NULL | **RESTRICT** |
+| `project_media` | `media_asset_id` | NOT NULL | **RESTRICT** |
+| `projects` | `cover_media_id` | nullable | **SET NULL** |
+| `site_settings` | `social_image_id` | nullable | **SET NULL** |
+
+**`media_assets` references nothing** — there is no foreign key out of it.
+
+**This asymmetry is the single most important audit finding for delete
+design.** Two referrers block a delete; two silently clear their pointer. So
+"did the delete throw?" does **not** answer "was it safe to delete?" — an
+asset used only as a project cover deletes successfully and silently removes
+that cover. The media service must pre-check `cover_media_id` and
+`social_image_id` itself, because the database will not.
+
+**Settings and profile:** `site_settings.social_image_id` is the only
+settings-side media reference. **`profile` has no media column at all** — no
+avatar, no photo — so no profile media surface can be built without a
+migration, and none is planned.
+
+### Columns that do not exist, and what follows
+
+- **No original/display filename column.** Nothing in `media_assets` can
+  hold the uploaded filename or a human label. The uploaded filename is
+  therefore used for **nothing persistent** in the plan below. Giving the
+  media library a human-readable name requires a migration `0002` adding
+  `original_filename` — **a decision deliberately left open, not taken.**
+- **No privacy, kind, or visibility column.** D1 cannot mark an asset
+  public or private, which is why the plan classifies objects by **storage
+  key prefix** instead — the only classification available without a
+  migration.
+- **No variant, parent, or derived-image column**, and `storage_key` is
+  UNIQUE per row, so responsive variants cannot be modelled as extra rows.
+  Phase 9 therefore stores originals only.
+- **`alt_text` is nullable, though its migration comment says "Required for
+  images".** The comment states an intent the constraint does not enforce.
+  The rule is real and must be enforced in the validation layer; it is not
+  a guarantee the database provides. Recorded in `DATABASE.md`.
+
+### What already exists — no invention required
+
+| Piece | State |
+| --- | --- |
+| `MediaAsset` / `Create` / `Update`, `Resume` / `Create` / `Update`, `ProjectMediaItem` / `Input` | present in `@portfolio/types` |
+| `createMediaAssetRepository` → **`repos.media`** | present, decodes all ten columns, `getById` / `getByStorageKey` / `list` / `create` / `update` / `delete` |
+| `createResumeRepository` → **`repos.resumes`** | present, including `getCurrent()` and a batched `makeCurrent()` |
+| `project_media` access | owned by the **project aggregate** — `setMedia` / `listMedia`, one `db.batch()`, no standalone repository |
+| `storage_key` immutability | already enforced — `MEDIA_PATCH` omits it, so no update can rewrite it |
+| Repository coverage | media and résumé lifecycles, cascade, and `ON DELETE RESTRICT` already tested in the database suite |
+
+**`storage_key` being both UNIQUE and unpatchable means the metadata
+uniqueness authority already exists and is already correct.** Nothing in
+`packages/database` needs to change for Phase 9's core flow.
+
+### What is missing
+
+- No R2 binding, adapter, or storage seam anywhere in the repository.
+- No storage-key generator, MIME policy, byte-size policy, or upload schema.
+- No media service, no upload Server Action, no media CMS routes; navigation
+  still shows **Media** as `availableIn: "Phase 9"`.
+- **`coverMediaId` is absent from `projectCreateSchema`/`projectUpdateSchema`
+  entirely**, so the CMS cannot set a project cover even though the column
+  and the repository patch spec both support it.
+- `.env.example` still lists `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` /
+  `R2_SECRET_ACCESS_KEY` / `R2_BUCKET_NAME` under "reserved for future
+  phases". **The recommended architecture needs none of them** — a Workers
+  R2 binding requires no credentials. Those names should be removed rather
+  than filled in.
+
+### Selected architecture — summary
+
+Full rationale in `ARCHITECTURE.md` and `DECISIONS.md`.
+
+- **Private bucket, delivery through the application.** No public bucket
+  access, no presigned URLs, no S3 credentials. Public images are served by
+  a cacheable app route; the current résumé is served from its own stable
+  path so its object key is never exposed.
+- **Binding seam mirroring `binding.ts`** — `setAdminStorageProvider()`,
+  fail-closed in production until Phase 22, local `getPlatformProxy()` for
+  development, structural `R2Like` interface so no Cloudflare package is
+  imported.
+- **Storage keys are server-generated**: `{prefix}/{uuidv7}.{ext}`, where
+  the prefix classifies public vs restricted, the id comes from the existing
+  `runtime.newId()`, and the extension is derived from the **sniffed** MIME
+  type. Never the uploaded filename, never client-supplied.
+- **R2 first, then D1, on create; D1 first, then R2, on delete** — so a
+  failure can only ever leave a harmless orphan object, never metadata
+  pointing at a missing file.
+- **Allowlist: PNG, JPEG, WebP for images; PDF for résumés. SVG excluded**,
+  because nothing in the committed schema attaches a logo to a tool or
+  technology, so no product requirement for it exists yet.
+- **Replacement never mutates an object or reuses a key** — a new object is
+  a new asset row, and the referrer is repointed.
+
+### Verification actually performed in this pass
+
+Documentation-only, so the full suite was deliberately not re-run. What was
+run:
+
+| Check | Result |
+| --- | --- |
+| Migration `0001` read in full as the authoritative source | done — 434 lines |
+| `projectUpdateSchema` single-field parse, measured | **11 keys materialised** |
+| Real `updateProjectAction` against real local D1, authenticated | **10 fields/relationships silently reset** |
+| `technologyUpdateSchema` single-field parse, measured | `category` forced to `null` |
+| `git diff --check` | clean |
+| Scope, secret, and encoding checks on edited Markdown | clean |
+
+The diagnostic probes were scratchpad-only and are **not** committed.
 
 ## Phase 8 — Sections CMS (COMPLETE)
 

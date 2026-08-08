@@ -1,6 +1,71 @@
 
 # Changelog
 
+## 2026-08-08 — Phase 9 R2/media: audit and architecture
+
+Documentation-only entry. **No application, test, schema, repository,
+package, migration, config, CI, or Cloudflare resource changes.** No R2
+bucket was created, no binding configured, no remote Cloudflare call made,
+and no file uploaded. Test total unchanged at **2488**.
+
+- **Phase 9 has started, as an audit and architecture pass only.** Phase 8
+  closed with `91334d1 docs: mark sections CMS and phase 8 complete` via
+  **Pull Request #35**, whose post-merge `main` CI run **`31243357467`**
+  passed.
+- **The media domain was audited against migration `0001` directly.**
+  Recorded: the exact `media_assets`, `resumes`, and `project_media`
+  definitions; all four foreign keys into `media_assets` and their differing
+  delete rules; every index and uniqueness constraint; and the fact that
+  `media_assets` references nothing.
+- **Four schema facts that shaped the design.** `alt_text` is nullable
+  despite a migration comment calling it required for images, so that rule
+  belongs to the validation layer and is not a database guarantee. There is
+  no filename, title, or display-label column, so an uploaded filename is
+  persisted nowhere. There is no privacy or kind column, so classification is
+  carried by the storage-key prefix. There is no variant column and
+  `storage_key` is UNIQUE per row, so Phase 9 stores originals only.
+- **Delete success is not delete safety.** `resumes` and `project_media` are
+  `ON DELETE RESTRICT` and block a delete; `projects.cover_media_id` and
+  `site_settings.social_image_id` are `ON DELETE SET NULL` and let it through
+  while silently clearing the pointer. The service must check the second pair
+  itself.
+- **Architecture selected:** private bucket read through the application, no
+  public bucket and no presigned URLs — so **no R2 access key, secret, or
+  API token is ever needed**; a binding seam mirroring the existing
+  `binding.ts`, fail-closed in production until Phase 22; a structural
+  `R2Like` interface so no Cloudflare package is imported; server-generated
+  `{prefix}/{uuidv7}.{ext}` storage keys; R2-then-D1 on create and
+  D1-then-R2 on delete, with explicit compensation; PNG/JPEG/WebP plus PDF,
+  **SVG excluded**; and no new workspace package.
+- **A cross-cutting defect was found in merged code and reported, not
+  fixed.** `projectUpdateSchema` and `technologyUpdateSchema` are still
+  derived with `.partial()` from defaulted create shapes — the same defect
+  class as the timeline regression fixed in `c345131`. Measured through the
+  **real, unmodified `updateProjectAction`** against **real local D1**: a
+  title-only update reset `status` (`published` → `draft`), `isFeatured`,
+  `position`, `description`, `periodLabel`, `startedOn`, and `completedOn`,
+  and deleted the project's link, technology tag, and **`project_media`
+  attachment** — while reporting success. A technology rename clears
+  `category`. Not reachable through the admin UI today, because the forms
+  submit complete objects; the exported Server Action contract is what is
+  unsafe. **Fixing it is a prerequisite for the project-media attachment
+  slice.**
+- **Two documentation claims were corrected because they were false.**
+  `ARCHITECTURE.md` claimed the partial-update contract was "enforced by
+  construction"; `TESTING.md` claimed the rule was asserted "for every
+  entity". Both now name the two exceptions explicitly.
+- **`packages/database` needs no change for Phase 9's core flow.**
+  `repos.media`, `repos.resumes`, `getByStorageKey()`, the batched
+  `makeCurrent()`, and the project aggregate's `setMedia` all already exist
+  and are already tested, and `storage_key` is already unpatchable.
+- **Migration `0001` was not edited and no `0002` was created.** No schema
+  blocker was found — the committed schema supports Phase 9. The two schema
+  changes that would be *nice* (an `original_filename` column, a per-asset
+  privacy flag) are recorded as open decisions and deliberately not taken.
+- Remote `portfolio-cms` schema remains **intentionally unapplied**,
+  **Cloudflare Access dashboard configuration remains pending**, and the
+  production OpenNext provider remains deferred to Phase 22.
+
 ## 2026-08-08 — Phase 8 COMPLETE
 
 Documentation-only entry. No application, test, schema, repository, package,

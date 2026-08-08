@@ -191,6 +191,49 @@ credentials are stored in D1.** `profile.public_email` is a published
 contact address, not a credential. `contact_messages` deliberately stores
 no IP address — only an optional coarse `source_country` for abuse review.
 
+### Media audit findings (Phase 9)
+
+Read from migration `0001` directly. Four things about `media_assets` shape
+the Phase 9 design and are easy to get wrong from the prose above.
+
+**`alt_text` is nullable, and its comment overstates the schema.** The
+migration says *"Required for images so an alt text can never be silently
+omitted at render time"*, but the column carries **no `NOT NULL` and no
+CHECK** — nothing in the database distinguishes an image row from a PDF row,
+so the rule cannot be expressed there. The intent is correct and stays; it
+must be enforced in the **validation layer**, and it must not be described as
+a database guarantee.
+
+**There is no filename, title, or display-label column.** An uploaded file's
+original name has nowhere to live. Phase 9 therefore persists it nowhere and
+uses it only to cross-check the extension. Giving the media library a
+human-readable name would need a migration `0002` adding `original_filename`
+— an open decision, not taken.
+
+**There is no privacy, kind, or visibility column.** D1 cannot mark an asset
+public or private, so classification is carried by the **storage-key prefix**
+instead.
+
+**There is no variant or parent column**, and `storage_key` is UNIQUE per
+row, so responsive variants cannot be modelled as sibling rows. Originals
+only; resize at delivery.
+
+**Delete success does not mean delete was safe.** The four foreign keys into
+`media_assets` split two-and-two: `resumes` and `project_media` are RESTRICT
+and will block the delete; `projects.cover_media_id` and
+`site_settings.social_image_id` are SET NULL and will let it through while
+silently clearing the pointer. The RESTRICT pair is surfaced to the editor,
+never worked around; the SET NULL pair must be checked by the application
+before deleting, because the database will not raise. `media_assets` itself
+references nothing, so deleting an asset cascades to nothing.
+
+**`storage_key` is already immutable in code**, not just unique in the
+schema: `MEDIA_PATCH` in `packages/database/src/repositories/media.ts` omits
+it, so no update can rewrite it. A new object is a new asset row. That
+combination — UNIQUE column plus unpatchable field — makes the database the
+final authority on object identity, which is what the R2 reconciliation
+strategy relies on.
+
 ## Key relationships
 
 ```
@@ -616,6 +659,16 @@ and is reported to the user as a conflict, never as a SQL message.
 Media attachments have no admin UI yet: no asset can exist before R2
 (Phase 9), so the form sends an empty media array rather than inventing
 asset ids.
+
+**That empty array is currently sent unconditionally, and it is also how a
+partial update wipes attachments.** `projectUpdateSchema` is derived with
+`.partial()` from a defaulted create shape, so `media`, `links`, and
+`technologyIds` are materialised as `[]` even when the caller omits them, and
+`applyRelations` reads a defaulted `[]` as "replace with nothing". Harmless
+today only because no attachments can exist. It stops being harmless the
+moment Phase 9 creates some, which is why the fix is a prerequisite for the
+attachment slice rather than part of it. Reported in
+`docs/PROJECT_STATE.md`; **not yet fixed**.
 
 ## Local vs remote policy
 

@@ -3,6 +3,79 @@
 Notes on things learned while building this project that are worth
 remembering for future work.
 
+## Phase 9 — R2/media audit
+
+### The third occurrence of a bug means the *rule* was never enforced
+
+`.partial()` over a defaulted create shape has now caused the same defect
+three times: education (caught pre-merge), timeline (caught post-merge and
+fixed in `c345131`), and now projects and technologies (found by this audit,
+still open).
+
+After the second occurrence the rule was written into `ARCHITECTURE.md` and
+every entity built afterwards followed it. What nobody did was **go back and
+check the entities built before the rule existed** — and those are exactly
+the ones that cannot possibly comply, because they predate it. A rule added
+after the fact protects future code by default and past code never.
+
+The cheap version of that sweep is one grep. `grep -rn '\.partial()'
+packages/schemas/src` returns ten hits, eight of which are comments
+*explaining why the module does not use it*, and two of which are live calls.
+That asymmetry is itself the signal: when most mentions of a pattern are
+apologies for not using it, the remaining uses are probably not deliberate.
+
+### A doc that claims enforcement is worse than one that claims intent
+
+`ARCHITECTURE.md` said the partial-update contract was "now enforced by
+construction rather than by convention", and `TESTING.md` said the rule was
+asserted "for every entity whose update schema exists". Both were false, and
+both were *more* harmful than saying nothing: a reader auditing this area
+would have read those sentences and moved on, which is presumably what
+happened for two merged slices.
+
+Claims of enforcement need the same evidence as test results. "Enforced by
+construction" means there is a mechanism that makes the wrong thing
+impossible — and there was none here, only a convention plus discipline. The
+corrections now name the exceptions explicitly rather than softening the
+wording, because a reader needs to know *which* entities are unsafe, not that
+some might be.
+
+### A passing test can be passing for the wrong reason
+
+`projects-tests.mjs` has a check literally named *"untouched fields are
+preserved"*. It passes. It inspects `summary` — the one optional-ish field in
+that schema carrying **no default** — so it would have passed just as happily
+with the bug present, which it was.
+
+Picking the field to assert on is not incidental to that test; it *is* the
+test. The right choice is the field most likely to be clobbered — one with a
+default, ideally set to a non-default value first — and the strongest version
+asserts the whole row rather than choosing at all.
+
+### Design the failure ordering before the happy path
+
+The most useful hour of this audit went on a table of what breaks when one of
+two systems fails, before any interface was sketched. It produced the
+governing rule directly — metadata must never outlive its object — and that
+rule then decided the write order, the delete order, the compensation, the
+orphan strategy, and why `getByStorageKey()` was already the right primitive.
+
+Had the happy path been designed first, "insert the row, then upload the
+file" would have looked perfectly reasonable, and the bug it creates only
+shows up as broken images in production some weeks later.
+
+### Look for the requirement before ruling on the risk
+
+The SVG question is usually answered from reflex — SVG carries active
+content, so sanitise it or ban it. The more useful move was to check whether
+anything actually needed one, and the schema answered flatly: no table
+attaches a logo or icon to a tool, technology, or skill.
+
+That turns a security trade-off into no decision at all. It is also more
+durable than a ban, because it records *why* the answer might change: if
+logos ever get a column, the question genuinely reopens, and the reasoning
+does not have to be reconstructed.
+
 ## Phase 8 — Sections CMS
 
 ### "Unchanged" is still a field the contract does not accept
