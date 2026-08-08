@@ -803,13 +803,21 @@ try {
   seam.clearAdminStorageProvider();
   check("no provider is registered to begin with", seam.hasAdminStorageProvider() === false);
 
+  // **Production fails closed, and that is the half that matters.** Phase 9
+  // slice 4 gave development a locally simulated bucket so the media CMS
+  // could be built and browser-verified; production deliberately did NOT
+  // change, because a development path reachable in production is how a
+  // deployment quietly writes to the wrong bucket.
+  const originalNodeEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = "production";
+
   let unavailable = null;
   try {
     await seam.getAdminStorage();
   } catch (error) {
     unavailable = error;
   }
-  check("with no provider, resolving fails closed", unavailable !== null);
+  check("with no provider in production, resolving fails closed", unavailable !== null);
   equal("with a StorageUnavailableError", unavailable?.name, "StorageUnavailableError");
   check(
     "the failure message names no bucket, account, or credential",
@@ -823,20 +831,51 @@ try {
     "and it says a provider must be registered",
     /setAdminStorageProvider/.test(unavailable?.message ?? ""),
   );
+  check(
+    "and it names the OpenNext API a deployment will register",
+    /getCloudflareContext/.test(unavailable?.message ?? ""),
+  );
 
-  // Fail-closed must not depend on NODE_ENV: unlike D1, there is no bucket in
-  // ANY environment, so there is no development path to fall back to.
-  const originalNodeEnv = process.env.NODE_ENV;
-  for (const environment of ["production", "development", "test"]) {
-    process.env.NODE_ENV = environment;
-    let threw = false;
-    try {
-      await seam.getAdminStorage();
-    } catch (error) {
-      threw = error?.name === "StorageUnavailableError";
-    }
-    check(`it fails closed with NODE_ENV=${environment} too`, threw);
+  // The production branch must be keyed on NODE_ENV and nothing else, so a
+  // repeated call cannot drift into the development path.
+  let secondProductionAttempt = null;
+  try {
+    await seam.getAdminStorage();
+  } catch (error) {
+    secondProductionAttempt = error?.name;
   }
+  equal(
+    "a repeated production call fails closed the same way",
+    secondProductionAttempt,
+    "StorageUnavailableError",
+  );
+
+  // Development resolves the locally simulated bucket instead of throwing.
+  // Exercised once, then disposed — an undisposed proxy leaves a workerd
+  // process behind that wedges the next suite's migration step.
+  process.env.NODE_ENV = "development";
+  const devPlatform = await import("../src/lib/dev-platform.ts");
+  let devStorage = null;
+  let devError = null;
+  try {
+    devStorage = await seam.getAdminStorage();
+  } catch (error) {
+    devError = error;
+  }
+  check(
+    "in development it does NOT fail closed",
+    devError === null,
+    String(devError?.message ?? ""),
+  );
+  check(
+    "it resolves something satisfying the storage contract",
+    devStorage !== null &&
+      ["put", "get", "head", "delete", "list"].every(
+        (method) => typeof devStorage[method] === "function",
+      ),
+  );
+  await devPlatform.disposeDevPlatform();
+
   if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
   else process.env.NODE_ENV = originalNodeEnv;
 
@@ -890,6 +929,11 @@ try {
   // Registration must not leak between tests.
   seam.clearAdminStorageProvider();
   check("clearing deregisters the provider", seam.hasAdminStorageProvider() === false);
+  // Checked under production, where "no provider" is unambiguously a failure.
+  // In development the seam would resolve the local bucket instead, which is
+  // the intended behaviour and is asserted above.
+  const envBeforeClear = process.env.NODE_ENV;
+  process.env.NODE_ENV = "production";
   let afterClear = null;
   try {
     await seam.getAdminStorage();
@@ -897,6 +941,8 @@ try {
     afterClear = error;
   }
   equal("and resolving fails closed again", afterClear?.name, "StorageUnavailableError");
+  if (envBeforeClear === undefined) delete process.env.NODE_ENV;
+  else process.env.NODE_ENV = envBeforeClear;
 
   // =========================================================================
   startGroup("The fake is not production surface");

@@ -384,20 +384,34 @@ try {
   // =========================================================================
   startGroup("Wrangler stays out of production runtime code");
 
-  const bindingImports = bindingSource.match(/from\s+"wrangler"|import\(\s*"wrangler"\s*\)/g) ?? [];
+  // The invariant is unchanged: `wrangler` is a devDependency, so exactly one
+  // production-reachable file may name it, and only inside a dynamic import
+  // in a development-only resolver. Phase 9 slice 4 MOVED that file rather
+  // than adding a second one — the storage seam needed the same proxy, and a
+  // second `import("wrangler")` would have spawned a second workerd process
+  // and put the reference in two production-reachable files.
+  const platformSource = readFileSync(
+    join(appRoot, "src", "lib", "dev-platform.ts"),
+    "utf8",
+  );
+  const bindingImports = platformSource.match(/from\s+"wrangler"|import\(\s*"wrangler"\s*\)/g) ?? [];
   check(
-    "the binding module references `wrangler` exactly once",
+    "the dev-platform module references `wrangler` exactly once",
     bindingImports.length === 1,
     JSON.stringify(bindingImports),
   );
   check(
     "that reference is a dynamic import, not a static one",
-    /await import\(\s*"wrangler"\s*\)/.test(bindingSource) &&
-      !/^\s*import .* from "wrangler"/m.test(bindingSource),
+    /await import\(\s*"wrangler"\s*\)/.test(platformSource) &&
+      !/^\s*import .* from "wrangler"/m.test(platformSource),
   );
   check(
     "it lives in the development-only resolver",
-    /function getDevelopmentDatabase[\s\S]*?await import\(\s*"wrangler"\s*\)/.test(bindingSource),
+    /getDevPlatformBindings[\s\S]*?await import\(\s*"wrangler"\s*\)/.test(platformSource),
+  );
+  check(
+    "the D1 binding module no longer names `wrangler` itself",
+    !/["']wrangler["']/.test(bindingSource),
   );
   check(
     "`wrangler` is a devDependency of the admin app, never a dependency",
@@ -412,7 +426,7 @@ try {
   const appSources = (files ?? []).filter(
     (file) =>
       file.startsWith("apps/admin/src/") && /\.(ts|tsx)$/.test(file) &&
-      !file.endsWith("lib/db/binding.ts"),
+      !file.endsWith("lib/dev-platform.ts"),
   );
   const strays = appSources.filter((file) =>
     /["']wrangler["']/.test(readFileSync(join(repoRoot, file), "utf8")),

@@ -112,6 +112,61 @@ in composition, matching what existing actions already do.
 
 Decisions taken while implementing the seam and policy the audit designed.
 
+## 2026-08-08 — Phase 9 media library CMS
+
+### The fail-closed-everywhere stance is reversed for development, on purpose
+
+The entry below argued that a local development bucket would mean adding
+`r2_buckets` to a committed config for "a resource nobody has created".
+That was right while nothing consumed storage. **The media CMS is that
+consumer**, and without a local binding every upload throws, which means the
+slice cannot be verified in a browser at all — the one kind of verification
+a UI slice most needs.
+
+The objection turned out to be weaker than it looked: `r2_buckets` in
+`wrangler.d1.jsonc` **creates no remote resource**. It tells miniflare what
+to simulate under `.wrangler/state/v3`, with no account, no credentials and
+no network — exactly what the D1 entry beside it already does. Nothing about
+deployment shape is being guessed.
+
+**Production still fails closed**, and that half is not negotiable. The old
+entry is kept below rather than rewritten, because the reasoning was sound
+for the state it was written in and the change of state is the interesting
+part.
+
+### `wrangler` moved to one module rather than being named twice
+
+`db-composition-tests.mjs` enforces that exactly one production-reachable
+file names `wrangler`, inside a dynamic import in a development-only
+resolver. That guard exists because a stray reference is how a devDependency
+ends up traced into a production bundle.
+
+Adding a second dynamic import in the storage seam would have broken it —
+and would also have spawned a **second workerd process** for the same
+config. So the resolution moved into `src/lib/dev-platform.ts`, which both
+seams now read from. One file names the tool, one proxy is spawned, and both
+bindings come from the same local state.
+
+The guard was updated to point at the new module and **gained a check**: the
+D1 binding must no longer name `wrangler` itself. The invariant is unchanged
+in spirit and stricter in practice.
+
+This is worth contrasting with what the discarded Antigravity branch did to
+the same problem: it wrapped the import in `eval('import("wrangler")')` to
+hide it from the bundler, which defeated the guard rather than satisfying it,
+and CI caught it.
+
+### The upload form posts FormData, not a JSON payload
+
+Every other form in this CMS serialises one `payload` blob. This one cannot:
+a `File` has no JSON representation that is not base64, which inflates it by
+a third and buffers it twice in the browser.
+
+Validation strength is unchanged, because it never depended on the transport
+— the action re-reads the bytes and the shared policy sniffs them. The
+`accept` attribute on the input is a convenience for the file picker and is
+documented as such; the server never consults it.
+
 ### The seam fails closed in *every* environment, not just production
 
 `db/binding.ts` falls back to a local `getPlatformProxy()` binding in

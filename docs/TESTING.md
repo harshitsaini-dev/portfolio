@@ -1,23 +1,26 @@
 # Testing
 
-## Current state (Phase 9 in progress — media service added)
+## Current state (Phase 9 in progress — media library CMS added)
 
-`pnpm test` runs **twenty-one real suites and one no-op** — **3089 checks**,
-all passing locally on Windows. The 2888 verified after the storage-test
-hygiene fix (post-merge `main` run `31251658312`) are **all still among them
-and none were weakened**.
+`pnpm test` runs **twenty-two real suites and one no-op** — **3181 checks**,
+all passing locally on Windows. The 3089 verified after the media service
+merge (PR #41, post-merge `main` run `31264118433`) are **all still among
+them and none were weakened**.
 
-The Phase 9 **media service** added one new suite of **181**, plus **2** to the
-storage foundation (a source-level NUL guard) and **18** to the repository
-suite for the two reference-counting methods it needed — the first change to
-`packages/database` since Skills, so the database subtotal moved
-**297 → 315**. What each suite actually proves matters, so be precise:
+The Phase 9 **media library CMS** added one new suite of **83**, plus **1** to
+the storage foundation and **1** to the D1 composition guard (which now also
+asserts the D1 binding no longer names `wrangler`). The admin foundation
+suite grew **125 → 132 on its own**: its recursive invariant discovered the
+three new `(protected)/media` routes without being edited, which is the point
+of enforcing that boundary structurally. `packages/database` was not touched,
+so the database subtotal stays **315**. What each suite proves matters, so be
+precise:
 
 | Suite | Checks | Executes against | Proves |
 | --- | --- | --- | --- |
 | Admin authentication | **42** | real `jose` verification, locally minted tokens | The Access JWT boundary and the development-auth guard |
-| Admin foundation | **125** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, the protected-page invariant, and horizontal scroll containment |
-| **D1 composition boundary** | **34** | the real `binding.ts`, the **working tree**, plus `tsc` over Wrangler-generated Cloudflare types | Production fails closed, the provider seam composes, and Phase 22's provider already type-checks |
+| Admin foundation | **132** | the guard, identity helpers, nav model, route source | Fail-closed branches, no dead links, the protected-page invariant, and horizontal scroll containment |
+| **D1 composition boundary** | **35** | the real `binding.ts`, the **working tree**, plus `tsc` over Wrangler-generated Cloudflare types | Production fails closed, the provider seam composes, and Phase 22's provider already type-checks |
 | **Projects CMS** | **185** | the real schemas, and **real local D1** via `getPlatformProxy()` | The validation boundary, **partial-patch safety at both the schema and the persisted row**, and the full CRUD + relationship path |
 | **Technologies CMS** | **112** | the real schemas, and **real local D1** | The validation boundary, **partial-patch safety including the defaulted `category`**, CRUD, the page-level usage composition, and `ON DELETE RESTRICT` |
 | **Profile CMS** | **77** | the real schema, and **real local D1** | The validation boundary and the singleton create-then-update lifecycle |
@@ -28,13 +31,14 @@ suite for the two reference-counting methods it needed — the first change to
 | **Tools CMS** | **146** | the real schemas, and **real local D1** | The validation boundary, the shared URL policy, the `UNIQUE` name constraint on both create and rename, partial-patch safety, and the ordered CRUD lifecycle |
 | **Socials CMS** | **161** | the real schemas, and **real local D1** | The validation boundary, the **required** URL policy, that `platform` is free text rather than an enum, partial-patch safety, and the ordered CRUD lifecycle |
 | **Sections CMS** | **173** | the real schemas, and **real local D1** | The validation boundary, the canonical machine-key grammar, that **`key` cannot be renamed after creation**, partial-patch safety, and the ordered CRUD lifecycle |
-| **Storage foundation** | **242** | the pure upload policy, the real seam module, the in-memory fake, a **real local simulated R2**, and `tsc` over Wrangler-generated `R2Bucket` | The four-type allowlist with SVG excluded, byte-signature detection, declared/sniffed mismatch refusal, both size ceilings, path-safe generated keys, fault-injectable storage, and a seam that fails closed in every environment |
+| **Storage foundation** | **243** | the pure upload policy, the real seam module, the in-memory fake, a **real local simulated R2**, and `tsc` over Wrangler-generated `R2Bucket` | The four-type allowlist with SVG excluded, byte-signature detection, declared/sniffed mismatch refusal, both size ceilings, path-safe generated keys, fault-injectable storage, and a seam that fails closed **in production** while development resolves a locally simulated bucket |
 | **Media service** | **181** | the real service, the fault-injectable fake, and **real local D1 repositories** | The create ordering, that a rejected upload issues no put, that a declined put is not success, compensation and compensation-failure, that a colliding id cannot overwrite an existing object, the delete ordering, and that **all four** references block a delete — including the two `SET NULL` ones the database would not object to |
+| **Media CMS** | **83** | the real upload/update/delete Server Actions, the fake bucket, and **real local D1** | That authorization runs before the body is read, that `purpose` is a closed set, that a rejected upload writes to **neither** system, that the image alt-text rule holds on update, and that a referenced asset cannot be deleted |
 | **Server Action authorization** | **611** | the **real exported action functions** for all eleven entities, against real local D1 | Unauthenticated mutations are denied and change nothing; partial updates preserve what they omit — **including a project's links, technology tags, and `project_media`**; unsafe URLs never reach a row; an in-use category cannot be deleted; a section key cannot be renamed; nothing leaks SQL |
 
-Subtotals: **admin 2774** (42 + 125 + 34 + 185 + 112 + 77 + 173 + 112 + 167 +
-233 + 146 + 161 + 173 + 242 + 181 + 611) and **database 315** (26 + 59 + 185 +
-41 + 4, detailed below) — **3089 total**.
+Subtotals: **admin 2866** (42 + 132 + 35 + 185 + 112 + 77 + 173 + 112 + 167 +
+233 + 146 + 161 + 173 + 243 + 181 + 83 + 611) and **database 315** (26 + 59 +
+185 + 41 + 4, detailed below) — **3181 total**.
 
 The database subtotal moved 287 → **297** for the first time since the
 Technologies slice: Skills needed `getSkillById()` on the repository

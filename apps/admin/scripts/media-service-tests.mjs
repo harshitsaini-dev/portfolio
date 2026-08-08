@@ -809,6 +809,13 @@ try {
     const dbSeam = await import("../src/lib/db/binding.ts");
     dbSeam.setAdminDatabaseProvider(async () => db);
 
+    // Asserted under PRODUCTION. Since Phase 9 slice 4 the storage seam
+    // resolves a locally simulated bucket in development, so "no provider"
+    // is only unambiguously a failure in production — which is the half of
+    // the guarantee that actually matters.
+    const compositionEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+
     storageSeam.clearAdminStorageProvider();
     let threw = null;
     try {
@@ -817,13 +824,14 @@ try {
       threw = error;
     }
     equal(
-      "with no storage provider registered it fails closed",
+      "in production, with no storage provider, it fails closed",
       threw?.name,
       "StorageUnavailableError",
     );
 
     // And it fails closed on storage WITHOUT resolving the database at all,
-    // so a request that cannot proceed never pays to open a binding.
+    // so a request that cannot proceed never pays to open a binding. This is
+    // the leak that made resolving both seams in parallel a bug worth fixing.
     let consulted = 0;
     dbSeam.setAdminDatabaseProvider(async () => {
       consulted += 1;
@@ -835,6 +843,9 @@ try {
       /* expected */
     }
     equal("and the database provider was never consulted", consulted, 0);
+
+    if (compositionEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = compositionEnv;
 
     const { createMemoryObjectStorage: makeFake } = await import("../src/lib/storage/memory-storage.ts");
     const injected = createMemoryObjectStorage();

@@ -3,6 +3,62 @@
 Notes on things learned while building this project that are worth
 remembering for future work.
 
+## Phase 9 — media library CMS
+
+### A guard you cannot satisfy is telling you the design is wrong
+
+The storage seam needed `getPlatformProxy()`, and the repository has a test
+asserting that exactly one production-reachable file names `wrangler`. The
+obvious moves were both bad: add a second import and break the guard, or
+hide the import from the bundler.
+
+The discarded Antigravity branch took the second route —
+`eval('import("wrangler")')` — and its CI failed 31/34, twice. That is the
+tell: it defeated the check rather than satisfying it, and the check was
+right.
+
+The guard was pointing at a real problem neither move addressed: two seams
+needing one proxy should **share** it, not each spawn their own. Moving the
+resolution into one module satisfied the guard honestly, removed a second
+workerd process, and let the guard get *stricter* (it now also asserts the
+D1 binding no longer names the tool).
+
+When a test blocks you, the useful question is not "how do I get past it"
+but "what is it protecting, and is my design fighting that".
+
+### Reversing a decision is fine; letting the docs lie is not
+
+`DECISIONS.md` said the storage seam fails closed in every environment, with
+a good argument. This slice reversed the development half — and the
+argument had genuinely stopped applying, because the objection was "a config
+naming a resource nobody created", and a miniflare-simulated bucket creates
+nothing.
+
+What matters is that the reversal is **written down beside the original**
+rather than replacing it. The old reasoning was sound for its moment; the
+interesting content is what changed and why. A doc that quietly rewrites
+itself teaches nothing and cannot be trusted about anything else.
+
+### Seven failing tests were the design change, not a regression
+
+After the reversal the full suite failed seven checks, all asserting the old
+stance. The tempting fix is deletion. The right fix was to ask which half of
+the guarantee still mattered — production — and make **that** assertion
+stronger while replacing the rest with the new intended behaviour.
+
+The suite ended up better than before: it now also proves a repeated
+production call cannot drift into the development path, which nothing
+checked previously.
+
+### A test that spawns a process must dispose it
+
+Exercising the new development path in a test spawns a workerd via the
+cached proxy. An undisposed one is exactly what wedged the next suite's
+migration step twice during the media service slice — a symptom minutes
+away from its cause. So `disposeDevPlatform()` was added *with* the test
+rather than after the next mysterious hang, mirroring why
+`clearAdminStorageProvider()` exists.
+
 ## Phase 9 — media service
 
 ### Measure the dependency's semantics before designing around them

@@ -44,6 +44,8 @@ import "server-only";
 
 import { createRepositories, type D1Like, type Repositories } from "@portfolio/database";
 
+import { getDevPlatformBindings } from "../dev-platform.ts";
+
 /**
  * Supplies a D1 binding for the current request.
  *
@@ -94,45 +96,25 @@ export function clearAdminDatabaseProvider(): void {
 }
 
 /**
- * Cached development platform proxy.
+ * Resolve the local development database.
  *
- * `getPlatformProxy()` spawns a workerd process; doing that per request
- * would be unusably slow. Cached on `globalThis` so Next's dev-server module
- * reloading does not spawn a new one on every edit.
+ * The proxy itself lives in `../dev-platform.ts`, which is the single place
+ * this application names `wrangler`. It used to live here, privately, which
+ * worked while D1 was the only binding — a second seam needing the same proxy
+ * would have spawned a second workerd process and put a devDependency
+ * reference in a second production-reachable file. See that module.
  */
-const devProxyKey = Symbol.for("portfolio.admin.devD1Proxy");
-type DevProxyHolder = { [devProxyKey]?: Promise<D1Like> };
-
 async function getDevelopmentDatabase(): Promise<D1Like> {
-  const holder = globalThis as unknown as DevProxyHolder;
-  const existing = holder[devProxyKey];
-  if (existing) return existing;
-
-  const created = (async () => {
-    // Dynamic + development-guarded: `wrangler` is a devDependency and this
-    // line is unreachable in production — `getAdminDatabase()` throws before
-    // calling this function when NODE_ENV is "production", and Next inlines
-    // that comparison at build time.
-    const { getPlatformProxy } = await import("wrangler");
-    const { resolve } = await import("node:path");
-
-    // The repo-root D1 management config, and the same `.wrangler/state/v3`
-    // layout the migration tooling writes to.
-    const repoRoot = resolve(process.cwd(), "..", "..");
-    const platform = await getPlatformProxy<{ DB: D1Like }>({
-      configPath: resolve(repoRoot, "wrangler.d1.jsonc"),
-      persist: { path: resolve(repoRoot, ".wrangler", "state", "v3") },
-      remoteBindings: false,
-    });
-
-    if (!platform.env?.DB) {
-      throw new DatabaseUnavailableError("local platform proxy exposed no DB binding");
-    }
-    return platform.env.DB;
-  })();
-
-  holder[devProxyKey] = created;
-  return created;
+  try {
+    const { DB } = await getDevPlatformBindings();
+    return DB;
+  } catch (cause) {
+    const error = new DatabaseUnavailableError(
+      "the local development platform could not supply a DB binding",
+    );
+    error.cause = cause;
+    throw error;
+  }
 }
 
 /** Resolve the D1 binding for this environment. */

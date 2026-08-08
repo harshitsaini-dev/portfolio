@@ -1,6 +1,62 @@
 
 # Changelog
 
+## 2026-08-08 — Phase 9: media library CMS
+
+The first Phase 9 slice with a user interface. **Phase 9 is not complete** —
+project attachment, résumé UI and public delivery remain unbuilt, and **no
+R2 bucket exists in Cloudflare**.
+
+### Added
+
+- **A local development R2 binding.** `getAdminStorage()` now falls back to a
+  locally simulated bucket; `wrangler.d1.jsonc` gained an `r2_buckets` entry
+  that **creates no remote resource** — miniflare simulates it under
+  `.wrangler/state/v3`, with no account, credentials or network.
+  **Production still fails closed.**
+- **`src/lib/dev-platform.ts`** — the single module naming `wrangler`, from
+  which both the D1 and storage seams read. One proxy instead of two, and
+  `disposeDevPlatform()` so a test cannot leave a workerd process behind.
+- **Three Server Actions** (`upload`, `update`, `delete`), each running
+  `requireAdminIdentity()` **before** the body is read or a binding resolved.
+- **Routes** `/media`, `/media/new`, `/media/[id]`, all through
+  `withAdminPage` with static metadata, plus upload/edit/delete forms reusing
+  the shared field primitives. Media is now a live navigation entry.
+- **`mediaAssetUpdateSchema`** (alt text only) and **`mediaPurposeSchema`** (a
+  closed set, so a caller can never supply a storage prefix).
+- **`media-cms-tests.mjs` — 83 checks.**
+
+### Changed
+
+- **The "fails closed in every environment" decision is reversed for
+  development**, and `docs/DECISIONS.md` records the reversal rather than
+  letting code and docs disagree. It was correct while nothing consumed
+  storage; the CMS is that consumer, and without a local binding the slice
+  could not be browser-verified at all.
+- **The `wrangler` guard moved rather than loosened.** A second dynamic
+  import in the storage seam would have broken the one-file invariant and
+  spawned a second workerd process. The guard now points at `dev-platform.ts`
+  and **gained a check** — the D1 binding must no longer name `wrangler`
+  itself — so that suite went 34 → 35.
+- **Seven storage-foundation assertions were rewritten, not deleted.** They
+  asserted the old every-environment stance. They now assert the production
+  guarantee more strongly (including that a repeated call cannot drift into
+  the development path) and assert that development resolves a contract-
+  satisfying bucket.
+
+### Verification
+
+- `pnpm lint` **PASS** (0) · `pnpm typecheck` **PASS** (0) · `pnpm build`
+  **PASS** (0) · `pnpm test` **PASS** (0).
+- **Browser-verified with `playwright-local` MCP** against real local D1 and
+  a real local R2: a 7,853-byte PNG uploaded and produced both a row and an
+  object; the uploaded filename appears nowhere in the key; **an SVG renamed
+  `.png` was refused and stored nothing at all**; delete removed row and
+  object; focus moves to the confirm button and to the error summary; 375px
+  has no page-level horizontal scroll; **zero console errors**.
+- No bucket created, no remote call, no `--remote`, no credentials, migration
+  `0001` untouched.
+
 ## 2026-08-08 — Phase 9: media service
 
 The cross-system orchestration layer between validated bytes, R2, and D1.
