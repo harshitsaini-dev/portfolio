@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { updateSkillAction } from "@/lib/actions/skills";
 import { withAdminPage } from "@/lib/auth/protected-page";
+import { getMediaOptions } from "@/lib/media/options";
 import { getAdminRepositories } from "@/lib/db/binding";
 import { DeleteSkillForm } from "@/components/skills/delete-skill-form";
 import { SkillForm } from "@/components/skills/skill-form";
@@ -26,6 +27,8 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
 
     const skill = await repos.skills.getSkillById(id);
     if (!skill) notFound();
+
+    const mediaOptions = await getMediaOptions();
 
     // Only to name the owning category in the UI. The category cannot be
     // changed here — see `SkillForm` for why that is a distinct operation.
@@ -57,6 +60,7 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
           categoryName={category?.name ?? "Unknown category"}
           submitLabel="Save changes"
           initialValues={{
+            iconMediaId: skill.iconMediaId ?? "",
             categoryId: skill.categoryId,
             name: skill.name,
             proficiency:
@@ -64,6 +68,7 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
             position: skill.position,
             isVisible: skill.isVisible,
           }}
+          mediaOptions={mediaOptions}
         />
 
         <section

@@ -25,8 +25,14 @@ import {
   CheckboxField,
   TextField,
 } from "@/components/form/field";
+import {
+  MediaPickerField,
+  type MediaOption,
+} from "@/components/media/media-picker-field";
 
 export interface ToolFormValues {
+  /** The chosen media asset id, or `""` for no icon. */
+  iconMediaId: string;
   name: string;
   purpose: string;
   url: string;
@@ -35,6 +41,7 @@ export interface ToolFormValues {
 }
 
 export const emptyToolValues: ToolFormValues = {
+  iconMediaId: "",
   name: "",
   purpose: "",
   url: "",
@@ -52,11 +59,14 @@ export function ToolForm({
   toolId,
   initialValues,
   submitLabel,
+  mediaOptions,
 }: {
   action: ToolAction;
   toolId?: string;
   initialValues: ToolFormValues;
   submitLabel: string;
+  /** Uploaded assets to choose from, read on the server by the page. */
+  mediaOptions: readonly MediaOption[];
 }) {
   const fieldId = useId();
   const [state, formAction, isPending] = useActionState(action, idleState);
@@ -186,6 +196,28 @@ export function ToolForm({
           checked={values.isVisible}
           onChange={(checked) => update("isVisible", checked)}
           hint="Uncheck to hide this tool from the public site. It stays listed here."
+        />
+      </section>
+
+      <section
+        aria-labelledby={`${fieldId}-icon-heading`}
+        className="flex flex-col gap-5"
+      >
+        <h2
+          id={`${fieldId}-icon-heading`}
+          className="text-sm font-semibold uppercase tracking-wider text-fg"
+        >
+          Icon
+        </h2>
+
+        <MediaPickerField
+          id={`${fieldId}-icon`}
+          label="Icon"
+          value={values.iconMediaId}
+          options={mediaOptions}
+          errors={fieldErrors.iconMediaId}
+          hint="Optional image shown beside this tool."
+          onChange={(value) => update("iconMediaId", value)}
         />
       </section>
 

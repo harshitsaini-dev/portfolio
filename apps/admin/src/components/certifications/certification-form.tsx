@@ -26,8 +26,14 @@ import {
   CheckboxField,
   TextField,
 } from "@/components/form/field";
+import {
+  MediaPickerField,
+  type MediaOption,
+} from "@/components/media/media-picker-field";
 
 export interface CertificationFormValues {
+  /** The chosen media asset id, or `""` for no icon. */
+  iconMediaId: string;
   title: string;
   issuer: string;
   credentialId: string;
@@ -39,6 +45,7 @@ export interface CertificationFormValues {
 }
 
 export const emptyCertificationValues: CertificationFormValues = {
+  iconMediaId: "",
   title: "",
   issuer: "",
   credentialId: "",
@@ -59,11 +66,14 @@ export function CertificationForm({
   certificationId,
   initialValues,
   submitLabel,
+  mediaOptions,
 }: {
   action: CertificationAction;
   certificationId?: string;
   initialValues: CertificationFormValues;
   submitLabel: string;
+  /** Uploaded assets to choose from, read on the server by the page. */
+  mediaOptions: readonly MediaOption[];
 }) {
   const fieldId = useId();
   const [state, formAction, isPending] = useActionState(action, idleState);
@@ -229,6 +239,28 @@ export function CertificationForm({
           checked={values.isVisible}
           onChange={(checked) => update("isVisible", checked)}
           hint="Uncheck to hide this certification from the public site. It stays listed here."
+        />
+      </section>
+
+      <section
+        aria-labelledby={`${fieldId}-icon-heading`}
+        className="flex flex-col gap-5"
+      >
+        <h2
+          id={`${fieldId}-icon-heading`}
+          className="text-sm font-semibold uppercase tracking-wider text-fg"
+        >
+          Icon
+        </h2>
+
+        <MediaPickerField
+          id={`${fieldId}-icon`}
+          label="Icon"
+          value={values.iconMediaId}
+          options={mediaOptions}
+          errors={fieldErrors.iconMediaId}
+          hint="Optional image shown beside this certification."
+          onChange={(value) => update("iconMediaId", value)}
         />
       </section>
 

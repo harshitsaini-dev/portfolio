@@ -28,8 +28,14 @@ import {
   TextAreaField,
   TextField,
 } from "@/components/form/field";
+import {
+  MediaPickerField,
+  type MediaOption,
+} from "@/components/media/media-picker-field";
 
 export interface TimelineFormValues {
+  /** The chosen media asset id, or `""` for no icon. */
+  iconMediaId: string;
   role: string;
   organization: string;
   summary: string;
@@ -43,6 +49,7 @@ export interface TimelineFormValues {
 }
 
 export const emptyTimelineValues: TimelineFormValues = {
+  iconMediaId: "",
   role: "",
   organization: "",
   summary: "",
@@ -65,11 +72,14 @@ export function TimelineForm({
   entryId,
   initialValues,
   submitLabel,
+  mediaOptions,
 }: {
   action: TimelineAction;
   entryId?: string;
   initialValues: TimelineFormValues;
   submitLabel: string;
+  /** Uploaded assets to choose from, read on the server by the page. */
+  mediaOptions: readonly MediaOption[];
 }) {
   const fieldId = useId();
   const [state, formAction, isPending] = useActionState(action, idleState);
@@ -96,6 +106,7 @@ export function TimelineForm({
   const payload = JSON.stringify({
     role: values.role,
     organization: values.organization,
+    iconMediaId: values.iconMediaId,
     summary: values.summary,
     location: values.location,
     periodLabel: values.periodLabel,
@@ -256,6 +267,28 @@ export function TimelineForm({
         errors={fieldErrors}
         onChange={(highlights) => update("highlights", highlights)}
       />
+
+      <section
+        aria-labelledby={`${fieldId}-icon-heading`}
+        className="flex flex-col gap-5"
+      >
+        <h2
+          id={`${fieldId}-icon-heading`}
+          className="text-sm font-semibold uppercase tracking-wider text-fg"
+        >
+          Icon
+        </h2>
+
+        <MediaPickerField
+          id={`${fieldId}-icon`}
+          label="Icon"
+          value={values.iconMediaId}
+          options={mediaOptions}
+          errors={fieldErrors.iconMediaId}
+          hint="Optional image shown beside this entry."
+          onChange={(value) => update("iconMediaId", value)}
+        />
+      </section>
 
       <div className="flex flex-wrap items-center gap-3">
         <button

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { updateTimelineEntryAction } from "@/lib/actions/timeline";
 import { withAdminPage } from "@/lib/auth/protected-page";
+import { getMediaOptions } from "@/lib/media/options";
 import { getAdminRepositories } from "@/lib/db/binding";
 import { DeleteTimelineEntryForm } from "@/components/timeline/delete-timeline-entry-form";
 import { TimelineForm } from "@/components/timeline/timeline-form";
@@ -26,6 +27,8 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
 
     const entry = await repos.timeline.getById(id);
     if (!entry) notFound();
+
+    const mediaOptions = await getMediaOptions();
 
     // Highlights come from the aggregate's own accessor, already ordered by
     // position — the form then treats array order as the ordering.
@@ -55,6 +58,7 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
           entryId={entry.id}
           submitLabel="Save changes"
           initialValues={{
+            iconMediaId: entry.iconMediaId ?? "",
             role: entry.role,
             organization: entry.organization,
             summary: entry.summary ?? "",
@@ -66,6 +70,7 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
             isVisible: entry.isVisible,
             highlights: highlights.map((highlight) => highlight.content),
           }}
+          mediaOptions={mediaOptions}
         />
 
         <section

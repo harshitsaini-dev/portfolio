@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { createSkillAction } from "@/lib/actions/skills";
 import { withAdminPage } from "@/lib/auth/protected-page";
+import { getMediaOptions } from "@/lib/media/options";
 import { getAdminRepositories } from "@/lib/db/binding";
 import { emptySkillValues, SkillForm } from "@/components/skills/skill-form";
 
@@ -13,6 +14,8 @@ export const metadata: Metadata = {
 };
 
 export default withAdminPage(async () => {
+  const mediaOptions = await getMediaOptions();
+
   const repos = await getAdminRepositories();
   const categories = await repos.skills.list();
 
@@ -48,6 +51,7 @@ export default withAdminPage(async () => {
         }))}
         initialValues={emptySkillValues}
         submitLabel="Create skill"
+        mediaOptions={mediaOptions}
       />
     </div>
   );

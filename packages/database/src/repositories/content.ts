@@ -62,7 +62,7 @@ export function createSocialLinkRepository(
     entity,
     table: "social_links",
     columns:
-      "id, label, platform, url, position, is_visible, created_at, updated_at",
+      "id, label, platform, url, position, is_visible, icon_media_id, created_at, updated_at",
     decode: (row): SocialLink => ({
       id: requireString(entity, row, "id"),
       label: requireString(entity, row, "label"),
@@ -70,11 +70,14 @@ export function createSocialLinkRepository(
       url: requireString(entity, row, "url"),
       position: requireNumber(entity, row, "position"),
       isVisible: requireBoolean(entity, row, "is_visible"),
+      iconMediaId: nullableString(entity, row, "icon_media_id"),
       createdAt: requireString(entity, row, "created_at"),
       updatedAt: requireString(entity, row, "updated_at"),
     }),
-    insertColumns: ["label", "platform", "url", "position", "is_visible"],
+    insertColumns: [
+      "icon_media_id","label", "platform", "url", "position", "is_visible"],
     insertValues: (input) => [
+      input.iconMediaId ?? null,
       input.label,
       input.platform,
       input.url,
@@ -82,6 +85,10 @@ export function createSocialLinkRepository(
       boolToInt(input.isVisible ?? true),
     ],
     patch: {
+      iconMediaId: {
+        column: "icon_media_id",
+        encode: (p) => p.iconMediaId ?? null,
+      },
       label: { column: "label", encode: (p) => p.label },
       platform: { column: "platform", encode: (p) => p.platform },
       url: { column: "url", encode: (p) => p.url },
@@ -114,7 +121,7 @@ export function createEducationRepository(
     table: "education",
     columns: `id, qualification, institution, field_of_study, summary,
       period_label, started_on, ended_on, position, is_visible,
-      created_at, updated_at`,
+      icon_media_id, created_at, updated_at`,
     decode: (row): EducationEntry => ({
       id: requireString(entity, row, "id"),
       qualification: requireString(entity, row, "qualification"),
@@ -126,10 +133,12 @@ export function createEducationRepository(
       endedOn: nullableString(entity, row, "ended_on"),
       position: requireNumber(entity, row, "position"),
       isVisible: requireBoolean(entity, row, "is_visible"),
+      iconMediaId: nullableString(entity, row, "icon_media_id"),
       createdAt: requireString(entity, row, "created_at"),
       updatedAt: requireString(entity, row, "updated_at"),
     }),
     insertColumns: [
+      "icon_media_id",
       "qualification",
       "institution",
       "field_of_study",
@@ -141,6 +150,7 @@ export function createEducationRepository(
       "is_visible",
     ],
     insertValues: (input) => [
+      input.iconMediaId ?? null,
       input.qualification,
       input.institution,
       input.fieldOfStudy ?? null,
@@ -152,6 +162,10 @@ export function createEducationRepository(
       boolToInt(input.isVisible ?? true),
     ],
     patch: {
+      iconMediaId: {
+        column: "icon_media_id",
+        encode: (p) => p.iconMediaId ?? null,
+      },
       qualification: { column: "qualification", encode: (p) => p.qualification },
       institution: { column: "institution", encode: (p) => p.institution },
       fieldOfStudy: {
@@ -190,7 +204,7 @@ export function createCertificationRepository(
     entity,
     table: "certifications",
     columns: `id, title, issuer, credential_id, credential_url, issued_on,
-      expires_on, position, is_visible, created_at, updated_at`,
+      expires_on, position, is_visible, icon_media_id, created_at, updated_at`,
     decode: (row): Certification => ({
       id: requireString(entity, row, "id"),
       title: requireString(entity, row, "title"),
@@ -201,10 +215,12 @@ export function createCertificationRepository(
       expiresOn: nullableString(entity, row, "expires_on"),
       position: requireNumber(entity, row, "position"),
       isVisible: requireBoolean(entity, row, "is_visible"),
+      iconMediaId: nullableString(entity, row, "icon_media_id"),
       createdAt: requireString(entity, row, "created_at"),
       updatedAt: requireString(entity, row, "updated_at"),
     }),
     insertColumns: [
+      "icon_media_id",
       "title",
       "issuer",
       "credential_id",
@@ -215,6 +231,7 @@ export function createCertificationRepository(
       "is_visible",
     ],
     insertValues: (input) => [
+      input.iconMediaId ?? null,
       input.title,
       input.issuer,
       input.credentialId ?? null,
@@ -225,6 +242,10 @@ export function createCertificationRepository(
       boolToInt(input.isVisible ?? true),
     ],
     patch: {
+      iconMediaId: {
+        column: "icon_media_id",
+        encode: (p) => p.iconMediaId ?? null,
+      },
       title: { column: "title", encode: (p) => p.title },
       issuer: { column: "issuer", encode: (p) => p.issuer },
       credentialId: {
@@ -261,7 +282,7 @@ export function createToolRepository(
     entity,
     table: "tools",
     columns:
-      "id, name, purpose, url, position, is_visible, created_at, updated_at",
+      "id, name, purpose, url, position, is_visible, icon_media_id, created_at, updated_at",
     decode: (row): Tool => ({
       id: requireString(entity, row, "id"),
       name: requireString(entity, row, "name"),
@@ -269,11 +290,14 @@ export function createToolRepository(
       url: nullableString(entity, row, "url"),
       position: requireNumber(entity, row, "position"),
       isVisible: requireBoolean(entity, row, "is_visible"),
+      iconMediaId: nullableString(entity, row, "icon_media_id"),
       createdAt: requireString(entity, row, "created_at"),
       updatedAt: requireString(entity, row, "updated_at"),
     }),
-    insertColumns: ["name", "purpose", "url", "position", "is_visible"],
+    insertColumns: [
+      "icon_media_id","name", "purpose", "url", "position", "is_visible"],
     insertValues: (input) => [
+      input.iconMediaId ?? null,
       input.name,
       input.purpose ?? null,
       input.url ?? null,
@@ -281,6 +305,10 @@ export function createToolRepository(
       boolToInt(input.isVisible ?? true),
     ],
     patch: {
+      iconMediaId: {
+        column: "icon_media_id",
+        encode: (p) => p.iconMediaId ?? null,
+      },
       name: { column: "name", encode: (p) => p.name },
       purpose: { column: "purpose", encode: (p) => p.purpose ?? null },
       url: { column: "url", encode: (p) => p.url ?? null },
@@ -309,7 +337,7 @@ export function createSectionRepository(
 ): SectionRepository {
   const entity = "section";
   const columns =
-    "id, key, title, subtitle, eyebrow, position, is_visible, created_at, updated_at";
+    "id, key, title, subtitle, eyebrow, position, is_visible, icon_media_id, created_at, updated_at";
 
   const decode = (row: Row): Section => ({
     id: requireString(entity, row, "id"),
@@ -319,6 +347,7 @@ export function createSectionRepository(
     eyebrow: nullableString(entity, row, "eyebrow"),
     position: requireNumber(entity, row, "position"),
     isVisible: requireBoolean(entity, row, "is_visible"),
+    iconMediaId: nullableString(entity, row, "icon_media_id"),
     createdAt: requireString(entity, row, "created_at"),
     updatedAt: requireString(entity, row, "updated_at"),
   });
@@ -329,6 +358,7 @@ export function createSectionRepository(
     columns,
     decode,
     insertColumns: [
+      "icon_media_id",
       "key",
       "title",
       "subtitle",
@@ -337,6 +367,7 @@ export function createSectionRepository(
       "is_visible",
     ],
     insertValues: (input: SectionCreate) => [
+      input.iconMediaId ?? null,
       input.key,
       input.title,
       input.subtitle ?? null,
@@ -347,6 +378,10 @@ export function createSectionRepository(
     // `key` is deliberately absent: it is the stable identifier the UI maps
     // to a component, so renaming it silently would break rendering.
     patch: {
+      iconMediaId: {
+        column: "icon_media_id",
+        encode: (p) => p.iconMediaId ?? null,
+      },
       title: { column: "title", encode: (p) => p.title },
       subtitle: { column: "subtitle", encode: (p) => p.subtitle ?? null },
       eyebrow: { column: "eyebrow", encode: (p) => p.eyebrow ?? null },

@@ -25,6 +25,11 @@
 
 import { z } from "zod";
 
+import {
+  mediaReferenceCreate,
+  mediaReferenceUpdate,
+} from "./internal/media-reference.ts";
+
 /**
  * Optional free text: blank input becomes `null`, not `""`.
  *
@@ -91,6 +96,7 @@ const highlightList = z
  */
 const timelineEntryFields = z
   .object({
+    iconMediaId: mediaReferenceCreate,
     role: z.string().trim().min(1, "Required").max(160, "Too long"),
     organization: z.string().trim().min(1, "Required").max(160, "Too long"),
     summary: nullableText(1000).default(null),
@@ -169,6 +175,7 @@ export const timelineEntryCreateSchema = timelineEntryFields.refine(
  */
 export const timelineEntryUpdateSchema = z
   .object({
+    iconMediaId: mediaReferenceUpdate,
     role: z.string().trim().min(1, "Required").max(160, "Too long").optional(),
     organization: z
       .string()

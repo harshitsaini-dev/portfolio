@@ -29,8 +29,14 @@ import {
 } from "@/lib/actions/result";
 import type { ProfileMutationData } from "@/lib/actions/profile";
 import { TextAreaField, TextField } from "@/components/form/field";
+import {
+  MediaPickerField,
+  type MediaOption,
+} from "@/components/media/media-picker-field";
 
 export interface ProfileFormValues {
+  /** The chosen media asset id, or `""` for no photograph. */
+  avatarMediaId: string;
   fullName: string;
   headline: string;
   tagline: string;
@@ -41,6 +47,7 @@ export interface ProfileFormValues {
 }
 
 export const emptyProfileValues: ProfileFormValues = {
+  avatarMediaId: "",
   fullName: "",
   headline: "",
   tagline: "",
@@ -59,11 +66,14 @@ export function ProfileForm({
   action,
   initialValues,
   isConfigured,
+  mediaOptions,
 }: {
   action: ProfileAction;
   initialValues: ProfileFormValues;
   /** Whether a profile row already existed when this page was rendered. */
   isConfigured: boolean;
+  /** Uploaded assets to choose from, read on the server by the page. */
+  mediaOptions: readonly MediaOption[];
 }) {
   const fieldId = useId();
   const [state, formAction, isPending] = useActionState(action, idleState);
@@ -221,6 +231,30 @@ export function ProfileForm({
           errors={fieldErrors.publicEmail}
           hint="Optional. Shown publicly, so use an address you are happy to publish."
           onChange={(value) => update("publicEmail", value)}
+        />
+      </section>
+
+      <section
+        aria-labelledby={`${fieldId}-avatar-heading`}
+        className="flex flex-col gap-5"
+      >
+        <h2
+          id={`${fieldId}-avatar-heading`}
+          className="text-sm font-semibold uppercase tracking-wider text-fg"
+        >
+          Photograph
+        </h2>
+
+        {/* Labelled "photograph", not "icon": this is a picture of a
+            person, which is why the column is avatar_media_id. */}
+        <MediaPickerField
+          id={`${fieldId}-avatar`}
+          label="Profile photo"
+          value={values.avatarMediaId}
+          options={mediaOptions}
+          errors={fieldErrors.avatarMediaId}
+          hint="Optional photograph shown on the public site."
+          onChange={(value) => update("avatarMediaId", value)}
         />
       </section>
 

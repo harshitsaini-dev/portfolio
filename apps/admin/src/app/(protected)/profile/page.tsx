@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { saveProfileAction } from "@/lib/actions/profile";
 import { withAdminPage } from "@/lib/auth/protected-page";
+import { getMediaOptions } from "@/lib/media/options";
 import { getAdminRepositories } from "@/lib/db/binding";
 import {
   emptyProfileValues,
@@ -34,6 +35,7 @@ export const metadata: Metadata = {
  * *says*, not what it offers.
  */
 export default withAdminPage(async () => {
+  const mediaOptions = await getMediaOptions();
   const repos = await getAdminRepositories();
   const profile = await repos.profile.get();
   const isConfigured = profile !== null;
@@ -69,6 +71,7 @@ export default withAdminPage(async () => {
       <ProfileForm
         action={saveProfileAction}
         isConfigured={isConfigured}
+        mediaOptions={mediaOptions}
         initialValues={
           profile
             ? {
@@ -79,6 +82,7 @@ export default withAdminPage(async () => {
                 location: profile.location ?? "",
                 availability: profile.availability ?? "",
                 publicEmail: profile.publicEmail ?? "",
+                avatarMediaId: profile.avatarMediaId ?? "",
               }
             : emptyProfileValues
         }

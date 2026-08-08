@@ -27,8 +27,14 @@ import {
   TextAreaField,
   TextField,
 } from "@/components/form/field";
+import {
+  MediaPickerField,
+  type MediaOption,
+} from "@/components/media/media-picker-field";
 
 export interface EducationFormValues {
+  /** The chosen media asset id, or `""` for no icon. */
+  iconMediaId: string;
   qualification: string;
   institution: string;
   fieldOfStudy: string;
@@ -41,6 +47,7 @@ export interface EducationFormValues {
 }
 
 export const emptyEducationValues: EducationFormValues = {
+  iconMediaId: "",
   qualification: "",
   institution: "",
   fieldOfStudy: "",
@@ -62,11 +69,14 @@ export function EducationForm({
   entryId,
   initialValues,
   submitLabel,
+  mediaOptions,
 }: {
   action: EducationAction;
   entryId?: string;
   initialValues: EducationFormValues;
   submitLabel: string;
+  /** Uploaded assets to choose from, read on the server by the page. */
+  mediaOptions: readonly MediaOption[];
 }) {
   const fieldId = useId();
   const [state, formAction, isPending] = useActionState(action, idleState);
@@ -240,6 +250,28 @@ export function EducationForm({
           checked={values.isVisible}
           onChange={(checked) => update("isVisible", checked)}
           hint="Uncheck to hide this entry from the public site. It stays listed here."
+        />
+      </section>
+
+      <section
+        aria-labelledby={`${fieldId}-icon-heading`}
+        className="flex flex-col gap-5"
+      >
+        <h2
+          id={`${fieldId}-icon-heading`}
+          className="text-sm font-semibold uppercase tracking-wider text-fg"
+        >
+          Icon
+        </h2>
+
+        <MediaPickerField
+          id={`${fieldId}-icon`}
+          label="Icon"
+          value={values.iconMediaId}
+          options={mediaOptions}
+          errors={fieldErrors.iconMediaId}
+          hint="Optional image shown beside this entry."
+          onChange={(value) => update("iconMediaId", value)}
         />
       </section>
 

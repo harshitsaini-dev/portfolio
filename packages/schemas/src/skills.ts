@@ -41,6 +41,11 @@ import { z } from "zod";
 
 import { slugSchema } from "./internal/slug.ts";
 
+import {
+  mediaReferenceCreate,
+  mediaReferenceUpdate,
+} from "./internal/media-reference.ts";
+
 // ---------------------------------------------------------------------------
 // Shared leaf schemas — no defaults, no optionality; the shapes add those.
 // ---------------------------------------------------------------------------
@@ -97,6 +102,7 @@ export const skillCategoryIdSchema = skillIdSchema;
  */
 export const skillCategoryCreateSchema = z
   .object({
+    iconMediaId: mediaReferenceCreate,
     name: requiredText(80),
     slug: slugSchema,
     description: nullableText(500).default(null),
@@ -116,6 +122,7 @@ export const skillCategoryCreateSchema = z
  */
 export const skillCategoryUpdateSchema = z
   .object({
+    iconMediaId: mediaReferenceUpdate,
     name: requiredText(80).optional(),
     slug: slugSchema.optional(),
     description: nullableText(500).optional(),
@@ -156,6 +163,7 @@ const nullableProficiency = z
  */
 export const skillCreateSchema = z
   .object({
+    iconMediaId: mediaReferenceCreate,
     categoryId: skillCategoryIdSchema,
     name: requiredText(80),
     proficiency: nullableProficiency.default(null),
@@ -182,6 +190,7 @@ export const skillCreateSchema = z
  */
 export const skillUpdateSchema = z
   .object({
+    iconMediaId: mediaReferenceUpdate,
     name: requiredText(80).optional(),
     proficiency: nullableProficiency.optional(),
     position: positionValue.optional(),

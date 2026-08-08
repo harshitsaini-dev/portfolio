@@ -31,6 +31,11 @@
 
 import { z } from "zod";
 
+import {
+  mediaReferenceCreate,
+  mediaReferenceUpdate,
+} from "./internal/media-reference.ts";
+
 // ---------------------------------------------------------------------------
 // Shared leaf schemas — no defaults, no optionality; the shapes add those.
 // ---------------------------------------------------------------------------
@@ -109,6 +114,7 @@ function dateOrderIssue() {
  */
 export const educationEntryCreateSchema = z
   .object({
+    iconMediaId: mediaReferenceCreate,
     qualification: requiredText(160),
     institution: requiredText(160),
     fieldOfStudy: nullableText(160).default(null),
@@ -133,6 +139,7 @@ export const educationEntryCreateSchema = z
  */
 export const educationEntryUpdateSchema = z
   .object({
+    iconMediaId: mediaReferenceUpdate,
     qualification: requiredText(160).optional(),
     institution: requiredText(160).optional(),
     fieldOfStudy: nullableText(160).optional(),

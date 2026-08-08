@@ -57,6 +57,11 @@ import { z } from "zod";
 
 import { slugSchema } from "./internal/slug.ts";
 
+import {
+  mediaReferenceCreate,
+  mediaReferenceUpdate,
+} from "./internal/media-reference.ts";
+
 // ---------------------------------------------------------------------------
 // Shared leaf schemas — no defaults, no optionality; the shapes add those.
 // ---------------------------------------------------------------------------
@@ -91,6 +96,7 @@ const positionValue = z
  */
 export const sectionCreateSchema = z
   .object({
+    iconMediaId: mediaReferenceCreate,
     key: slugSchema,
     title: requiredText(120),
     // Editorial copy shown beneath the title. Nullable in the schema, so
@@ -117,6 +123,7 @@ export const sectionCreateSchema = z
  */
 export const sectionUpdateSchema = z
   .object({
+    iconMediaId: mediaReferenceUpdate,
     title: requiredText(120).optional(),
     subtitle: nullableText(300).optional(),
     eyebrow: nullableText(80).optional(),

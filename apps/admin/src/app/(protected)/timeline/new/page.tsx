@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { createTimelineEntryAction } from "@/lib/actions/timeline";
 import { withAdminPage } from "@/lib/auth/protected-page";
+import { getMediaOptions } from "@/lib/media/options";
 import {
   emptyTimelineValues,
   TimelineForm,
@@ -14,6 +15,8 @@ export const metadata: Metadata = {
 };
 
 export default withAdminPage(async () => {
+  const mediaOptions = await getMediaOptions();
+
   return (
     <div className="mx-auto w-full max-w-3xl">
       <nav aria-label="Breadcrumb" className="text-sm">
@@ -37,6 +40,7 @@ export default withAdminPage(async () => {
         action={createTimelineEntryAction}
         initialValues={emptyTimelineValues}
         submitLabel="Create entry"
+        mediaOptions={mediaOptions}
       />
     </div>
   );

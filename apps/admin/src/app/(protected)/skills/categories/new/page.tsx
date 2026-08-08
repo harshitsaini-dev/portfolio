@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { createSkillCategoryAction } from "@/lib/actions/skills";
 import { withAdminPage } from "@/lib/auth/protected-page";
+import { getMediaOptions } from "@/lib/media/options";
 import {
   emptySkillCategoryValues,
   SkillCategoryForm,
@@ -14,6 +15,8 @@ export const metadata: Metadata = {
 };
 
 export default withAdminPage(async () => {
+  const mediaOptions = await getMediaOptions();
+
   return (
     <div className="mx-auto w-full max-w-3xl">
       <nav aria-label="Breadcrumb" className="text-sm">
@@ -46,6 +49,7 @@ export default withAdminPage(async () => {
         action={createSkillCategoryAction}
         initialValues={emptySkillCategoryValues}
         submitLabel="Create category"
+        mediaOptions={mediaOptions}
       />
     </div>
   );

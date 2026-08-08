@@ -39,7 +39,7 @@ const ENTITY = "project";
 
 const PROJECT_COLUMNS = `id, slug, title, summary, description, status,
   is_featured, position, period_label, started_on, completed_on,
-  cover_media_id, published_at, created_at, updated_at`;
+  cover_media_id, icon_media_id, published_at, created_at, updated_at`;
 
 function toProject(row: Row): Project {
   return {
@@ -55,6 +55,7 @@ function toProject(row: Row): Project {
     startedOn: nullableString(ENTITY, row, "started_on"),
     completedOn: nullableString(ENTITY, row, "completed_on"),
     coverMediaId: nullableString(ENTITY, row, "cover_media_id"),
+    iconMediaId: nullableString(ENTITY, row, "icon_media_id"),
     publishedAt: nullableString(ENTITY, row, "published_at"),
     createdAt: requireString(ENTITY, row, "created_at"),
     updatedAt: requireString(ENTITY, row, "updated_at"),
@@ -96,6 +97,10 @@ const PROJECT_PATCH: FieldSpecs<ProjectUpdate> = {
   periodLabel: { column: "period_label", encode: (p) => p.periodLabel ?? null },
   startedOn: { column: "started_on", encode: (p) => p.startedOn ?? null },
   completedOn: { column: "completed_on", encode: (p) => p.completedOn ?? null },
+  iconMediaId: {
+    column: "icon_media_id",
+    encode: (p) => p.iconMediaId ?? null,
+  },
   coverMediaId: {
     column: "cover_media_id",
     encode: (p) => p.coverMediaId ?? null,
@@ -325,8 +330,9 @@ export function createProjectRepository(
             `INSERT INTO projects
                (id, slug, title, summary, description, status, is_featured,
                 position, period_label, started_on, completed_on,
-                cover_media_id, published_at, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                cover_media_id, icon_media_id, published_at, created_at,
+                updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .bind(
             id,
@@ -341,6 +347,7 @@ export function createProjectRepository(
             input.startedOn ?? null,
             input.completedOn ?? null,
             input.coverMediaId ?? null,
+            input.iconMediaId ?? null,
             input.publishedAt ?? null,
             now,
             now,

@@ -22,6 +22,10 @@
 
 import { z } from "zod";
 
+import {
+  mediaReferenceCreate,
+} from "./internal/media-reference.ts";
+
 /** Optional free text: blank input becomes `null`, not `""`. */
 const optionalText = (max: number) =>
   z
@@ -65,6 +69,7 @@ const optionalEmail = z
  */
 export const profileSaveSchema = z
   .object({
+    avatarMediaId: mediaReferenceCreate,
     fullName: z.string().trim().min(1, "Required").max(120, "Too long"),
     headline: z.string().trim().min(1, "Required").max(160, "Too long"),
     tagline: optionalText(200),

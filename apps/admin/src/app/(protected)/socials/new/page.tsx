@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { createSocialLinkAction } from "@/lib/actions/socials";
 import { withAdminPage } from "@/lib/auth/protected-page";
+import { getMediaOptions } from "@/lib/media/options";
 import {
   emptySocialLinkValues,
   SocialLinkForm,
@@ -14,6 +15,8 @@ export const metadata: Metadata = {
 };
 
 export default withAdminPage(async () => {
+  const mediaOptions = await getMediaOptions();
+
   return (
     <div className="mx-auto w-full max-w-3xl">
       <nav aria-label="Breadcrumb" className="text-sm">
@@ -37,6 +40,7 @@ export default withAdminPage(async () => {
         action={createSocialLinkAction}
         initialValues={emptySocialLinkValues}
         submitLabel="Create social link"
+        mediaOptions={mediaOptions}
       />
     </div>
   );

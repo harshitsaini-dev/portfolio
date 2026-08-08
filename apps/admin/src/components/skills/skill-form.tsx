@@ -32,8 +32,14 @@ import {
   SelectField,
   TextField,
 } from "@/components/form/field";
+import {
+  MediaPickerField,
+  type MediaOption,
+} from "@/components/media/media-picker-field";
 
 export interface SkillFormValues {
+  /** The chosen media asset id, or `""` for no icon. */
+  iconMediaId: string;
   categoryId: string;
   name: string;
   /** Empty string means "not rated" — distinct from a rating of 1. */
@@ -43,6 +49,7 @@ export interface SkillFormValues {
 }
 
 export const emptySkillValues: SkillFormValues = {
+  iconMediaId: "",
   categoryId: "",
   name: "",
   proficiency: "",
@@ -76,6 +83,7 @@ export function SkillForm({
   categoryName,
   initialValues,
   submitLabel,
+  mediaOptions,
 }: {
   action: SkillsAction;
   skillId?: string;
@@ -85,6 +93,8 @@ export function SkillForm({
   categoryName?: string;
   initialValues: SkillFormValues;
   submitLabel: string;
+  /** Uploaded assets to choose from, read on the server by the page. */
+  mediaOptions: readonly MediaOption[];
 }) {
   const fieldId = useId();
   const [state, formAction, isPending] = useActionState(action, idleState);
@@ -119,6 +129,7 @@ export function SkillForm({
     ...(isEditing ? {} : { categoryId: values.categoryId }),
     name: values.name,
     proficiency,
+    iconMediaId: values.iconMediaId,
     position: Number.isFinite(values.position) ? values.position : 0,
     isVisible: values.isVisible,
   });
@@ -241,6 +252,28 @@ export function SkillForm({
           checked={values.isVisible}
           onChange={(checked) => update("isVisible", checked)}
           hint="Uncheck to hide this skill from the public site. It stays listed here."
+        />
+      </section>
+
+      <section
+        aria-labelledby={`${fieldId}-icon-heading`}
+        className="flex flex-col gap-5"
+      >
+        <h2
+          id={`${fieldId}-icon-heading`}
+          className="text-sm font-semibold uppercase tracking-wider text-fg"
+        >
+          Icon
+        </h2>
+
+        <MediaPickerField
+          id={`${fieldId}-icon`}
+          label="Icon"
+          value={values.iconMediaId}
+          options={mediaOptions}
+          errors={fieldErrors.iconMediaId}
+          hint="Optional image shown beside this skill."
+          onChange={(value) => update("iconMediaId", value)}
         />
       </section>
 

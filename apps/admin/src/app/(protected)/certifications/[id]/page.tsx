@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { updateCertificationAction } from "@/lib/actions/certifications";
 import { withAdminPage } from "@/lib/auth/protected-page";
+import { getMediaOptions } from "@/lib/media/options";
 import { getAdminRepositories } from "@/lib/db/binding";
 import { DeleteCertificationForm } from "@/components/certifications/delete-certification-form";
 import { CertificationForm } from "@/components/certifications/certification-form";
@@ -26,6 +27,8 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
 
     const certification = await repos.certifications.getById(id);
     if (!certification) notFound();
+
+    const mediaOptions = await getMediaOptions();
 
     return (
       <div className="mx-auto w-full max-w-3xl">
@@ -51,6 +54,7 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
           certificationId={certification.id}
           submitLabel="Save changes"
           initialValues={{
+            iconMediaId: certification.iconMediaId ?? "",
             title: certification.title,
             issuer: certification.issuer,
             credentialId: certification.credentialId ?? "",
@@ -60,6 +64,7 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
             position: certification.position,
             isVisible: certification.isVisible,
           }}
+          mediaOptions={mediaOptions}
         />
 
         <section

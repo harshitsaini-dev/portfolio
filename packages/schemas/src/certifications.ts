@@ -36,6 +36,11 @@ import { z } from "zod";
 
 import { nullableHttpUrlSchema } from "./internal/url.ts";
 
+import {
+  mediaReferenceCreate,
+  mediaReferenceUpdate,
+} from "./internal/media-reference.ts";
+
 // ---------------------------------------------------------------------------
 // Shared leaf schemas — no defaults, no optionality; the shapes add those.
 // ---------------------------------------------------------------------------
@@ -114,6 +119,7 @@ function dateOrderIssue() {
  */
 export const certificationCreateSchema = z
   .object({
+    iconMediaId: mediaReferenceCreate,
     title: requiredText(160),
     issuer: requiredText(160),
     // The credential's own reference code, e.g. "AWS-PSA-12345". Free text:
@@ -138,6 +144,7 @@ export const certificationCreateSchema = z
  */
 export const certificationUpdateSchema = z
   .object({
+    iconMediaId: mediaReferenceUpdate,
     title: requiredText(160).optional(),
     issuer: requiredText(160).optional(),
     credentialId: nullableText(160).optional(),

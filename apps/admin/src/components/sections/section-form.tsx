@@ -37,8 +37,14 @@ import {
   TextAreaField,
   TextField,
 } from "@/components/form/field";
+import {
+  MediaPickerField,
+  type MediaOption,
+} from "@/components/media/media-picker-field";
 
 export interface SectionFormValues {
+  /** The chosen media asset id, or `""` for no icon. */
+  iconMediaId: string;
   key: string;
   title: string;
   subtitle: string;
@@ -48,6 +54,7 @@ export interface SectionFormValues {
 }
 
 export const emptySectionValues: SectionFormValues = {
+  iconMediaId: "",
   key: "",
   title: "",
   subtitle: "",
@@ -66,11 +73,14 @@ export function SectionForm({
   sectionId,
   initialValues,
   submitLabel,
+  mediaOptions,
 }: {
   action: SectionAction;
   sectionId?: string;
   initialValues: SectionFormValues;
   submitLabel: string;
+  /** Uploaded assets to choose from, read on the server by the page. */
+  mediaOptions: readonly MediaOption[];
 }) {
   const fieldId = useId();
   const [state, formAction, isPending] = useActionState(action, idleState);
@@ -105,6 +115,7 @@ export function SectionForm({
     ...(isEditing ? {} : { key: values.key }),
     title: values.title,
     subtitle: values.subtitle,
+    iconMediaId: values.iconMediaId,
     eyebrow: values.eyebrow,
     position: Number.isFinite(values.position) ? values.position : 0,
     isVisible: values.isVisible,
@@ -235,6 +246,28 @@ export function SectionForm({
           checked={values.isVisible}
           onChange={(checked) => update("isVisible", checked)}
           hint="Uncheck to hide this section from the public site. It stays listed here."
+        />
+      </section>
+
+      <section
+        aria-labelledby={`${fieldId}-icon-heading`}
+        className="flex flex-col gap-5"
+      >
+        <h2
+          id={`${fieldId}-icon-heading`}
+          className="text-sm font-semibold uppercase tracking-wider text-fg"
+        >
+          Icon
+        </h2>
+
+        <MediaPickerField
+          id={`${fieldId}-icon`}
+          label="Icon"
+          value={values.iconMediaId}
+          options={mediaOptions}
+          errors={fieldErrors.iconMediaId}
+          hint="Optional image shown beside this section."
+          onChange={(value) => update("iconMediaId", value)}
         />
       </section>
 
