@@ -204,6 +204,64 @@ components write `bg-surface` / `text-fg-muted` / `border-subtle` and
 **never a raw colour value**. There are no section-specific colour
 constants anywhere.
 
+## shadcn/ui (Phase 9)
+
+shadcn is not a dependency — its components are copied into
+`packages/ui/src/components/` as source and are **owned and edited** here.
+Consumers import them as `@portfolio/ui/components/<name>`.
+
+Those components are written against shadcn's own variable names. Rather
+than give those names colours of their own — which would leave Phase 10's
+theme CMS writing two palettes and keeping them in step forever —
+`packages/ui/src/shadcn.css` **aliases every one of them to a token above**
+and introduces no colour. Dark-scheme and `[data-theme]` overrides flow
+through for free, because the aliases are `var()` references rather than
+copies.
+
+| shadcn name | Alias of |
+| --- | --- |
+| `--background` / `--foreground` | `--bg` / `--fg` |
+| `--card`, `--popover` | `--surface` |
+| `--primary` / `--primary-foreground` | `--accent` / `--accent-fg` |
+| `--secondary`, `--muted` | `--surface-muted` |
+| `--muted-foreground` | `--fg-muted` |
+| `--destructive` / `--destructive-foreground` | `--danger` / `--danger-fg` |
+| `--border` / `--input` | `--border-subtle` / `--border-strong` |
+| `--ring`, `--radius` | already exist; reused unchanged |
+
+### The one role that does not line up
+
+The systems disagree on **`accent`**. Here it is the brand blue used for
+primary actions and the focus ring; in shadcn it is a subtle hover surface,
+closer to this project's `--surface-muted`.
+
+`--accent` is deliberately not reassigned — the admin's list pages already
+use `bg-accent` for primary buttons, and repointing it would repaint all of
+them. So a generated component that uses `accent` for a hover state has that
+usage rewritten to `surface-muted`/`fg` when it is added. This is the only
+such divergence, and it is the first thing to check on any new component.
+
+### Rules when adding a component
+
+`pnpm dlx shadcn@latest add <name>` from `packages/ui`, then, before
+committing:
+
+1. Rewrite the generated `@/lib/utils` import to a relative `../lib/utils.ts`
+   specifier. Apps consume this package's TypeScript source, so `@/` would
+   resolve against the *consuming app's* `src/`, not this package's.
+2. Rewrite `accent` usages per the divergence above.
+3. Replace hard-coded colours (`text-white`) with the token utility, so dark
+   mode inverts them.
+4. Drop the generated `dark:` variants. This project switches palettes at the
+   token layer under `prefers-color-scheme`, so those rules would adjust an
+   already-adjusted value a second time.
+5. Check the interactive target is at least 44px, matching the rest of the
+   admin. shadcn's defaults are 36px.
+
+Each app's `globals.css` carries an `@source` pointing at
+`packages/ui/src`, because Tailwind otherwise scans only the app itself and
+would omit utilities used solely by the shared components.
+
 ## Light and dark
 
 Light is the default; dark comes from `prefers-color-scheme`. Both were

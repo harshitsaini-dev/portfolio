@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { Button } from "@portfolio/ui/components/button";
+
 import { withAdminPage } from "@/lib/auth/protected-page";
 import { getAdminRepositories } from "@/lib/db/binding";
 
@@ -37,12 +39,12 @@ export default withAdminPage(async () => {
               : `${assets.length} file${assets.length === 1 ? "" : "s"}, newest first.`}
           </p>
         </div>
-        <Link
-          href="/media/new"
-          className="inline-flex min-h-11 items-center justify-center rounded-md bg-accent px-4 text-sm font-medium text-accent-fg transition-colors duration-150 hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          Upload file
-        </Link>
+        {/* First consumer of the shared shadcn Button. `asChild` keeps the
+            rendered element an anchor, so client-side navigation and
+            middle-click still work — a <button> wrapping a Link would not. */}
+        <Button asChild>
+          <Link href="/media/new">Upload file</Link>
+        </Button>
       </div>
 
       {assets.length === 0 ? (

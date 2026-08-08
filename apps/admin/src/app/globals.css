@@ -2,6 +2,14 @@
 /* The same semantic tokens the public site uses. Closes the Phase 3
    limitation that apps/admin had not adopted the shared design system. */
 @import "@portfolio/ui/tokens.css";
+/* shadcn/ui's variable names, aliased onto the tokens above. Introduces no
+   colours of its own — see packages/ui/src/shadcn.css. */
+@import "@portfolio/ui/shadcn.css";
+
+/* Tailwind only scans this app by default, so utilities used exclusively by
+   the shared components would be absent from the generated stylesheet — a
+   component that looks unstyled for no visible reason. */
+@source "../../../../packages/ui/src";
 
 /**
  * Map the shared tokens onto Tailwind's theme, exactly as `apps/web` does,
