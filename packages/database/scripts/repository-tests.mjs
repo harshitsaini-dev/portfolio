@@ -2,10 +2,15 @@
  * Repository integration tests.
  *
  * These exercise the real repository code — imported from `src/`, not
- * re-implemented here — against a real SQL engine running the real
- * `migrations/0001_initial_schema.sql`. If a repository's SQL is wrong, its
- * mapping drops a column, or a constraint bites differently than expected,
- * these fail.
+ * re-implemented here — against a real SQL engine running **every** file in
+ * `migrations/`, in order. If a repository's SQL is wrong, its mapping drops
+ * a column, or a constraint bites differently than expected, these fail.
+ *
+ * The whole directory is applied rather than a named file. It used to load
+ * `0001_initial_schema.sql` alone, which meant that the moment a second
+ * migration existed these tests measured a schema the application no longer
+ * had — and the failure surfaced as an opaque "create failed" from whichever
+ * repository happened to write the new column first.
  *
  * Local only. No Cloudflare authentication, no network, no `--remote`. The
  * database is in-memory and disappears with the process, so there is no
@@ -15,7 +20,7 @@
  * than "some string that looks like a date".
  */
 
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -29,7 +34,26 @@ import { openTestDatabase } from "./d1-test-adapter.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, "..", "..", "..");
-const migrationPath = join(repoRoot, "migrations", "0001_initial_schema.sql");
+const migrationsDir = join(repoRoot, "migrations");
+
+/**
+ * Every migration, concatenated in filename order.
+ *
+ * The numeric prefixes sort lexicographically for as long as the width is
+ * fixed, which is the same ordering Wrangler's migration runner applies, so
+ * the schema under test is the schema a real database reaches.
+ */
+function readAllMigrations() {
+  const files = readdirSync(migrationsDir)
+    .filter((name) => name.endsWith(".sql"))
+    .sort();
+  if (files.length === 0) {
+    throw new Error(`no migrations found in ${migrationsDir}`);
+  }
+  return files
+    .map((name) => readFileSync(join(migrationsDir, name), "utf8"))
+    .join("\n");
+}
 
 const failures = [];
 let checks = 0;
@@ -69,7 +93,7 @@ async function expectRejection(description, promise, predicate) {
 
 /** Fresh database + repositories with a pinned clock and sequential ids. */
 function freshFixture() {
-  const migrationSql = readFileSync(migrationPath, "utf8");
+  const migrationSql = readAllMigrations();
   const { sqlite, db } = openTestDatabase(migrationSql);
 
   let idCounter = 0;

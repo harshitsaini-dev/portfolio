@@ -19,6 +19,7 @@ export function toTechnology(row: Row): Technology {
     name: requireString(ENTITY, row, "name"),
     slug: requireString(ENTITY, row, "slug"),
     category: nullableString(ENTITY, row, "category"),
+    iconMediaId: nullableString(ENTITY, row, "icon_media_id"),
     createdAt: requireString(ENTITY, row, "created_at"),
     updatedAt: requireString(ENTITY, row, "updated_at"),
   };
@@ -28,6 +29,10 @@ const PATCH: FieldSpecs<TechnologyUpdate> = {
   name: { column: "name", encode: (p) => p.name },
   slug: { column: "slug", encode: (p) => p.slug },
   category: { column: "category", encode: (p) => p.category ?? null },
+  iconMediaId: {
+    column: "icon_media_id",
+    encode: (p) => p.iconMediaId ?? null,
+  },
 };
 
 export interface TechnologyRepository {
@@ -44,7 +49,8 @@ export interface TechnologyRepository {
   delete(id: string): Promise<boolean>;
 }
 
-const COLUMNS = "id, name, slug, category, created_at, updated_at";
+const COLUMNS =
+  "id, name, slug, category, icon_media_id, created_at, updated_at";
 
 export function createTechnologyRepository(
   db: D1Like,
@@ -92,10 +98,19 @@ export function createTechnologyRepository(
       try {
         await db
           .prepare(
-            `INSERT INTO technologies (id, name, slug, category, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO technologies
+               (id, name, slug, category, icon_media_id, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
           )
-          .bind(id, input.name, input.slug, input.category ?? null, now, now)
+          .bind(
+            id,
+            input.name,
+            input.slug,
+            input.category ?? null,
+            input.iconMediaId ?? null,
+            now,
+            now,
+          )
           .run();
       } catch (cause) {
         throw toDatabaseError(ENTITY, "create", cause);

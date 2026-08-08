@@ -142,18 +142,25 @@ export interface ResumeUpdate {
 // ---------------------------------------------------------------------------
 
 export interface Technology extends EntityMeta {
+  /**
+   * Optional icon, referencing `media_assets`. `ON DELETE SET NULL`:
+   * deleting the image clears the reference and leaves the row intact.
+   */
+  readonly iconMediaId: string | null;
   readonly name: string;
   readonly slug: string;
   readonly category: string | null;
 }
 
 export interface TechnologyCreate {
+  readonly iconMediaId?: string | null;
   readonly name: string;
   readonly slug: string;
   readonly category?: string | null;
 }
 
 export interface TechnologyUpdate {
+  readonly iconMediaId?: string | null;
   readonly name?: string;
   readonly slug?: string;
   readonly category?: string | null;
