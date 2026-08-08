@@ -59,9 +59,27 @@ export function AdminShell({
         </header>
 
         <div className="flex flex-1">
-          {/* Desktop sidebar. Hidden below `lg`, where MobileNav takes over;
-              the same AdminNav renders in both, so they cannot drift. */}
-          <aside className="hidden w-64 shrink-0 border-r border-subtle p-5 lg:block">
+          {/*
+            Desktop sidebar. Hidden below `lg`, where MobileNav takes over;
+            the same AdminNav renders in both, so they cannot drift.
+
+            It scrolls independently of the form beside it. Three classes do
+            that, and all three are needed:
+
+              * `self-start` — a flex item stretches to the container's height
+                by default, and an item as tall as its scroll container has
+                nowhere to stick to. Without this the other two do nothing.
+              * `sticky top-16` — 16 is the header's own height, so the nav
+                comes to rest directly beneath it rather than under it.
+              * `h-[calc(100dvh-4rem)]` with `overflow-y-auto` — bounds the
+                nav to the space below the header and lets it scroll inside
+                that box when the link list is taller than the viewport.
+
+            `dvh` rather than `vh` because mobile browsers change the visible
+            height as their toolbars collapse; `vh` would size this to the
+            larger of the two and hide the last link behind the toolbar.
+          */}
+          <aside className="scroll-subtle sticky top-16 hidden h-[calc(100dvh-4rem)] w-64 shrink-0 self-start overflow-y-auto border-r border-subtle p-5 lg:block">
             <AdminNav />
           </aside>
 
