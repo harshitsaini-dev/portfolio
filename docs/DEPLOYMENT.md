@@ -49,12 +49,21 @@ that depends on them is written.
    decision, so it is the owner's to make:
    `wrangler r2 bucket create <name>`. **No bucket exists.** Nothing in the
    repository names one, and no code assumes one.
-4. **Add the bucket to the local development bindings config** so
+4. **Add the bucket to a local development bindings config** so
    `getPlatformProxy()` can expose it to `next dev`. This creates only a
-   simulated local bucket under `.wrangler/state/v3`; it contacts nothing
-   remote and needs no credentials.
+   simulated local bucket; it contacts nothing remote and needs no
+   credentials.
+
+   *Not required for tests.* `storage-foundation-tests.mjs` already exercises
+   a real local simulated R2 by synthesising a **throwaway** config in a temp
+   directory, so no committed configuration file names a bucket and CI needs
+   no Cloudflare resource. This step is only for driving the admin UI locally
+   once upload screens exist.
 5. **Bind the bucket in the Phase 22 deployment configuration** for whichever
-   Workers need it, alongside the D1 binding.
+   Workers need it, alongside the D1 binding, and register it through
+   `setAdminStorageProvider()`. Cloudflare's `R2Bucket` is already proven to
+   satisfy the `ObjectStorage` contract without a cast, so this is a
+   registration call rather than a redesign.
 6. *(Optional, later)* A **custom domain** in front of the bucket, only if
    the delivery architecture is ever changed to serve objects directly. The
    selected architecture does **not** need one.

@@ -262,18 +262,18 @@ phases, not Phase 8 gaps.
 Cloudflare R2 integration for project media and resume uploads, including
 upload validation.
 
-**In progress — audit and architecture only.** The Phase 8 closure is merged
-(`91334d1`, PR #35) and its post-merge `main` CI run `31243357467` passed, so
-Phase 9 has begun. The first pass audited the media domain against migration
-`0001` and the committed repositories and produced an implementation plan;
-**no storage code was written.**
+**In progress.** The audit is merged (`e3321d7`), its prerequisite regression
+is fixed and merged (`89f67f8`), and the **storage seam and upload policy are
+implemented and awaiting review**.
 
-Still true, and unchanged by this pass: **nothing has been provisioned.** No
-R2 bucket, no binding, no deployment resource. The `media_assets`,
-`resumes`, and `project_media` tables are committed in migration `0001` and
-`repos.media` / `repos.resumes` / the project aggregate's `setMedia` already
-exist and are tested — but there is no object storage behind them and no CMS
-surface.
+Still true, and unchanged by any of it: **nothing has been provisioned.** No
+R2 bucket, no bucket binding in any committed config, no deployment resource.
+The `media_assets`, `resumes`, and `project_media` tables are committed in
+migration `0001` and `repos.media` / `repos.resumes` / the project
+aggregate's `setMedia` already exist and are tested — and now the
+`ObjectStorage` contract, the fail-closed seam, and the pure upload policy do
+too — but **there is still no object storage behind them and no CMS
+surface.**
 
 The audit found one **blocker in already-merged code**: `projectUpdateSchema`
 and `technologyUpdateSchema` were derived with `.partial()` from defaulted
@@ -288,9 +288,12 @@ once that is merged and its post-merge `main` CI is green. See
 Planned slice order:
 
 1. ~~Fix the partial-update defect in Projects and Technologies~~ —
-   **done, awaiting review.** A prerequisite, not Phase 9 work proper.
-2. Storage seam and pure policy — binding provider, `R2Like` adapter
-   contract, in-memory fake, storage-key generator, MIME/size policy.
+   **merged** (`89f67f8`, PR #37, CI `31246283285`). A prerequisite, not
+   Phase 9 work proper.
+2. ~~Storage seam and pure policy~~ — **done, awaiting review.** The
+   `ObjectStorage` contract, the fail-closed provider seam, the in-memory
+   fake with fault injection, the storage-key generator, and the MIME/size
+   policy. Still no bucket and no binding.
 3. Media library CMS — upload, list, alt text, delete, with compensation.
 4. Project media attachment and project cover image.
 5. Résumé upload and the current-résumé surface.

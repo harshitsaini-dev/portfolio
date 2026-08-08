@@ -3,6 +3,117 @@
 Notable architectural/tooling decisions and their rationale. Append new
 entries; do not delete history.
 
+## 2026-08-08 — Phase 9 storage foundation
+
+Decisions taken while implementing the seam and policy the audit designed.
+
+### The seam fails closed in *every* environment, not just production
+
+`db/binding.ts` falls back to a local `getPlatformProxy()` binding in
+development, and copying that shape here would have been the obvious move.
+It would also have been wrong: D1's fallback resolves a database that
+genuinely exists and has the migration applied, whereas **no R2 bucket
+exists at all**. A development fallback would have meant adding `r2_buckets`
+to a committed config naming a resource nobody has created — the same
+premature deployment guess Phase 4 explicitly refused to make when it kept
+`wrangler.d1.jsonc` free of compatibility dates and routes.
+
+So `getAdminStorage()` throws until a provider is registered, in every
+environment. That is not a gap to be closed later; it is the correct state
+until the bucket is provisioned, and it means no code path can silently read
+or write the wrong storage. The tests assert it across `NODE_ENV` values
+precisely so nobody "fixes" it by adding an environment check.
+
+### The contract is five methods, and `list` had to argue its way in
+
+R2 offers multipart uploads, conditional reads and writes, range requests,
+custom metadata, checksums, and bulk delete. Every one of them is a method a
+future caller could reach for, and the cost of exposing one is that somebody
+eventually uses it and the seam stops being a boundary.
+
+`put`, `get`, `head`, and `delete` are what the documented upload and delete
+flows need. **`list` is in only because orphan reconciliation is a documented
+requirement** — the audit's recovery plan is "diff a key listing against
+`media_assets.storage_key`", which is impossible without it. Had that plan
+not existed, `list` would have been left out too.
+
+`put` returns `StoredObject | null` rather than `void` for an honest reason:
+R2's conditional-write overload can decline to write, so `null` is reachable
+in the real type even though this application never issues one. The service
+treats a promise that resolves at all as success and never reads the value —
+the metadata it persists comes from its own validated input, not from what
+storage echoes back.
+
+### The fake is TypeScript, and real R2 is what keeps it honest
+
+A test fake is a claim about how a real system behaves, and an unchecked
+claim drifts. Three things stop that here, and each catches something the
+others cannot:
+
+- **`tsc` against Cloudflare's generated `R2Bucket`** catches a contract that
+  has diverged in *shape* — a method R2 does not have, or a signature it
+  cannot satisfy.
+- **A real local simulated R2** catches divergence in *behaviour*, which no
+  type can express: that a missing `get` returns `null` rather than throwing,
+  that deleting an absent key is not an error, that `put` overwrites
+  silently. Each of those is asserted against real storage in the same run,
+  and only then asserted of the fake.
+- **Writing the fake in TypeScript** rather than as a `.mjs` helper means
+  `pnpm typecheck` proves it implements the contract at all.
+
+The fake also copies bytes in and out. Real storage holds no reference to the
+caller's buffer, and a fake that did would let a test mutate its input and
+appear to have changed what was stored — the exact kind of "more permissive
+than reality" that makes a green suite meaningless.
+
+### A local simulated bucket was worth it; a committed one was not
+
+The audit assumed the fake would be the only local storage. It turned out
+`getPlatformProxy()` can expose a miniflare-backed R2 binding from a
+**throwaway config written to a temp directory**, contacting nothing and
+touching no committed file. That is a materially different thing from adding
+`r2_buckets` to `wrangler.d1.jsonc`, which would have been a permanent claim
+about deployment shape.
+
+So the suite gets a real-storage compatibility layer while the repository
+keeps exactly one Cloudflare config, still D1-only, still with no bucket
+named anywhere. CI needs no credentials, no network, and no dashboard
+resource.
+
+### The upload policy lives in `packages/schemas`, and stays pure
+
+It is the untrusted-**binary** boundary, which is the same job as the
+untrusted-text boundaries already in that package, so it goes beside them
+rather than into the admin app where the future public delivery route could
+not reach it.
+
+Staying pure required one decision: **the unique id is injected, not
+generated**. Importing `uuidV7` from `@portfolio/database` would have added a
+dependency edge from validation to persistence — wrong direction, and it
+would have made the whole module untestable without the database package.
+Passing the id in keeps `buildStorageKey` a pure function, matches the
+project's existing `RepositoryRuntime` philosophy of injecting clocks and id
+generators, and leaves `packages/schemas` with the two dependencies it
+already had.
+
+### Rejection reasons are a closed set of five, with human messages
+
+Enough structure for the future service to branch on — `empty`,
+`unsupported_declared_type`, `unrecognised_content`, `type_mismatch`,
+`too_large` — and no more. A larger hierarchy would be inventing distinctions
+before anything needs them.
+
+The messages are safe to show a person and describe **the file, never the
+system**: no bucket name, no key, no account identifier, no SQL, no stack.
+Asserted, because "safe error" is the sort of claim that quietly stops being
+true.
+
+Note what is deliberately *not* distinguishable to the caller: "unknown
+format" and "known format we do not accept" both return
+`unrecognised_content`. Splitting them would let a client enumerate which
+formats are recognised-but-refused, and it invites the next contributor to
+handle the second case by allowing it.
+
 ## 2026-08-08 — Phase 9 R2/media architecture
 
 Decisions taken in the audit pass. No code was written; these constrain the

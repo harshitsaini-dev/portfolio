@@ -10,10 +10,17 @@ production 3D portfolio + admin CMS monorepo.
 - `packages/*` — shared code (`ui`, `database`, `schemas`, `types`,
   `config`) consumed by both apps.
 
-**Current phase: 1A (Repository Foundation).** No D1/R2/Cloudflare
-deployment, no auth, no CMS CRUD, no real content, no Three.js/R3F/Motion,
-no shadcn, no contact handling, no uploads exist yet. Do not assume any of
-that is implemented.
+**Current phase: 9 (R2/media).** Phases 0–8 are complete and merged: the D1
+schema, the repository layer, Cloudflare Access authentication, and the full
+admin CMS all exist. Phase 9 is in progress — the storage seam and upload
+policy exist; **no R2 bucket has been created, no bucket binding is
+configured, and no media CMS, upload UI, or résumé UI exists yet.**
+
+Still not implemented and not to be assumed: production deployment
+(OpenNext, Phase 22), Three.js/R3F, Motion, shadcn, contact handling, theme
+settings, and public-site data integration — `apps/web` still renders
+placeholder content. Check `docs/PROJECT_STATE.md` rather than this line for
+the current detail; it is the source of truth and this summary can lag.
 
 ## Before doing any implementation task
 
@@ -26,8 +33,8 @@ that is implemented.
 ## Code rules
 
 - Content is data-driven, never hardcoded in UI for real portfolio/CMS
-  content. Placeholder shell text in Phase 1A is the intentional
-  exception.
+  content. The remaining `apps/web` placeholder shell text, which predates
+  public data integration, is the intentional exception.
 - TypeScript strict mode everywhere. No unjustified `any` — comment when
   unavoidable.
 - Reuse shared schemas/types from `packages/schemas` and `packages/types`
@@ -47,9 +54,18 @@ that is implemented.
 - Keep code compatible with a future Cloudflare Workers/OpenNext
   deployment — avoid Node-only APIs without edge equivalents where
   reasonably avoidable.
-- Database access (future phase) goes through a repository/service layer
-  in `packages/database` — never raw queries from application code.
-- Do not write D1/R2/Cloudflare-specific code in this phase.
+- Database access goes through the repository layer in
+  `packages/database` — never raw queries from application code, and never a
+  binding resolved anywhere but `apps/admin/src/lib/db/binding.ts`.
+- Object storage goes through the `ObjectStorage` contract in
+  `packages/types` and the seam in `apps/admin/src/lib/storage/binding.ts` —
+  never a bucket reached directly from a component, Server Action, or route
+  handler. Both seams fail closed; do not add a fallback that makes them
+  succeed by guessing.
+- Cloudflare work is local-only unless explicitly asked otherwise: no
+  `--remote`, no remote D1 mutation, no bucket creation, no dashboard
+  changes, and no credentials in the repository. Creating Cloudflare
+  resources is a human action — see `docs/DEPLOYMENT.md`.
 
 ## Before declaring any task done
 

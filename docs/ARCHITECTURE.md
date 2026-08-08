@@ -490,11 +490,27 @@ Phase 7 stops at the admin. `apps/web` still renders its Phase 2
 placeholder module and was not touched; the ROADMAP scopes this phase to
 CRUD "through the data layer" and says nothing about public rendering.
 
-## Object storage: the planned R2 architecture (Phase 9)
+## Object storage: the R2 architecture (Phase 9)
 
-**Planned, not built.** No bucket, binding, adapter, or upload path exists.
-This section records the architecture chosen from the migration `0001` audit
-so the implementation slices stay consistent.
+**Partly built.** The **contract, the provider seam, the pure upload policy,
+and the test fake exist**; the media service, every CMS surface, and public
+delivery do not. **No R2 bucket has been created and no bucket binding is
+configured in any committed file.**
+
+| Piece | State |
+| --- | --- |
+| `ObjectStorage` contract (`packages/types/src/storage.ts`) | built |
+| Provider seam (`apps/admin/src/lib/storage/binding.ts`) | built, fails closed |
+| Upload policy + key grammar (`packages/schemas/src/media.ts`) | built, pure |
+| In-memory fake with fault injection | built, test-only |
+| Media service, compensation orchestration | **not built** |
+| Media CMS, upload UI, résumé UI, attachment UI | **not built** |
+| Public delivery routes | **not built** |
+| R2 bucket, bucket binding, custom domain | **do not exist** |
+
+The failure model, delete-safety rules, and delivery decisions below are the
+design the remaining slices must follow; they were chosen from the migration
+`0001` audit before any code was written.
 
 ### The governing constraint: D1 and R2 are two systems, not one transaction
 
@@ -554,13 +570,24 @@ and the same reasons — `setAdminStorageProvider()`, no production fallback,
 
 The adapter is declared **structurally**, as `D1Like` already is, so the
 packages import no Cloudflare types and the surface we depend on is written
-down in one place:
+down in one place — `ObjectStorage` in `packages/types`:
 
 ```
-put(key, body, options) | get(key) | head(key) | delete(key) | list(options)
+put(key, body, options?) | get(key) | head(key) | delete(key) | list(options?)
 ```
 
-A real `R2Bucket` satisfies it; so does an in-memory fake.
+A real `R2Bucket` satisfies it; so does the in-memory fake. **Both claims are
+proven rather than asserted**: Cloudflare's generated `R2Bucket` is compiled
+against the contract, and the same suite exercises the contract's semantics
+against a real local simulated R2 so the fake cannot drift into being more
+permissive than the real thing.
+
+**The seam fails closed in every environment, not just production** — the one
+place it deliberately departs from the database seam. `db/binding.ts` falls
+back to a local `getPlatformProxy()` D1 in development because a real local
+database exists; there is no bucket to fall back to, and adding `r2_buckets`
+to a committed config for a resource that does not exist would be the same
+premature deployment guess Phase 4 refused to make for D1.
 
 ### Layering
 
@@ -657,13 +684,12 @@ authenticated admin shell, and the **complete CMS** — projects (Phase 7)
 plus all nine Phase 8 areas (technologies, profile, timeline, education,
 certifications, skills, tools, socials, sections).
 
-**Phase 9 (R2/media) is in progress as an audit and architecture pass only.**
-The R2 architecture above is a plan: no bucket, binding, adapter, service,
-upload path, or media CMS surface exists, and no Cloudflare resource has been
-created. The public-site data conversion is likewise **not implemented** —
-`apps/web` still renders placeholder content, and no section is yet mapped to
-a component by its `key`.
+**Phase 9 (R2/media) is in progress.** Its audit is merged, its prerequisite
+partial-update regression is fixed and merged, and the **storage foundation —
+contract, seam, pure policy, and test fake — is implemented**. Still absent:
+the media service, every media CMS surface, résumé and attachment UI, public
+delivery, and **any R2 bucket or bucket binding at all**.
 
-One defect in merged code is open and reported rather than fixed: partial
-project and technology updates do not preserve what they omit. See the
-correction under *Partial-update semantics* above.
+The public-site data conversion is likewise **not implemented** — `apps/web`
+still renders placeholder content, and no section is yet mapped to a
+component by its `key`.

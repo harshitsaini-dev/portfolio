@@ -3,6 +3,61 @@
 Notes on things learned while building this project that are worth
 remembering for future work.
 
+## Phase 9 — storage foundation
+
+### Check what the tooling can already do before designing around its absence
+
+The audit concluded that local R2 would need `r2_buckets` in a committed
+config, so it planned for the in-memory fake to be the only local storage.
+That conclusion was reasonable and wrong. `getPlatformProxy()` accepts a
+`configPath`, so a **throwaway config in a temp directory** gets a real
+miniflare-backed bucket while every committed file stays untouched — the
+same trick `d1-type-compatibility.mjs` was already using to generate
+Cloudflare types without adding a dependency.
+
+The pattern was in the repository the whole time, one directory away from
+where the plan was written. Worth ten minutes of prototyping before accepting
+a constraint: the difference here is a whole layer of real-storage
+verification the plan had written off.
+
+### A fake needs a source of truth, and types are not enough
+
+Three mechanisms keep this fake honest, and it is worth being clear about
+what each one *cannot* catch. `tsc` against Cloudflare's `R2Bucket` catches a
+contract of the wrong shape but says nothing about behaviour. The real
+simulated bucket catches behaviour — that a missing `get` returns `null`
+instead of throwing, that deleting an absent key is not an error — which no
+type can express. Writing the fake in TypeScript catches the fake drifting
+from the contract, which neither of the others would notice.
+
+The order matters too: every semantic is asserted against **real storage
+first**, then of the fake. Written the other way round, the "real" test
+becomes a check that reality matches our assumption rather than the source of
+the assumption.
+
+### Structural impossibility beats validation, when it is available
+
+The obvious way to get a safe object key from an upload is to sanitise the
+filename. It is also a blocklist, and it has to anticipate `..`, backslashes,
+control characters, null bytes, reserved device names, Unicode normalisation
+collisions, and case-insensitive clashes — and it stays wrong until the last
+one is found.
+
+Generating the key instead means **no user byte is in it**, so there is
+nothing to sanitise and traversal is not prevented but impossible. The test
+for it is unusual and worth copying: rather than feeding hostile filenames
+through a sanitiser and checking the output, it asserts the function **takes
+no filename parameter at all**. An absent code path cannot regress.
+
+### An error taxonomy can be too informative
+
+"Unknown format" and "known format we do not accept" felt like they wanted
+separate rejection reasons — the second is more helpful to a user, after all.
+Collapsing them was the better call: distinguishing them lets a client
+enumerate which formats are recognised-but-refused, and, more practically, it
+puts a signpost in the code saying "here is the branch where you would allow
+GIF". A closed set of five reasons is enough to act on and gives nothing away.
+
 ## Projects and Technologies partial-update fix
 
 ### Picking the assertion field *is* the test

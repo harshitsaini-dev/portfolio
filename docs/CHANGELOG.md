@@ -1,6 +1,97 @@
 
 # Changelog
 
+## 2026-08-08 — Phase 9: storage seam and upload policy
+
+The reusable foundation beneath the future media service. **Phase 9 is not
+complete.** Everything here sits below the UI and action layers.
+
+### Added
+
+- **`ObjectStorage`** (`packages/types/src/storage.ts`) — a narrow structural
+  contract: `put`, `get`, `head`, `delete`, `list`. Declared structurally
+  exactly as `D1Like` is, so no package imports a Cloudflare SDK, not even a
+  type-only one. Multipart, conditional writes, ranges, custom metadata, and
+  bulk delete are deliberately absent; **`list` is included only because
+  orphan reconciliation is a documented requirement**.
+- **The admin storage seam** (`apps/admin/src/lib/storage/binding.ts`) —
+  `setAdminStorageProvider` / `clearAdminStorageProvider` /
+  `getAdminStorage`, plus `StorageUnavailableError`. **Fails closed in every
+  environment**, unlike the D1 seam, because there is no bucket to fall back
+  to. No environment-variable credential path exists: a Worker binding
+  carries no credentials, which is the point of the chosen architecture.
+- **The pure upload policy** (`packages/schemas/src/media.ts`) — allowlist,
+  byte-signature detection, declared/sniffed agreement, size ceilings,
+  canonical extensions, the storage-key grammar, and a five-member rejection
+  set. No storage, no database, no clock, no randomness; the unique id is
+  **injected** so the module stays pure and `packages/schemas` keeps its two
+  dependencies.
+- **An in-memory fake** (`apps/admin/src/lib/storage/memory-storage.ts`) with
+  one-shot fault injection on all five operations — the reason the contract
+  is an interface at all, since the media service's compensation paths are
+  unreachable without injectable failure. Test-only; the suite asserts no
+  application source imports it.
+- **`storage-foundation-tests.mjs` — 234 checks.**
+
+### Policy
+
+- Accepted: **PNG, JPEG, WebP, PDF**. **SVG excluded** — active content, no
+  committed table attaches a logo to a tool/technology/skill, and no approved
+  sanitizer exists. GIF, AVIF, video, archives, and office documents excluded
+  on the same no-requirement basis.
+- Detection is byte signatures only, bounded to the first **16 bytes**. A
+  signature beyond that window is proven not to be found.
+- Declared MIME must agree with the sniffed bytes; a mismatch is **rejected,
+  never silently corrected**.
+- Ceilings: images **5 MiB**, PDFs **10 MiB**, both applied against the
+  **sniffed** type so a renamed file cannot borrow the other allowance. Both
+  are our own editorial bounds; **no Cloudflare limit is implied**.
+- Keys are `{namespace}/{uuidv7}.{ext}` with namespaces `media` and
+  `resumes`. **No user byte reaches a key**, so traversal is structurally
+  impossible rather than filtered. JPEG is canonically `jpg`, never `jpeg`.
+- The uploaded filename is persisted nowhere, is not in the key, and is not
+  consulted for validation.
+
+### Not added
+
+- **No R2 bucket, and no bucket binding in any committed config.**
+  `wrangler.d1.jsonc` is untouched and still D1-only.
+- No media service, upload Server Action, media CMS, résumé UI, attachment
+  UI, cover-image UI, or public delivery route. **Media remains an
+  unavailable `Phase 9` navigation placeholder.**
+- No migration change: `0001` untouched, no `0002`, and **no
+  `original_filename`** — that decision stays open.
+- No new workspace package, no new runtime dependency, no change to
+  `packages/database`, `apps/web`, `.github`, or `.env.example`.
+
+### Changed — stale instructions
+
+- `CLAUDE.md` and `.claude/skills/cloudflare-d1-r2/SKILL.md` still described
+  **Phase 1A** and instructed future sessions **"Do not write
+  D1/R2/Cloudflare-specific code in this phase"** — false since Phase 4 and
+  directly contradictory to Phase 9. Both corrected with targeted edits, not
+  rewritten. **Every security and architecture rule was preserved**; two were
+  strengthened by naming the storage seam and the local-only Cloudflare rule
+  explicitly.
+
+### Verification
+
+- `pnpm install --frozen-lockfile` **PASS** (exit 0) · `pnpm lint` **PASS**
+  (exit 0) · `pnpm typecheck` **PASS** (exit 0) · `pnpm test` **PASS** —
+  **2882 checks**, database **297** and admin **2585** · `pnpm build`
+  **PASS** (exit 0), admin routes unchanged.
+- All **2648** checks from the partial-update fix still pass; none weakened.
+- **The fake is kept honest by real storage.** The suite compiles
+  Cloudflare's generated **`R2Bucket` against `ObjectStorage`** and runs the
+  contract against a **real local simulated R2** from `getPlatformProxy()`,
+  created from a **throwaway config in a temp directory**. Every semantic the
+  fake claims — `null` for missing `get`/`head`, a missing delete resolving
+  quietly, silent overwrite, prefix isolation — is observed against real
+  storage first.
+- **No bucket was created, no committed config was read or written, nothing
+  went over the network, and CI needs no Cloudflare credentials.** No
+  `--remote` anywhere.
+
 ## 2026-08-08 — Fix: Projects and Technologies partial updates
 
 Repairs the cross-cutting defect the Phase 9 audit found and reported. No R2
