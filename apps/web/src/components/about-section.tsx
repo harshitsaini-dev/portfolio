@@ -6,6 +6,11 @@ export function AboutSection({ profile }: { profile: Profile }) {
   return (
     <Section id="about" eyebrow="Profile" title="About">
       <div className={`max-w-2xl space-y-5 ${type.body}`}>
+        {profile.introduction.length === 0 ? (
+          <p className={type.bodySm}>
+            No biography has been written yet.
+          </p>
+        ) : null}
         {profile.introduction.map((paragraph, index) => (
           // Paragraph order is fixed and the list is never reordered or
           // filtered, so the index is a stable key here.

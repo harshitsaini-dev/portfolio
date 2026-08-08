@@ -1,5 +1,6 @@
 import { PlaceholderAction } from "@/components/placeholder-action";
 import { Section } from "@/components/section";
+import { ContentImage } from "@/components/ui/content-image";
 import { Surface } from "@/components/ui/surface";
 import { type } from "@/components/ui/typography";
 import type { Certification, EducationEntry } from "@/data/types";
@@ -28,6 +29,11 @@ export function EducationSection({
       <div className="grid gap-12 lg:grid-cols-2 lg:gap-10">
         <div>
           <h3 className={type.minorHeading}>Education</h3>
+          {education.length === 0 ? (
+            <p className={`mt-4 ${type.bodySm}`}>
+              No education entries have been published yet.
+            </p>
+          ) : null}
           <ol className="mt-6 space-y-8">
             {education.map((entry) => {
               const headingId = `${entry.id}-heading`;
@@ -42,7 +48,11 @@ export function EducationSection({
                     >
                       {entry.qualification}
                     </h4>
-                    <p className="mt-0.5 text-sm font-medium text-accent">
+                    <p className="mt-0.5 flex items-center gap-2.5 text-sm font-medium text-accent">
+                      {/* Decorative: the institution name sits beside it. */}
+                      {entry.image ? (
+                        <ContentImage image={entry.image} size={20} decorative />
+                      ) : null}
                       {entry.institution}
                     </p>
                     <p className={`mt-2.5 ${type.bodySm}`}>{entry.summary}</p>
@@ -55,6 +65,11 @@ export function EducationSection({
 
         <div>
           <h3 className={type.minorHeading}>Certifications</h3>
+          {certifications.length === 0 ? (
+            <p className={`mt-4 ${type.bodySm}`}>
+              No certifications have been published yet.
+            </p>
+          ) : null}
           <ul className="mt-6 space-y-4">
             {certifications.map((certification) => {
               const headingId = `${certification.id}-heading`;
@@ -69,7 +84,15 @@ export function EducationSection({
                     >
                       {certification.title}
                     </h4>
-                    <p className="mt-0.5 text-sm font-medium text-accent">
+                    <p className="mt-0.5 flex items-center gap-2.5 text-sm font-medium text-accent">
+                      {/* Decorative: the issuer name sits beside it. */}
+                      {certification.image ? (
+                        <ContentImage
+                          image={certification.image}
+                          size={20}
+                          decorative
+                        />
+                      ) : null}
                       {certification.issuer}
                     </p>
                     <div className="mt-4">

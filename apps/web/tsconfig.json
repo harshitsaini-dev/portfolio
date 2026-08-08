@@ -1,6 +1,13 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
+    // ES2022 to match `packages/config/base.json`. This app now type-checks
+    // `@portfolio/database` sources, which use BigInt literals (UUIDv7
+    // timestamp packing) — unavailable below ES2020.
+    "target": "ES2022",
+    // The composition seams use explicit `.ts` specifiers, matching
+    // packages/database and apps/admin. Turbopack resolves them
+    // identically — see docs/DECISIONS.md.
+    "allowImportingTsExtensions": true,
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,

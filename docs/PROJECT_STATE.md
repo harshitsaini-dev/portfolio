@@ -8,6 +8,88 @@ something passed without running it.
 
 **Phase 9 — R2/media. IN PROGRESS.** Not complete.
 
+## Public site reads the CMS (branch `feat/public-site-data`)
+
+`apps/web` is no longer placeholder content. The home page renders from D1
+through the repository layer, and the images an editor attached in the admin
+appear on the public site.
+
+The Phase 2 swap worked as designed: every section already took its data from
+one content object, so the page changed **one import**. No section's markup
+was rewritten to accommodate the data source.
+
+### What was added
+
+* `apps/web/src/lib/dev-platform.ts` — the one place this app names
+  `wrangler`, a deliberate sibling of the admin's rather than a shared module.
+  What would be shared is a **devDependency import**, and a package that names
+  `wrangler` puts it on every consumer's dependency graph.
+* `lib/db/binding.ts` and `lib/storage/binding.ts` — the app's composition
+  boundaries, both failing closed in production exactly as the admin's do.
+* `GET /media/[id]` — public, `public, max-age=31536000, immutable` caching,
+  and no authorization, because these images are published content. Identical
+  to the admin route in the parts that protect a visitor: content type from
+  the row, re-checked against the allowed list, `nosniff`, no filename.
+* `lib/content/site-content.ts` — the domain → view-model mapper, and the one
+  place the publication filter runs.
+* `next.config.ts` — `serverExternalPackages: ["wrangler"]` plus the public
+  site's own security headers. Deliberately no `X-Robots-Tag`: the admin is
+  `noindex` because nobody should find it, this site exists to be found.
+
+### Decisions worth recording
+
+**The view models stayed.** They are no longer "placeholder types" — they are
+view models, and they earn their place: the domain stores `startedOn` and
+`endedOn`, a timeline card shows "2024 – present", and deciding what that
+string says is presentation. Collapsing the two layers would push formatting
+into the repository or date arithmetic into JSX.
+
+**An empty database is a valid state.** Nothing throws because a table is
+empty; each section renders an honest empty state. The single exception is the
+profile, which falls back to copy describing the absence, because the page
+needs an `<h1>`.
+
+**An image without alt text is dropped, not rendered.** The admin requires alt
+text on images, but the column is nullable for PDFs, and a row predating that
+rule would otherwise emit an `<img>` no screen reader could describe.
+
+`placeholder-content.ts` was deleted — nothing imported it, and it is in git
+history if it is ever wanted.
+
+### Two bugs found and fixed during verification
+
+* **`next dev` returned 500 immediately.** Turbopack tried to parse
+  `workerd.exe` as a module, because it resolves dynamic imports statically.
+  The admin had already hit and documented this; the fix is
+  `serverExternalPackages`.
+* **The avatar rendered as a rounded square.** `ContentImage` set
+  `rounded-md` in its base classes and the caller appended `rounded-full`.
+  Two radius utilities on one element do not compose — the winner is decided
+  by stylesheet order, not attribute order. The radius is now a prop with one
+  value.
+
+### Tests
+
+**3246/3246 across 23 suites.** `apps/web` gained its first suite (40 checks),
+which runs the real `getSiteContent()` against a real disposable D1 built from
+the real migrations. Its most important assertions seed rows that **must not**
+appear — a draft project, an archived project, a hidden tool, a hidden
+timeline entry — and check they do not, rather than trusting that
+`visibleOnly` was passed.
+
+### Browser-verified (`playwright-local` MCP, web on :3000)
+
+The site renders the profile name, headline, avatar, a published project with
+its icon, a tool with its logo, the footer, and honest empty states for every
+section with no content yet. Publishing a project in the admin made it appear
+on the public site without a rebuild.
+
+### Still not done
+
+Section order and visibility from the `sections` table are not yet honoured —
+the page renders a fixed order. Project detail pages (`/projects/[slug]`) do
+not exist. Both are follow-ups, not blockers.
+
 ## Entity icons (branch `feat/entity-icons`) — COMPLETE
 
 Asked for after the owner reported that skills, tools and technologies showed

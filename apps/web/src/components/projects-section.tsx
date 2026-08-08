@@ -1,6 +1,7 @@
 import { PlaceholderAction } from "@/components/placeholder-action";
 import { Section } from "@/components/section";
 import { BadgeList } from "@/components/ui/badge";
+import { ContentImage } from "@/components/ui/content-image";
 import { Surface } from "@/components/ui/surface";
 import { type } from "@/components/ui/typography";
 import type { Project } from "@/data/types";
@@ -12,9 +13,15 @@ function ProjectCard({ project }: { project: Project }) {
     <li>
       <Surface as="article" aria-labelledby={headingId} className="flex h-full flex-col">
         <div className="flex items-baseline justify-between gap-4">
-          <h3 id={headingId} className={type.subheading}>
-            {project.title}
-          </h3>
+          <div className="flex items-center gap-3">
+            {/* Decorative: the project title is right beside it. */}
+            {project.image ? (
+              <ContentImage image={project.image} size={32} decorative />
+            ) : null}
+            <h3 id={headingId} className={type.subheading}>
+              {project.title}
+            </h3>
+          </div>
           <p className={`shrink-0 ${type.meta}`}>{project.year}</p>
         </div>
 
@@ -49,8 +56,14 @@ export function ProjectsSection({ projects }: { projects: readonly Project[] }) 
       id="projects"
       eyebrow="Selected work"
       title="Projects"
-      lead="Placeholder projects used to establish the layout. Real projects are managed through the CMS in a later phase."
     >
+      {projects.length === 0 ? (
+        <p className={type.bodySm}>
+          No published projects yet. Projects marked draft or archived in the
+          CMS are deliberately not shown here.
+        </p>
+      ) : null}
+
       {/* Two columns from the tablet breakpoint up. Below that a single
           column keeps the summary and its two actions readable. */}
       <ul className="grid gap-6 md:grid-cols-2">

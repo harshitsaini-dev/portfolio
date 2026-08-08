@@ -72,6 +72,15 @@ importers:
 
   apps/web:
     dependencies:
+      '@portfolio/database':
+        specifier: workspace:*
+        version: link:../../packages/database
+      '@portfolio/schemas':
+        specifier: workspace:*
+        version: link:../../packages/schemas
+      '@portfolio/types':
+        specifier: workspace:*
+        version: link:../../packages/types
       '@portfolio/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -84,6 +93,9 @@ importers:
       react-dom:
         specifier: 19.2.8
         version: 19.2.8(react@19.2.8)
+      server-only:
+        specifier: ^0.0.1
+        version: 0.0.1
     devDependencies:
       '@tailwindcss/postcss':
         specifier: ^4
@@ -109,6 +121,9 @@ importers:
       typescript:
         specifier: ^5
         version: 5.9.3
+      wrangler:
+        specifier: 4.118.0
+        version: 4.118.0
 
   packages/config: {}
 
