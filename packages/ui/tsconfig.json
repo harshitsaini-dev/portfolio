@@ -2,8 +2,20 @@
   "extends": "../config/base.json",
   "compilerOptions": {
     "jsx": "react-jsx",
-    "outDir": "dist",
-    "rootDir": "src"
+    // Consumed as TypeScript source by both apps' bundlers and never emitted,
+    // exactly like `packages/database`. Explicit `.ts`/`.tsx` specifiers are
+    // what make that work from any consumer — see the note in `button.tsx`
+    // about why the shadcn `@/` alias cannot be used across the boundary.
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "rootDir": "src",
+    // Kept only so the shadcn CLI can resolve its own generated imports at
+    // add time. Nothing checked in relies on it: generated `@/` imports are
+    // rewritten to relative specifiers. Declared without `baseUrl`, which is
+    // deprecated in TypeScript 6 — bare `paths` resolve against this file.
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src"]
 }

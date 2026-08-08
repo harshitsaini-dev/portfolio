@@ -46,7 +46,7 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(async ({
 
       <section
         aria-labelledby="danger-heading"
-        className="mt-12 border-t border-border pt-8"
+        className="mt-12 border-t border-subtle pt-8"
       >
         <h2
           id="danger-heading"
@@ -60,7 +60,7 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(async ({
       <p className="mt-10 text-sm">
         <Link
           href="/media"
-          className="text-accent underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="text-accent underline underline-offset-2 transition-colors duration-150 hover:text-fg"
         >
           Back to media
         </Link>

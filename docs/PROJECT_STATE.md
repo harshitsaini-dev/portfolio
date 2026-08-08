@@ -8,6 +8,71 @@ something passed without running it.
 
 **Phase 9 — R2/media. IN PROGRESS.** Not complete.
 
+## shadcn/ui configured (branch `feat/shadcn-design-system`)
+
+Approved as "shadcn now, Motion/Animate UI later" — those two remain
+deferred to Phase 12 and nothing for them is installed.
+
+Components are copied into `packages/ui/src/components/` as owned source,
+not pulled in as a dependency. `packages/ui/src/shadcn.css` aliases every
+shadcn variable name onto an existing token from `tokens.css` and
+**introduces no colour of its own**, so Phase 10's theme CMS still has one
+palette to write. `docs/DESIGN.md` records the mapping, the single `accent`
+divergence, and the checklist for adding a component.
+
+New dependencies, all in `packages/ui`: `clsx`, `tailwind-merge`,
+`class-variance-authority`, `radix-ui` — the four every shadcn component
+imports.
+
+Two problems were found and fixed while wiring it up, both of which would
+have shipped silently:
+
+* The shadcn `@/lib/utils` alias **cannot cross the package boundary**. Apps
+  consume this package's TypeScript source, so `@/` resolved against the
+  consuming app's `src/`. Caught by `pnpm typecheck`. Generated imports are
+  now rewritten to relative `.ts` specifiers.
+* The generated Button used `hover:bg-accent hover:text-accent-foreground`.
+  With this project's `accent` being the brand blue, hovering an outline or
+  ghost button would have flooded it blue and set a foreground colour that
+  does not exist.
+
+Also raised the Button's default target from shadcn's 36px to the 44px the
+rest of the admin uses, replaced its hard-coded `text-white` with the danger
+token so dark mode inverts it, and dropped its `dark:` variants — the tokens
+already flip under `prefers-color-scheme`, so those rules adjusted an
+adjusted value.
+
+### Browser-verified (`playwright-local` MCP, admin on :3001)
+
+The media list's "Upload file" action is the first consumer. Computed styles
+on the rendered element:
+
+| Property | Value | Proves |
+| --- | --- | --- |
+| `tagName` | `A`, `href="/media/new"` | `asChild` keeps it a real link |
+| `background-color` | `rgb(37, 71, 208)` | the variable bridge resolves `--primary` → `--accent` |
+| `color` | `rgb(255, 255, 255)` | `--primary-foreground` → `--accent-fg` |
+| `height` | `44px` | the touch-target override applied |
+| `border-radius` | `10px` | `--radius` → `--radius-md` (0.625rem) |
+| `display` | `flex` | `@source` scanning reaches `packages/ui` |
+
+It is visually indistinguishable from the hand-written button it replaced,
+which is the intended outcome: shadcn adopts the existing design system
+rather than introducing a second one.
+
+## Media CMS design-token fix (commit `09f52ee`)
+
+Three Tailwind utilities in the media CMS resolved to nothing, because the
+theme names behind them do not exist: `bg-accent-strong`, `text-on-accent`
+and `border-border`. The upload and edit buttons therefore drew the brand
+accent background with the *inherited dark foreground* instead of
+`--accent-fg` — a WCAG AA contrast failure on the slice's primary action.
+
+Found by diffing the classes used in the media components against the names
+`globals.css` actually maps; the other ten list pages were unaffected. Fixed
+to the mapped names, and the media buttons adopted the `min-h-11` pattern
+those pages already use. Browser-verified before and after.
+
 ## Phase 9 — media library CMS (implemented, awaiting review)
 
 The first Phase 9 slice with a **user interface**, and the first that can be

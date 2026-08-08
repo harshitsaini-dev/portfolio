@@ -1,0 +1,94 @@
+/**
+ * shadcn/ui variable bridge.
+ *
+ * shadcn components are copied into this repository as source, and they are
+ * written against a fixed set of CSS variable names (`--background`,
+ * `--primary`, `--border`, ...). This project already has a semantic token
+ * set in `tokens.css`, and Phase 10 will let an editor change those tokens
+ * from the theme CMS.
+ *
+ * If shadcn's variables were given their own colour values, that CMS would
+ * have to write two palettes and keep them in step forever. So this file
+ * introduces **no colours**. Every variable below is an alias of a token
+ * from `tokens.css`, which stays the single source of truth — including its
+ * dark-scheme and `[data-theme]` overrides, which flow through these aliases
+ * for free because they are `var()` references, not copies.
+ *
+ * Import it *after* `tokens.css`.
+ *
+ * ## The one role that does not line up: `accent`
+ *
+ * The two systems disagree on what "accent" means. Here it is the brand
+ * blue, used for primary actions and the focus ring. In shadcn it is a
+ * subtle hover/selected surface — closer to this project's `surface-muted`.
+ *
+ * `--accent` is deliberately NOT redefined here: ten admin pages already use
+ * `bg-accent` for primary buttons, and reassigning it would repaint all of
+ * them. Instead, a shadcn component that arrives using `accent` for a hover
+ * state has that usage rewritten to `surface-muted` when it is added. See
+ * `docs/DESIGN.md`; this is the only such divergence.
+ */
+
+:root {
+  /* Surfaces. shadcn separates card and popover from the page; this project
+     draws both on `--surface`, so they alias rather than diverge. */
+  --background: var(--bg);
+  --foreground: var(--fg);
+  --card: var(--surface);
+  --card-foreground: var(--fg);
+  --popover: var(--surface);
+  --popover-foreground: var(--fg);
+
+  /* Primary is the brand accent — the same colour the existing admin
+     buttons already use, so a shadcn <Button> matches them by default. */
+  --primary: var(--accent);
+  --primary-foreground: var(--accent-fg);
+
+  /* Secondary and muted both land on the recessed surface. shadcn uses
+     `secondary` for low-emphasis buttons and `muted` for inert backgrounds;
+     this palette has one recessed surface and does not need two. */
+  --secondary: var(--surface-muted);
+  --secondary-foreground: var(--fg);
+  --muted: var(--surface-muted);
+  --muted-foreground: var(--fg-muted);
+
+  --destructive: var(--danger);
+  --destructive-foreground: var(--danger-fg);
+
+  /* `--border` is the hairline; `--input` is a control's resting edge, which
+     needs more contrast against the surface than a divider does — hence
+     `border-strong`, matching the existing form controls. */
+  --border: var(--border-subtle);
+  --input: var(--border-strong);
+
+  /* `--ring` already exists in tokens.css and already means exactly this,
+     so it is not redefined — the global :focus-visible rule and shadcn's
+     ring utilities read the same value. */
+
+  --radius: var(--radius-md);
+}
+
+/**
+ * Expose the aliases as Tailwind utilities.
+ *
+ * `--color-accent` is absent on purpose: it is already mapped to the brand
+ * blue by each app's `globals.css`, and that mapping wins. See the note above.
+ */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+}
