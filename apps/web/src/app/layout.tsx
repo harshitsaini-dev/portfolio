@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { accentCustomProperties } from "@portfolio/ui";
 
 import { getSiteContent } from "@/lib/content/site-content";
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -91,12 +92,46 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      /*
+        The one element the browser is *expected* to have changed before React
+        arrives.
+
+        The script below rewrites `data-theme` from the site default to the
+        visitor's stored choice, ahead of the first paint. React then compares
+        the server's HTML against the live DOM, finds the attribute different,
+        and warns — correctly, by its own rules, and uselessly here: the
+        difference is the entire point of the script.
+
+        Scoped to this element only. `suppressHydrationWarning` does not
+        cascade to children, so every other mismatch on the page is still
+        reported. Using it anywhere the difference was not deliberate would be
+        hiding a bug rather than declaring intent.
+      */
+      suppressHydrationWarning
       data-theme={theme.defaultTheme === "system" ? undefined : theme.defaultTheme}
       style={
         theme.accentColor ? accentCustomProperties(theme.accentColor) : undefined
       }
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        {/*
+          Applies a stored theme preference before the first paint.
+
+          `data-theme` above is the *site's* default, from the CMS. This lets
+          one visitor override it — and it has to run here, synchronously,
+          ahead of React. A component cannot: by the time it hydrates the page
+          has already been painted in the default theme, so someone who chose
+          dark would see a white flash on every navigation.
+
+          `dangerouslySetInnerHTML` is the only way to emit an inline script,
+          and the name is worth taking seriously. It is safe here because the
+          script interpolates nothing — see `lib/theme.ts`, where the only
+          value in it is a constant key and the only thing written to the DOM
+          is one of two hard-coded strings behind an equality check.
+        */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
