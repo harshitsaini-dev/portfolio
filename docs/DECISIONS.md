@@ -1041,13 +1041,37 @@ presenting an upload control that cannot work.
   404, or at a convincing empty screen, is worse than an honest "Phase 8"
   label. Unavailable items are inert text with no `href`, so they are not
   focusable and cannot be dead links.
-- **No CSP yet.** A CSP strict enough to be useful needs a nonce threaded
-  through Next's script loading, and getting it wrong breaks the app
-  silently. Deferred to the dedicated security and deployment phases where
-  it can be verified in a browser. `X-Frame-Options: DENY`,
-  `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, and
-  `X-Robots-Tag` are set now because they are unambiguous and
-  non-breaking.
+- **No CSP yet.** *(Superseded in Phase 21 — see the entry below. Kept
+  because the reasoning was right and the deferral was the correct call.)* A
+  CSP strict enough to be useful needs a nonce threaded through Next's script
+  loading, and getting it wrong breaks the app silently. Deferred to the
+  dedicated security and deployment phases where it can be verified in a
+  browser. `X-Frame-Options: DENY`, `X-Content-Type-Options`,
+  `Referrer-Policy`, `Permissions-Policy`, and `X-Robots-Tag` are set now
+  because they are unambiguous and non-breaking.
+- **CSP added, in middleware, with a per-request nonce (Phase 21).** It could
+  not live in `next.config.ts` alongside the other headers: a nonce has to be
+  generated per request and `headers()` there is static. Middleware sets the
+  nonce on the *request* headers as well as the response, because that is
+  where Next reads it to stamp its own script tags — setting it only on the
+  response nonces nothing.
+  - `'strict-dynamic'` rather than a host allowlist, because Next's client
+    bundle loads chunks from the scripts it already trusted, which an
+    allowlist cannot express.
+  - `style-src` still allows `'unsafe-inline'`. `next/font` emits an inline
+    `<style>` block the framework gives no way to nonce. A known, bounded
+    relaxation, recorded rather than papered over.
+  - The two apps carry separate policies. The admin needs no `worker-src
+    blob:` and no `blob:` images; the public site needs both for the 3D
+    scene. Sharing them through `@portfolio/config` would mean giving a
+    tsconfig-only package a runtime entry and adding a new workspace export
+    to both apps' module graphs — the exact change that has broken the dev
+    servers three times through Turbopack's cached failed resolutions.
+  - Verified rather than assumed: `e2e/csp.spec.ts` asserts the header shape,
+    that the nonce differs between two responses, that nothing on the page is
+    blocked, and that the inline theme script still runs. Removing the nonce
+    from the layout fails the last two and leaves the first passing, which is
+    the correct split.
 - **`server-only` added.** It converts "please do not import this into a
   client bundle" from a comment into a build error, for the four modules
   where that mistake would matter most. Zero dependencies.

@@ -6,7 +6,10 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 20 — Automated/MCP testing. Complete.**
+**Phase 21 — Security review. Complete.**
+
+Phases 0-21 are done. The only phase left is 22 (deployment), and it is
+**blocked on a human action** — see below.
 
 Phase 9 is code complete with provisioning outstanding (below). Phases 10-16
 are complete: 10-14 were built during the polish work and their roadmap
@@ -19,6 +22,75 @@ All seven slices are merged. What remains is **not code**: no R2 bucket
 exists, no bucket binding is in any committed config, and creating them is a
 human action — see `docs/DEPLOYMENT.md`. Everything runs against miniflare's
 local simulation until then.
+
+## Phase 21 — security review (branch `feat/security-review`)
+
+### The one gap was the one already written down
+
+`next.config.ts` carried the note that a CSP was deferred and "Phase 21 is
+where it gets added and actually verified". That is the whole of this phase's
+new code.
+
+It is set in `middleware.ts` in both apps rather than beside the other headers,
+because a nonce must be generated per request and `headers()` in
+`next.config.ts` is static. The nonce goes on the **request** headers as well
+as the response — that is where Next reads it to stamp its own script tags, and
+setting it only on the response nonces nothing.
+
+`'strict-dynamic'` rather than a host allowlist: Next's client bundle loads
+chunks from scripts it already trusted, which an allowlist cannot express.
+`script-src` has no `'unsafe-inline'`, and the test asserts its absence — with
+it, the policy would permit exactly the injected script it exists to stop.
+
+**One honest relaxation:** `style-src` still allows `'unsafe-inline'`, because
+`next/font` emits an inline `<style>` block the framework gives no way to
+nonce. Recorded in `DECISIONS.md` rather than glossed over.
+
+The two apps carry separate policies. The admin needs no `worker-src blob:` and
+no `blob:` images; the public site needs both for the 3D scene. Sharing them
+would mean giving the tsconfig-only `@portfolio/config` a runtime entry and
+adding a workspace export to both module graphs — the change that has broken
+the dev servers three times through Turbopack's cached failed resolutions.
+
+### Verified, not assumed
+
+`e2e/csp.spec.ts` checks the header shape, that the nonce **differs between two
+responses**, that no console message reports anything blocked, and that the
+inline theme script still runs.
+
+That last one is the point. A CSP is unusually easy to ship broken invisibly:
+the header is present, the page looks right, and one blocked script means every
+visitor's stored theme preference is silently ignored. Removing `nonce={nonce}`
+from the layout fails that test and the "nothing is blocked" test, while the
+header-shape test keeps passing — which is the correct split, because the
+header was never the broken part.
+
+Also confirmed in a browser on both apps: policy present, nonce present, zero
+violations, and the 3D scene still initialises (one canvas, five three chunks)
+— `worker-src blob:` and `'unsafe-eval'` in development were both needed for
+that.
+
+### What was already correct
+
+- **Authorization** — `requireAdminIdentity()` is the first statement of every
+  Server Action, and `action-auth-tests.mjs` discovers every exported
+  `*Action` and requires it to throw when unauthenticated, so a new action
+  cannot ship without a guard.
+- **Uploads** — a content-type allowlist plus per-type size limits
+  (5 MB images, 10 MB PDFs), enforced in `@portfolio/schemas` on the server.
+- **The media route** — looks up by id, re-checks the stored content type
+  against the allowlist before serving ("defence in depth against a row
+  written by a looser policy"), and returns generic messages so the
+  fail-closed seams' deployment-shaped errors never reach a visitor.
+- **Secrets** — none in the tree. `.env.example` is the only `.env` file
+  tracked and it carries names only.
+- **CI** — still `permissions: contents: read`. The new e2e job inherits it
+  and needs nothing more.
+- **Dependencies** — one added across these phases, `@playwright/test`, named
+  by the roadmap for Phase 20.
+
+Checks run: `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`,
+`pnpm test:e2e`.
 
 ## Phase 20 — end-to-end tests (branch `feat/e2e-tests`)
 
