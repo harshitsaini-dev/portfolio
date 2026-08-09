@@ -6,13 +6,11 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 16 — loading states and skeletons. Complete.**
+**Phase 15 — Contribution Playground. Complete.**
 
 Phase 9 is code complete with provisioning outstanding (below). Phases 10-14
 were built during the polish work and their roadmap entries have been
-corrected to match. **Phase 15 (Contribution Playground) has not been
-started** — a project *entry* of that name exists as seeded CMS content,
-which is not the same thing.
+corrected to match. Phase 16 (loading states) is complete, and Phase 15 now is too.
 
 **Phase 9 — R2/media. Code complete; provisioning outstanding.**
 
@@ -20,6 +18,97 @@ All seven slices are merged. What remains is **not code**: no R2 bucket
 exists, no bucket binding is in any committed config, and creating them is a
 human action — see `docs/DEPLOYMENT.md`. Everything runs against miniflare's
 local simulation until then.
+
+## Phase 15 — the Contribution Playground (branch `feat/contribution-playground`)
+
+Snake, played on a grid of contribution-graph squares, as its own page
+section — so an editor can retitle, reorder or hide it like any other.
+
+### Built in the DOM, not in WebGL
+
+The obvious build is instanced cubes in a canvas. It was not built that way,
+and the reason is this project's own rule: 3D enhances an experience, it never
+*becomes* the only way to use one. A canvas cannot be focused, cannot be read,
+and cannot be operated without a pointer, so anything interactive inside one
+needs a parallel DOM implementation before it is usable at all.
+
+So the board *is* the DOM: 450 real elements, arrow keys and WASD to steer,
+space to pause, on-screen buttons for touch, and a visible focus ring — a game
+you steer with the arrow keys and cannot focus is a game only a mouse can
+start. The depth is a CSS `perspective` and a 14-degree tilt, dropped under
+reduced motion.
+
+### It starts when asked
+
+Nothing moves until Start is pressed. That is what makes it safe under
+`prefers-reduced-motion` without special-casing: a board that began running on
+scroll would be continuous unrequested motion in the middle of a page, while a
+board that waits for a press is motion the visitor chose. It also pauses when
+the tab is hidden, for the same reason the 3D scene does.
+
+### Refs drive the loop, state drives the paint
+
+The snake, direction, food and score live in refs. A loop reading them from
+state closes over the values from the render that installed it, so the snake
+would move in whatever direction it had a tick ago — the classic
+setInterval-in-React bug, and in a game it is unplayable rather than untidy.
+
+A chain of timeouts rather than an interval, because the delay shrinks as the
+score rises and an interval cannot change its own period.
+
+### The best score is the only thing persisted
+
+In `localStorage`, in this browser, nothing sent anywhere. Read through a
+small external store rather than state plus a mount effect — the same pattern
+as the theme toggle — so the server snapshot is explicit and hydration cannot
+mismatch. A number to beat is the reason anybody plays a second round, so it
+is shown as a figure while playing rather than only in the announcement.
+
+### What a screen reader gets
+
+The board is `aria-hidden`. Announcing 450 cells, or a snake's coordinates ten
+times a second, describes the mechanism rather than the game. What is
+announced is score and phase, through one polite `role="status"`.
+
+That is the honest position: it is a visual toy, it says so, it is fully
+keyboard-operable, and it is a section an editor can hide entirely.
+
+### Two corrections along the way
+
+**The first build was a drawing tool, not a game** — the owner asked for
+snake, and it was replaced wholesale.
+
+**The drawing version had two real defects, both caught by measurement** and
+worth recording because the second one repeats a pattern:
+
+- Dragging across seven cells painted exactly one. Once a stroke begins the
+  browser retargets pointer events to the element it started on, so
+  `onPointerEnter` never fires on the siblings. Hit-testing with
+  `elementFromPoint` asks the question actually being asked.
+- The grid was transposed against its own ARIA: 53 `role="row"` elements in a
+  grid declaring `aria-rowcount={7}`. A screen reader would have announced 53
+  rows of 7.
+
+### The section tests failed, correctly
+
+Adding a seventh section broke six assertions that had `6`, `5` and the full
+key order written out. They were doing their job. The counts are derived from
+`SECTION_KEYS` now, so a new section is a one-line change there rather than a
+hunt through the test file — but the *order* is still spelled out, because
+that is the thing under test.
+
+### A dev-server trap, hit for the third time
+
+Adding `skeleton.css` to `packages/ui` 500'd both dev servers with
+`"./skeleton.css" is not exported under the condition "style"`. The export map
+was correct and `pnpm build` passed throughout: Turbopack caches the failed
+package resolution. `pnpm dev:clean` fixes it, which is exactly why that
+script exists — see `docs/DECISIONS.md`.
+
+Checks run: `pnpm lint`, `pnpm typecheck`, `pnpm test` (703/703 admin, 101/101
+web, 181/181 and 83/83 elsewhere), `pnpm build` — all passed. Verified in
+Chromium: the board renders 450 cells, Start moves the snake, space pauses it,
+arrow keys steer, and the best score survives a reload.
 
 ## Phase 16 — loading states and skeletons (branch `feat/loading-skeletons`)
 

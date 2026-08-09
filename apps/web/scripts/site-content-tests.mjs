@@ -19,6 +19,7 @@
  */
 
 import { spawnSync } from "node:child_process";
+import { SECTION_KEYS } from "../src/lib/content/sections.ts";
 import { createRequire, registerHooks } from "node:module";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -363,15 +364,18 @@ try {
   startGroup("Section resolution");
 
   const defaults = await getSiteContent();
+  // Counted from the module's own list rather than written out, so adding a
+  // section is a one-line change there instead of a hunt through this file.
+  // The *order* below is still spelled out: that is the thing under test.
   equal(
     "with no rows, every known section renders",
     defaults.sections.length,
-    6,
+    SECTION_KEYS.length,
   );
   equal(
     "and in the declared default order",
     defaults.sections.map((section) => section.key).join(","),
-    "about,projects,experience,education,skills,contact",
+    "about,projects,experience,education,skills,playground,contact",
   );
   equal(
     "navigation is derived from the same list",
@@ -400,7 +404,7 @@ try {
   equal(
     "sections with no row keep their relative order after it",
     reordered.sections.map((section) => section.key).join(","),
-    "contact,about,projects,experience,education,skills",
+    "contact,about,projects,experience,education,skills,playground",
   );
   equal(
     "the navigation label follows the new title",
@@ -410,7 +414,7 @@ try {
   equal(
     "a row does NOT delete the sections that have no row",
     reordered.sections.length,
-    6,
+    SECTION_KEYS.length,
   );
 
   // Hiding. This is the case that broke in the browser: reading sections with
@@ -428,7 +432,11 @@ try {
     "and removes its navigation link, leaving nothing pointing at it",
     !hidden.navigation.some((item) => item.targetId === "contact"),
   );
-  equal("the other five still render", hidden.sections.length, 5);
+  equal(
+    "every other section still renders",
+    hidden.sections.length,
+    SECTION_KEYS.length - 1,
+  );
 
   // A key no component knows about is ignored rather than rendered empty.
   await repos.sections.create({
@@ -443,7 +451,14 @@ try {
     !unknown.sections.some((section) => section.key === "podcast"),
     `got ${JSON.stringify(unknown.sections.map((s) => s.key))}`,
   );
-  equal("and changes nothing else", unknown.sections.length, 5);
+  // One fewer than the full set, because `contact` is still hidden from the
+  // previous step. Derived rather than written out, so a new section does
+  // not silently turn this into a stale number.
+  equal(
+    "and changes nothing else",
+    unknown.sections.length,
+    SECTION_KEYS.length - 1,
+  );
 
 
   // =========================================================================

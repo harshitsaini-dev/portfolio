@@ -6,6 +6,7 @@ import { Hero } from "@/components/hero";
 import { ProjectsSection } from "@/components/projects-section";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { PlaygroundSection } from "@/components/playground-section";
 import { RobotSpeech } from "@/components/three/robot-speech";
 import { RobotTerminal } from "@/components/three/robot-terminal";
 import { HeroSceneMount } from "@/components/three/hero-scene-mount";
@@ -145,6 +146,8 @@ export default async function Home() {
                   tools={content.tools}
                 />
               );
+            case "playground":
+              return <PlaygroundSection key={copy.key} copy={copy} />;
             case "contact":
               return (
                 <ContactSection key={copy.key} copy={copy} contact={content.contact} />

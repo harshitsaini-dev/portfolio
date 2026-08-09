@@ -353,10 +353,14 @@ bubble and narrates through a terminal. `aria-hidden` and
 `pointer-events-none` throughout: removing it changes nothing a visitor can
 read or do.
 
-## Phase 15 — Contribution Playground — **Not started**
+## Phase 15 — Contribution Playground — **Complete**
 
-The interactive contribution playground. A *project entry* of that name
-exists in the CMS as seeded content; the feature itself has not been built.
+Snake, played on a grid of contribution-graph squares. Its own page section,
+so an editor can retitle, reorder or hide it like any other.
+
+Built in the DOM rather than in WebGL, deliberately: this project's rule is
+that 3D enhances an experience and never becomes the only way to use one, and
+a canvas cannot be focused, read or operated without a pointer.
 
 ## Phase 16 — Loading/skeletons — **Complete**
 
