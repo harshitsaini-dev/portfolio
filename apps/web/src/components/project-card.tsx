@@ -58,7 +58,13 @@ export function ProjectCard({ project }: { project: Project }) {
             <h3 id={headingId} className={`glow-title ${type.subheading}`}>
               <Link
                 href={`/projects/${project.slug}`}
-                className="transition-colors duration-150 hover:text-accent"
+                // `inline-block` with a little vertical padding, so the target
+                // clears the 24px WCAG 2.5.8 minimum. It measured 23px — one
+                // pixel short, which is the kind of thing only a measurement
+                // finds. An inline element ignores vertical padding for
+                // hit-testing, hence the display change rather than padding
+                // alone.
+                className="inline-block py-0.5 transition-colors duration-150 hover:text-accent"
               >
                 {project.title}
               </Link>
