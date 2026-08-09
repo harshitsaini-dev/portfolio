@@ -33,6 +33,7 @@ export interface SceneFormValues {
   isEnabled: boolean;
   qualityPreset: SceneQualityPreset;
   isMobileEnabled: boolean;
+  isSpeechEnabled: boolean;
   maxPixelRatio: string;
 }
 
@@ -40,6 +41,7 @@ export const emptySceneValues: SceneFormValues = {
   isEnabled: false,
   qualityPreset: "balanced",
   isMobileEnabled: false,
+  isSpeechEnabled: true,
   maxPixelRatio: "2",
 };
 
@@ -87,6 +89,7 @@ export function SceneForm({
     isEnabled: values.isEnabled,
     qualityPreset: values.qualityPreset,
     isMobileEnabled: values.isMobileEnabled,
+    isSpeechEnabled: values.isSpeechEnabled,
     maxPixelRatio: Number.isFinite(parsedRatio) ? parsedRatio : 2,
   });
 
@@ -134,6 +137,15 @@ export function SceneForm({
         checked={values.isMobileEnabled}
         hint="Off by default. The device most likely to be on a battery and a slow connection benefits least."
         onChange={(checked) => update("isMobileEnabled", checked)}
+      />
+
+      <CheckboxField
+        id={`${fieldId}-speech`}
+        name="isSpeechEnabled"
+        label="Let the robot talk"
+        checked={values.isSpeechEnabled}
+        hint="On by default. Shows a short line in a bubble above the figure every few seconds — facts, quotes and a greeting set to Indian time. Turning it off leaves the figure itself untouched."
+        onChange={(checked) => update("isSpeechEnabled", checked)}
       />
 
       <SelectField

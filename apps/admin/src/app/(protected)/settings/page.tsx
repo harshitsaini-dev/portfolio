@@ -90,6 +90,7 @@ export default withAdminPage(async () => {
                   isEnabled: sceneSettings.isEnabled,
                   qualityPreset: sceneSettings.qualityPreset,
                   isMobileEnabled: sceneSettings.isMobileEnabled,
+                  isSpeechEnabled: sceneSettings.isSpeechEnabled,
                   maxPixelRatio: String(sceneSettings.maxPixelRatio),
                 }
               : emptySceneValues

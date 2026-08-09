@@ -3,6 +3,7 @@ import Link from "next/link";
 import { SiteNavMenu } from "@/components/site-nav-menu";
 import { Container } from "@/components/ui/container";
 import { actionVariant } from "@/components/ui/action";
+import { IstClock } from "@/components/ui/ist-clock";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import type { NavigationItem } from "@/data/types";
 
@@ -56,6 +57,11 @@ export function SiteHeader({ siteName, navigation }: SiteHeaderProps) {
             </ul>
           </nav>
 
+          {/* The owner's local time. Only from `xl`, where there is room for
+              it beside the section links — below that the nav is already
+              using the width, and a clock is the least important thing in
+              the row. */}
+          <IstClock />
           <ThemeToggle />
           <SiteNavMenu navigation={navigation} />
         </div>

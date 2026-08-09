@@ -52,6 +52,7 @@ function toSceneSettings(row: Row): SceneSettings {
       SCENE_QUALITY_PRESETS,
     ),
     isMobileEnabled: requireBoolean(SCENE_ENTITY, row, "is_mobile_enabled"),
+    isSpeechEnabled: requireBoolean(SCENE_ENTITY, row, "is_speech_enabled"),
     maxPixelRatio: requireNumber(SCENE_ENTITY, row, "max_pixel_ratio"),
     updatedAt: requireString(SCENE_ENTITY, row, "updated_at"),
   };
@@ -152,6 +153,7 @@ export function createSceneSettingsRepository(
         const row = await db
           .prepare(
             `SELECT is_enabled, quality_preset, is_mobile_enabled,
+                    is_speech_enabled,
                     max_pixel_ratio, updated_at
              FROM scene_settings WHERE id = ?`,
           )
@@ -170,12 +172,14 @@ export function createSceneSettingsRepository(
           .prepare(
             `INSERT INTO scene_settings
                (id, is_enabled, quality_preset, is_mobile_enabled,
+                is_speech_enabled,
                 max_pixel_ratio, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?)
+             VALUES (?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(id) DO UPDATE SET
                is_enabled = excluded.is_enabled,
                quality_preset = excluded.quality_preset,
                is_mobile_enabled = excluded.is_mobile_enabled,
+               is_speech_enabled = excluded.is_speech_enabled,
                max_pixel_ratio = excluded.max_pixel_ratio,
                updated_at = excluded.updated_at`,
           )
@@ -184,6 +188,7 @@ export function createSceneSettingsRepository(
             boolToInt(input.isEnabled ?? false),
             input.qualityPreset ?? "balanced",
             boolToInt(input.isMobileEnabled ?? false),
+            boolToInt(input.isSpeechEnabled ?? true),
             input.maxPixelRatio ?? 2,
             now,
           )

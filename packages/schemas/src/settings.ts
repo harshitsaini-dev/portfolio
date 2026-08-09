@@ -112,6 +112,15 @@ export const sceneSettingsSaveSchema = z
     qualityPreset: z.enum(SCENE_QUALITY_PRESETS).default("balanced"),
     isMobileEnabled: z.boolean().default(false),
     /**
+     * The figure's speech bubble.
+     *
+     * Defaults **true**, unlike its neighbours. They are off because the
+     * scene as a whole is opt-in; this is a sub-feature of something
+     * already opted into, so someone who switched the scene on has asked
+     * for the figure, and the figure talking is part of it.
+     */
+    isSpeechEnabled: z.boolean().default(true),
+    /**
      * Device-pixel-ratio ceiling.
      *
      * Bounded to match the column's CHECK. Above 2 the cost is real and the
