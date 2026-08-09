@@ -13,6 +13,47 @@ exists, no bucket binding is in any committed config, and creating them is a
 human action — see `docs/DEPLOYMENT.md`. Everything runs against miniflare's
 local simulation until then.
 
+## The carousel stage sizes itself (branch `fix/carousel-stage-height`)
+
+The owner reported a project card cut off along its bottom edge. It was, and
+the stage's `overflow: hidden` was doing exactly what it had been told.
+
+### The cause was a guess that went stale
+
+The stage height was a fixed `34rem`. Slides are absolutely positioned, so
+they contribute no height and the stage has to be given one — and that number
+was derived from the cards as they stood on the day it was written. Measured
+at the reported width: the tallest card is **566px** against a **544px**
+stage, so 22px of it was being clipped.
+
+A stage whose height is a guess about its contents will keep going stale every
+time a project gains a technology tag or a longer summary. So it is measured
+now: `ProjectsCarousel` finds the tallest slide and publishes it as
+`--stage-height`, with the old value left only as a fallback for the frames
+before that runs.
+
+### Two details that would have been wrong
+
+**`offsetHeight`, not `getBoundingClientRect().height`.** The slides carry a
+3D rotation, and a rect measures the *rotated* bounding box — taller than the
+card itself, which would have left a growing gap under the shortest one.
+`offsetHeight` is the layout height, before any transform.
+
+**A `ResizeObserver`, not a window `resize` listener.** A card's height depends
+on its own width, which changes with the container rather than only with the
+viewport, and its content can change under it.
+
+### Verified by making it fail
+
+Resizing the window proved nothing: the slide is `min(28rem, 56%)`, so at
+1024px it is still 448px wide and the cards do not change height at all. The
+real check was forcing a card to grow the way longer CMS copy would — the
+stage went **582px to 662px**, and back to 582px when it shrank. Never
+clipped at any point.
+
+Checks run: `pnpm lint`, `pnpm typecheck`, `pnpm test` (703/703 admin, 181/181
+and 83/83 elsewhere), `pnpm build` — all passed.
+
 ## Hover glow and glass (branch `feat/glow-and-glass`)
 
 Requested: a glow on hover, "like when you hover a skill", plus glass and

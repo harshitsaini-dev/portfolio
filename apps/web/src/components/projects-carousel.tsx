@@ -91,6 +91,7 @@ export function ProjectsCarousel({ projects }: { projects: readonly Project[] })
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
   const regionRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLUListElement>(null);
 
   const total = projects.length;
 
@@ -108,6 +109,49 @@ export function ProjectsCarousel({ projects }: { projects: readonly Project[] })
     },
     [total],
   );
+
+  /*
+    The stage is as tall as its tallest card, measured.
+
+    The slides are absolutely positioned, so they contribute no height and the
+    stage has to be given one. It was a fixed 34rem — a number derived from
+    the cards as they were on the day, which went stale the moment a card grew:
+    the owner reported a project cut off along its bottom edge, and the stage's
+    `overflow: hidden` was doing exactly what it was told.
+
+    `offsetHeight`, not `getBoundingClientRect().height`: the slides carry a
+    3D rotation, and a rect measures the *rotated* bounding box, which is
+    taller than the card and would leave a growing gap under the shortest one.
+    `offsetHeight` is the layout height, before any transform.
+
+    A `ResizeObserver` rather than a window listener, because the card's height
+    depends on its own width — which changes with the container, not only with
+    the viewport — and because content can change under it.
+  */
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!enhanced || !stage) return;
+
+    const measure = () => {
+      let tallest = 0;
+      for (const slide of stage.children) {
+        if (slide instanceof HTMLElement) {
+          tallest = Math.max(tallest, slide.offsetHeight);
+        }
+      }
+      // A little slack, so the soft edge of the mask has something to fade
+      // through rather than clipping exactly at the last pixel of text.
+      if (tallest > 0) {
+        stage.style.setProperty("--stage-height", `${tallest + 16}px`);
+      }
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(stage);
+    for (const slide of stage.children) observer.observe(slide);
+    return () => observer.disconnect();
+  }, [enhanced, projects]);
 
   /**
    * The automatic loop.
@@ -179,6 +223,7 @@ export function ProjectsCarousel({ projects }: { projects: readonly Project[] })
       }}
     >
       <ul
+        ref={stageRef}
         className={
           enhanced
             ? // `project-stage` supplies the perspective and the absolute
