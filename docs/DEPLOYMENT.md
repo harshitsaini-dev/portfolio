@@ -12,9 +12,11 @@ remaining step is the owner running, from the repository root:
 
 ```
 pnpm --filter @portfolio/web exec opennextjs-cloudflare deploy
-``` — see
-`docs/PROJECT_STATE.md` for the Windows symlink limitation that blocks it
-locally.
+```
+
+Run it from a Linux environment (the WSL clone): the OpenNext bundling step
+needs symlinks that Windows denies without Developer Mode — see
+`docs/PROJECT_STATE.md`.
 
 The **admin app has no deployment configuration** and must not be deployed
 until it has a domain: a Cloudflare Access application cannot be attached to a
