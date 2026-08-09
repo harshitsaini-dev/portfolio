@@ -9,6 +9,10 @@
    tokens. See packages/ui/src/scrollbars.css. */
 @import "@portfolio/ui/scrollbars.css";
 
+/* Loading placeholders. Shared by both apps, so it is separate from
+   `motion.css`, which only the public site imports. */
+@import "@portfolio/ui/skeleton.css";
+
 /* Tailwind only scans this app by default, so utilities used exclusively by
    the shared components would be absent from the generated stylesheet — a
    component that looks unstyled for no visible reason. */

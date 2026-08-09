@@ -315,37 +315,55 @@ Planned slice order:
    exists. It was built alongside the media service rather than as its own
    slice, which is why this list still showed it as pending.
 
-## Phase 10 — Theme/settings
+## Phase 10 — Theme/settings — **Complete**
 
-Site settings and theming, including the light/dark/system requirement.
+Site settings and theming. The CMS owns site name, description, accent,
+favicon, social image and `default_theme`; the public site adds a
+visitor-level light/dark/system toggle on top of that default.
 
-## Phase 11 — Contact/inbox
+## Phase 11 — Contact/inbox — **Complete**
 
-Contact form handling and the admin-side message inbox, with input
-validation, rate limiting, and spam protection.
+Contact form handling and the admin-side inbox, with Zod validation, a
+honeypot and a timing check. Rate limiting is deliberately left to the edge —
+the schema stores no IP by design, so there is nothing here to key a limit on.
 
-## Phase 12 — Motion
+## Phase 12 — Motion — **Complete**
 
-Motion-driven animation across the public site, respecting
-`prefers-reduced-motion`.
+Scroll reveals, entrance animations, a looping typewriter, smooth scrolling,
+the preloader, a custom cursor and the hover glow — all inside
+`prefers-reduced-motion: no-preference`, and all structured so the *hidden*
+state never exists without the mechanism that clears it.
 
-## Phase 13 — 3D foundation
+Built on CSS scroll-driven animations rather than Motion. See
+`docs/PROJECT_STATE.md` for why, and for the correction to an over-broad
+claim about smooth-scroll libraries.
 
-Three.js / React Three Fiber groundwork — lazy loading, asset pipeline,
-and non-3D fallbacks. See `.claude/skills/threejs-performance`.
+## Phase 13 — 3D foundation — **Complete**
 
-## Phase 14 — Hero 3D
+Three.js / R3F groundwork: the scene is dynamically imported, so Three.js is
+not in the initial bundle, and four gates must all pass before it loads — a
+CMS setting, reduced motion, screen size, and a WebGL probe. The page is
+fully readable with none of it.
 
-The 3D hero experience, layered over an HTML-first hero that remains
-usable without WebGL.
+## Phase 14 — Hero 3D — **Complete**
 
-## Phase 15 — Contribution Playground
+A hooded robot composed from primitives, on a fixed layer *behind* the page.
+It tracks the cursor, turns with scroll, waves, speaks through a CMS-editable
+bubble and narrates through a terminal. `aria-hidden` and
+`pointer-events-none` throughout: removing it changes nothing a visitor can
+read or do.
 
-The interactive contribution playground feature.
+## Phase 15 — Contribution Playground — **Not started**
 
-## Phase 16 — Loading/skeletons
+The interactive contribution playground. A *project entry* of that name
+exists in the CMS as seeded content; the feature itself has not been built.
 
-Loading states and skeleton UI across both apps.
+## Phase 16 — Loading/skeletons — **Complete**
+
+A shared `Skeleton` primitive, `loading.tsx` on all 40 admin routes and on the
+public case-study route. Skeletons mirror the layout they replace rather than
+spinning, are `aria-hidden` under one polite status message, and keep their
+shape when the shimmer is suppressed by reduced motion.
 
 ## Phase 17 — Mobile
 
