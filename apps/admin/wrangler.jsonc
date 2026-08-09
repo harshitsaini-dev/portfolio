@@ -43,6 +43,13 @@
 
   "workers_dev": true,
 
+  // Dashboard-set plain-text vars survive deploys. Without this, `wrangler
+  // deploy` DELETES any var not listed in this file — which is exactly where
+  // the owner sets public configuration like CONTACT_NOTIFY_* and
+  // CF_ACCESS_*, since their values are the owner's and not the repo's.
+  // Secrets always survive; this flag is only about plain-text vars.
+  "keep_vars": true,
+
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
