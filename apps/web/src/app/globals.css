@@ -83,6 +83,32 @@ body {
   cursor: none !important;
 }
 
+/**
+ * Smooth scrolling, and the padding an anchor needs because of it.
+ *
+ * `scroll-behavior: smooth` covers *programmatic* scrolls — following an
+ * anchor, calling `scrollTo`. Wheel and trackpad smoothing is a separate
+ * concern handled by `SmoothScroll`, because the browser applies those
+ * gestures directly and no stylesheet can change how they feel.
+ *
+ * An earlier version of this comment claimed that any smooth-scroll library
+ * breaks CSS scroll-driven animations. That was too broad. It is true of
+ * libraries that fake scrolling by translating a container — the document's
+ * real scroll position never moves, so `animation-timeline: view()` has
+ * nothing to read — but not of one that drives the window's actual scroll
+ * position, which is what is used here.
+ *
+ * `scroll-padding-top` keeps a section from landing under the sticky header
+ * when its anchor is followed. 5rem is the header's height plus a little air.
+ *
+ * The reduced-motion block below sets `scroll-behavior: auto`, so a visitor
+ * who asked for less motion gets an instant jump instead.
+ */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+
 ::selection {
   background: var(--selection-bg);
   color: var(--selection-fg);

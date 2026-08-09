@@ -19,7 +19,14 @@ interface SiteFooterProps {
  */
 export function SiteFooter({ siteName, note, socials }: SiteFooterProps) {
   return (
-    <footer className="border-t border-subtle py-12">
+    <footer
+      /*
+        No top border. The 3D layer is fixed behind the page, so a hairline
+        rule drew a line straight across the figure — the same reason the
+        section dividers went. Spacing separates it instead.
+      */
+      className="py-16"
+    >
       <Container className="flex flex-col gap-8">
         {socials.length > 0 ? (
           <SocialRow socials={socials} label="Profiles elsewhere, in the footer" />
