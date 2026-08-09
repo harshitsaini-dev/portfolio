@@ -113,6 +113,7 @@ export async function saveProfileAction(
       availability: input.availability,
       publicEmail: input.publicEmail,
       avatarMediaId: input.avatarMediaId,
+      xrayMediaId: input.xrayMediaId,
     });
   } catch (error) {
     if (error instanceof NotFoundError) {

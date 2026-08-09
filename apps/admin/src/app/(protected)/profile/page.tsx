@@ -83,6 +83,7 @@ export default withAdminPage(async () => {
                 availability: profile.availability ?? "",
                 publicEmail: profile.publicEmail ?? "",
                 avatarMediaId: profile.avatarMediaId ?? "",
+                xrayMediaId: profile.xrayMediaId ?? "",
               }
             : emptyProfileValues
         }

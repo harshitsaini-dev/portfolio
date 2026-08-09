@@ -37,6 +37,16 @@ export interface Profile extends EntityMeta {
    * `ON DELETE SET NULL`: deleting the image clears the reference.
    */
   readonly avatarMediaId: string | null;
+  /**
+   * The portrait shown *under* the avatar, revealed through the hero's hover
+   * window. Also `ON DELETE SET NULL`.
+   *
+   * A second column rather than a variant of the avatar, because the site
+   * never chooses between the two — it composites one over the other, and
+   * each carries its own alt text. Null is the common case, and the hero
+   * falls back to a generated figure.
+   */
+  readonly xrayMediaId: string | null;
   readonly fullName: string;
   readonly headline: string;
   readonly tagline: string | null;
@@ -48,6 +58,7 @@ export interface Profile extends EntityMeta {
 
 export interface ProfileInput {
   readonly avatarMediaId?: string | null;
+  readonly xrayMediaId?: string | null;
   readonly fullName: string;
   readonly headline: string;
   readonly tagline?: string | null;

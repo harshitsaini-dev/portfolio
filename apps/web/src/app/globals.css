@@ -101,6 +101,113 @@ body {
   cursor: none !important;
 }
 
+/* ---------------------------------------------------------------------------
+ * The portrait's x-ray reveal
+ *
+ * A circular window follows the cursor across the photograph, showing the same
+ * figure rendered as a machine scan. See `xray-portrait.tsx` for the component
+ * that drives the three custom properties below.
+ * ------------------------------------------------------------------------- */
+
+/*
+  The base fade, as its own element.
+
+  This is the same bottom fade the portrait carries, so the reveal can never
+  resurrect the hard cropped edge that fade exists to hide.
+
+  It is a **separate, nested element** rather than a second mask layer on the
+  window below, and that is the fix for a bug the owner reported twice: two
+  mask layers combined with `mask-composite: intersect` did not intersect.
+  Instead of a soft circle the window rendered as a hard-edged rectangle
+  anchored at the cursor — the shape you get when the compositing keyword is
+  ignored and the layers are taken at face value.
+
+  Nesting needs no keyword at all. The outer element masks its subtree, the
+  inner one masks again inside that, and the result is the intersection by
+  construction. It is also better supported, since single-layer masks predate
+  `mask-composite` everywhere.
+*/
+.xray-fade {
+  -webkit-mask-image: linear-gradient(to bottom, #000 68%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 68%, transparent 100%);
+}
+
+.xray-window {
+  /*
+    Defaults matter: a closed window.
+
+    `--xray-r` starts at 0, so before a single pointer event arrives the mask
+    has zero radius and nothing shows. If the script never runs — it is gated
+    behind hover, a fine pointer and reduced motion, so often it will not —
+    the overlay is simply invisible rather than a second portrait sitting on
+    top of the real one.
+  */
+  --xray-x: 50%;
+  --xray-y: 50%;
+  --xray-r: 0px;
+
+  /*
+    The reveal, with a very long soft edge.
+
+    Opaque only to 28% of the radius, then a gradual falloff over the
+    remaining 72%. It was 55%, and the boundary was still findable — the owner
+    reported visible edges twice. The wider the ramp, the less there is any
+    single line where one image becomes the other, which is the whole trick: a
+    hard-edged window reads as a cut-out pasted on, a long soft one reads as a
+    lens.
+
+    The middle stop keeps the falloff from looking linear, which is what makes
+    a gradient read as a ring rather than as a fade.
+  */
+  -webkit-mask-image: radial-gradient(
+    circle var(--xray-r) at var(--xray-x) var(--xray-y),
+    #000 0%,
+    #000 28%,
+    rgb(0 0 0 / 55%) 62%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(
+    circle var(--xray-r) at var(--xray-x) var(--xray-y),
+    #000 0%,
+    #000 28%,
+    rgb(0 0 0 / 55%) 62%,
+    transparent 100%
+  );
+}
+
+/*
+  Dims the photograph inside the window.
+
+  The endoskeleton is drawn in thin accent strokes, and thin strokes lose to a
+  lit face. A flat wash of the page background at 78% pushes the photo back far
+  enough for the robot to be the subject inside the window while still leaving
+  the person faintly visible underneath, which is the whole idea.
+*/
+.xray-dim {
+  background-color: color-mix(in srgb, var(--bg) 78%, transparent);
+}
+
+/*
+  Scanlines.
+
+  Deliberately **no `mix-blend-mode`**. It was `screen` here, and that is what
+  produced the hard rectangular edge the owner reported: an element that
+  blends has to be composited against its backdrop, and doing so inside an
+  ancestor that carries a mask made the browser paint the blended group before
+  the mask rather than through it — so the grid appeared as a hard-edged box
+  instead of a soft circular window. Plain alpha compositing has no such
+  interaction, and at these opacities looks the same.
+
+  3px apart, which reads as a raster at the size the portrait renders.
+*/
+.xray-grid {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgb(255 255 255 / 7%) 0 1px,
+    transparent 1px 3px
+  );
+}
+
 /**
  * The ring's inverted state, over running text.
  *
