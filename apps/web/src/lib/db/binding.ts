@@ -54,8 +54,23 @@ export class DatabaseUnavailableError extends Error {
   }
 }
 
-/** Module-scoped registration state: written once at startup, then read. */
-let registeredProvider: SiteDatabaseProvider | null = null;
+/**
+ * Registration state, on `globalThis` rather than at module scope.
+ *
+ * It was a module-scoped `let`, and that broke the deployed Worker in a way
+ * nothing local could show: Turbopack compiles the instrumentation entry and
+ * the route entries into separate chunk graphs, and this module existed once
+ * in each — measured, three copies of the compiled seam in `.next/server/
+ * chunks`. `register()` wrote the provider into the instrumentation copy,
+ * every page read its own copy, found `null`, and the site failed closed on
+ * a Worker whose bindings were perfectly configured.
+ *
+ * `Symbol.for` puts the state in the runtime-wide symbol registry, which all
+ * copies share. The same reasoning — and the same mechanism — as the proxy
+ * cache in `dev-platform.ts`.
+ */
+const providerKey = Symbol.for("portfolio.web.siteDatabaseProvider");
+type ProviderHolder = { [providerKey]?: SiteDatabaseProvider | null };
 
 /**
  * Register the provider that resolves the D1 binding.
@@ -65,12 +80,17 @@ let registeredProvider: SiteDatabaseProvider | null = null;
  * local database.
  */
 export function setSiteDatabaseProvider(provider: SiteDatabaseProvider): void {
-  registeredProvider = provider;
+  (globalThis as ProviderHolder)[providerKey] = provider;
 }
 
 /** Undo `setSiteDatabaseProvider`. Exists so tests cannot leak into each other. */
 export function clearSiteDatabaseProvider(): void {
-  registeredProvider = null;
+  (globalThis as ProviderHolder)[providerKey] = null;
+}
+
+/** The registered provider, from whichever module copy wrote it. */
+function registeredSiteDatabaseProvider(): SiteDatabaseProvider | null {
+  return (globalThis as ProviderHolder)[providerKey] ?? null;
 }
 
 /** Resolve the local development database through the single wrangler seam. */
@@ -89,13 +109,14 @@ async function getDevelopmentDatabase(): Promise<D1Like> {
 
 /** Resolve the D1 binding for this environment. */
 export async function getSiteDatabase(): Promise<D1Like> {
-  if (registeredProvider) return registeredProvider();
+  const provider = registeredSiteDatabaseProvider();
+  if (provider) return provider();
 
   if (process.env.NODE_ENV === "production") {
     throw new DatabaseUnavailableError(
-      "no D1 provider is registered. Production binding resolution is not " +
-        "implemented yet — Phase 22 must call setSiteDatabaseProvider() with " +
-        "getCloudflareContext().env.DB from @opennextjs/cloudflare",
+      "no D1 provider is registered. The instrumentation entry point should " +
+        "have called setSiteDatabaseProvider() at isolate start — see " +
+        "src/instrumentation.ts",
     );
   }
 

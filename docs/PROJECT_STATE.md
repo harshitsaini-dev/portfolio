@@ -6,22 +6,230 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 21 — Security review. Complete.**
+**Phase 22 — Deployment. Worker verified end-to-end in workerd; deploy
+command is the one step left, and it is the owner's.**
 
-Phases 0-21 are done. The only phase left is 22 (deployment), and it is
-**blocked on a human action** — see below.
+Phases 0-21 are done. Phase 22 has begun: the OpenNext adapter, the public
+site's Worker configuration, and its production binding registration are in
+place. **No deployment has been performed and no Cloudflare resource has been
+created or changed by this repository.**
 
-Phase 9 is code complete with provisioning outstanding (below). Phases 10-16
-are complete: 10-14 were built during the polish work and their roadmap
-entries have been corrected to match, 15 is the contribution playground, 16 is
-loading states.
+The admin app is deliberately untouched by that slice and still has no
+deployment configuration.
 
-**Phase 9 — R2/media. Code complete; provisioning outstanding.**
+Phases 10-16 are complete: 10-14 were built during the polish work and their
+roadmap entries have been corrected to match, 15 is the contribution
+playground, 16 is loading states.
 
-All seven slices are merged. What remains is **not code**: no R2 bucket
-exists, no bucket binding is in any committed config, and creating them is a
-human action — see `docs/DEPLOYMENT.md`. Everything runs against miniflare's
-local simulation until then.
+**Phase 9 — R2/media. Code complete. Cloudflare resources now reported
+provisioned.**
+
+All seven slices are merged. The provisioning that this file previously
+recorded as outstanding has been **reported complete by the owner**: the
+remote `portfolio-cms` D1 database exists with all seven migrations applied,
+and the `portfolio-media` R2 bucket exists.
+
+Recorded as *reported* rather than verified, deliberately. Confirming it needs
+a `--remote` Wrangler call, which this project does not permit automation to
+make, so no check in this repository has observed it. The rule at the top of
+this file cuts both ways: an unverified claim is recorded as unverified.
+
+What is still true: **no bucket or database binding exists in any committed
+deployment config**, because no deployment config exists at all. Local
+development still runs entirely against miniflare's simulation.
+
+## Phase 22 slice 2 — making the Worker actually build and serve
+
+Slice 1 compiled but had never run in workerd — the Windows machine could not
+complete the OpenNext bundle. This slice, done from a WSL clone, took the
+Worker from "cannot bundle" to **HTTP 200 in workerd**, and every fix was
+found by measurement. Three real defects, in a chain, each one only visible
+after the previous was fixed.
+
+### 1. A literal `import("wrangler")` poisoned the Worker bundle
+
+`dev-platform.ts` dynamically imported `wrangler` for local development. The
+import is unreachable in production — but reachability is a runtime fact, and
+bundlers follow the static graph: OpenNext's esbuild pass inlined wrangler,
+miniflare, undici and the workerd binary into the server handler. Measured:
+a **211MB** server function, and a Worker that failed to build because
+undici's `SqliteCacheStore` reaches for `node:sqlite`, which workerd does not
+provide. The `Could not resolve "sqlite"` error reported earlier was this.
+
+The fix is a specifier no bundler can resolve statically. The first attempt —
+`["wrang", "ler"].join("")` — **failed**: Turbopack constant-folded it back
+to the literal in the compiled chunk. Measured, not guessed. The working form
+reads an environment variable that is never set
+(`process.env.WRANGLER_IMPORT_SPECIFIER ?? "wrangler"`), because only an
+allowlist of env vars is inlined at build time and everything else must stay
+a runtime read. Bundle after: **27MB**, no wrangler, no miniflare, no undici,
+no sqlite.
+
+### 2. Module-scoped seam registration does not survive Turbopack
+
+With the bundle fixed, the Worker served — a 500. `register()` ran,
+`isWorkersRuntime()` was true (probed in a scratch worker: workerd reports
+`navigator.userAgent === "Cloudflare-Workers"` under our flags), the adapter's
+instrumentation patch had applied (`cachedInstrumentationModule =
+require_instrumentation()` present in the bundle) — and the seam still said
+**"no D1 provider is registered"**.
+
+The cause: Turbopack compiles the instrumentation entry and the route entries
+into separate chunk graphs, and the binding seam existed once in each —
+three compiled copies of the same module, measured in `.next/server/chunks`.
+Registration wrote into the instrumentation copy; every page read its own
+copy and found `null`. A module-scoped `let` is simply the wrong home for
+cross-entry state under this bundler.
+
+Both web seams now keep the provider on `globalThis` under `Symbol.for`,
+which is exactly how `dev-platform.ts` already caches its proxy, for the same
+reason. The seam API and its fail-closed semantics are unchanged, and the
+26/26 production-platform checks still pass.
+
+### 3. The preview database had no tables
+
+The remaining 500 was D1 itself: `no such table: profile` — which is the
+provider chain *working*, all the way to a real (empty) local database.
+Applying the seven migrations to the preview's local state fixed it. Local
+only; nothing remote was touched.
+
+### Verified in workerd
+
+`opennextjs-cloudflare preview` (the correct command — it runs `wrangler dev`
+against the config's `main`; pointing `wrangler dev` at `worker.js` directly
+is not the supported path):
+
+- `/` → **HTTP 200**, default sections (an empty-but-migrated database is a
+  valid state, by design)
+- `/media/<unknown-id>` → **404** — the D1 provider works from a route
+  handler too
+- CSP header present with a per-request nonce — the middleware runs
+
+### Still open
+
+- `wrangler deploy` — the owner runs it; the exact command is in
+  `docs/DEPLOYMENT.md`.
+- Production D1 is migrated but empty: the deployed site will render default
+  sections until content is entered through the admin.
+- The admin still has no deployment config and must not be deployed without a
+  domain and Cloudflare Access.
+
+Checks run in the WSL clone: `pnpm --filter @portfolio/web typecheck`, web
+tests (101/101 and 26/26), `cf:build`, and the preview above.
+
+## Phase 22 slice 1 — the public site's deployment configuration
+
+Scope was B1-B3 of the readiness audit, for `apps/web` only. **Nothing was
+deployed**, and no Cloudflare resource was created, modified, or contacted.
+
+### What was added
+
+- `@opennextjs/cloudflare` 1.20.2, the one new dependency. Its peer range is
+  `next >=15.5.21 <16 || >=16.2.11`, which Next 16.3.0 satisfies, and
+  `wrangler ^4.86.0`, which the pinned 4.118.0 satisfies. Its only other peer,
+  `rclone.js`, is optional and not installed.
+- `apps/web/open-next.config.ts` — `defineCloudflareConfig()` with no
+  overrides. Every route in this app is dynamic, so the `"dummy"` defaults for
+  incremental cache, tag cache and queue are correct and need no binding. The
+  official template's `WORKER_SELF_REFERENCE`, cache bucket and `IMAGES`
+  binding are all omitted deliberately; adopting them would mean creating a
+  second R2 bucket to cache pages that are never cached.
+- `apps/web/wrangler.jsonc` — the first deployment config in the repository,
+  kept separate from the local-only `wrangler.d1.jsonc` so a migration can
+  never publish a Worker.
+- `apps/web/src/lib/production-platform.ts` — the production counterpart of
+  `dev-platform.ts`.
+- `apps/web/src/instrumentation.ts` — the runtime entry point the seams were
+  written for.
+- `apps/web/scripts/production-platform-tests.mjs` — 26 checks, wired into
+  `pnpm test`.
+
+### The seams are unchanged
+
+`setSiteDatabaseProvider` and `setSiteStorageProvider` remain the only way in,
+and neither seam file was edited. `production-platform.ts` supplies providers;
+it does not become a second abstraction, and nothing bypasses the repository
+layer.
+
+### Three moments, only one of which has bindings
+
+Build time has no Worker `env`, so nothing in the new code executes during
+`next build` — it only defines functions. Isolate start runs `register()`,
+which stores closures and touches no binding, so a misconfigured Worker still
+starts and then fails one request with a message naming the fix. Request time
+is the only moment `getCloudflareContext()` can answer, and it is where the
+closures read `env.DB` and `env.MEDIA`.
+
+### The guard that the tests found
+
+`getCloudflareContext({ async: true })` does **not** simply fail when there is
+no Worker context. If `NEXT_RUNTIME` is `nodejs` it falls back to Wrangler's
+`getPlatformProxy()` and returns **miniflare's local bindings**.
+
+That was discovered by writing the test, not by reading the docs: an assertion
+that the registered provider fails outside a Worker passed a local database
+back instead. The consequence is specific and serious — `next start`, a
+production build on Node and a script this repository still defines, would have
+satisfied both original guards, registered the providers, and served the public
+site from `.wrangler/state` while looking healthy. Silently serving the wrong
+database is the one failure these seams exist to prevent.
+
+So `register()` has a third guard, `isWorkersRuntime()`, which checks workerd's
+own `navigator.userAgent`. Outside workerd nothing registers, the seam finds no
+provider, and it fails closed exactly as it did before this slice.
+
+### Local development is unchanged
+
+Verified rather than assumed: with the new `instrumentation.ts` in place,
+`next dev` still renders real CMS content — 4 project links, 15 `/media/`
+images, 8 sections, no console errors — which is only possible through the
+existing `dev-platform.ts` path. The full E2E suite still passes 43 with 3
+skipped, the same as before.
+
+### What could not be verified locally, and why
+
+**The OpenNext build does not complete on this machine.** `next build` inside
+it succeeds; the failure is in OpenNext's bundling step:
+
+```
+Error: EPERM: operation not permitted, symlink
+  '...node_modules/.pnpm/@next+env@16.3.0/node_modules/@next/env' -> '....open-next/...'
+```
+
+`copyTracedFiles` recreates pnpm's symlinks with `symlinkSync`, and it treats
+anything other than `EEXIST` as fatal, so there is no fallback to copying. On
+Windows a symlink needs Developer Mode or an elevated shell; both are off here
+(`AllowDevelopmentWithoutDevLicense` is unset, the shell is not elevated, and a
+direct symlink probe fails with "Administrator privilege required"). No WSL
+distribution is installed either.
+
+This is a **local environment limitation, not a configuration fault**, and it
+is unresolved: `opennextjs-cloudflare build` and `preview` have not been run to
+completion, so the deployed request path — including whether
+`isWorkersRuntime()` returns true inside real workerd — is **unverified**.
+
+What *was* verified about the Worker configuration is that Wrangler parses it
+and resolves exactly the intended bindings. `wrangler types`, writing to a
+temporary path, generated:
+
+```ts
+interface __BaseEnv_Env {
+  MEDIA: R2Bucket;
+  DB: D1Database;
+  ASSETS: Fetcher;
+}
+```
+
+That confirms the file, the compatibility date and all three binding names,
+locally and without contacting Cloudflare.
+
+### Checks run
+
+`pnpm lint`, `pnpm typecheck`, `pnpm test` (web 101/101 site content and 26/26
+production platform; admin 703/703 and the rest), `pnpm build`, and
+`pnpm test:e2e` (43 passed, 3 skipped) — all passed.
+`opennextjs-cloudflare build` — **failed**, for the Windows symlink reason
+above.
 
 ## Phase 21 — security review (branch `feat/security-review`)
 

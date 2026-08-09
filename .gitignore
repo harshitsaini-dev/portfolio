@@ -56,5 +56,10 @@ apps/*/CLAUDE.md
 .dev.vars.*
 !.dev.vars.example
 
+# OpenNext build output. `opennextjs-cloudflare build` regenerates it from
+# `.next/`, so it is derived artefacts — the bundled Worker entry point and a
+# copy of the static assets — not source.
+.open-next/
+
 # Misc
 *.local
