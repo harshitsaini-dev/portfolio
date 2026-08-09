@@ -1,0 +1,74 @@
+{
+  // ---------------------------------------------------------------------
+  // Production Worker configuration for the PUBLIC SITE ONLY.
+  //
+  // This is the first deployment config in the repository. It is separate
+  // from the repo-root `wrangler.d1.jsonc`, which is local-only tooling for
+  // `wrangler d1 ...` commands and `getPlatformProxy()` and says so itself.
+  // Keeping them apart means running a migration can never publish a Worker.
+  //
+  // The admin app has no config yet and must not be deployed from this
+  // slice: it is protected by Cloudflare Access, and an Access application
+  // cannot be attached to a `*.workers.dev` hostname because that hostname
+  // is not a zone in the account. Admin needs a real domain first.
+  //
+  // Contains no secrets. `database_id` is a resource identifier, not a
+  // credential, and both D1 and R2 are reached through bindings — the whole
+  // reason this architecture needs no API token or R2 access key.
+  // ---------------------------------------------------------------------
+  "$schema": "node_modules/wrangler/config-schema.json",
+
+  // The Worker's name also becomes its workers.dev subdomain:
+  // https://portfolio-web.<account-subdomain>.workers.dev
+  "name": "portfolio-web",
+
+  // Built by `opennextjs-cloudflare build`. Not committed — see .gitignore.
+  "main": ".open-next/worker.js",
+
+  // Pinned to the newest date the installed workerd (1.20260801.1) accepts.
+  // A date in the future of the local runtime makes wrangler refuse to start,
+  // and a date more than six months old makes the adapter warn. Bump this
+  // deliberately, together with the wrangler/workerd upgrade that allows it.
+  "compatibility_date": "2026-08-01",
+
+  // `nodejs_compat` is required by @opennextjs/cloudflare itself — the
+  // adapter's own template sets it, and the Next.js server it bundles needs
+  // Node built-ins. It is NOT here to paper over application code.
+  //
+  // `global_fetch_strictly_public` makes a `fetch()` to this Worker's own
+  // public hostname go out to the internet instead of looping back inside
+  // the isolate, which is what the adapter expects.
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+
+  // Deploy to workers.dev. No custom domain exists yet, and nothing in the
+  // application assumes one: every internal URL is relative, including the
+  // `/media/[id]` image sources.
+  "workers_dev": true,
+
+  // Static assets the Next build emits, served by the Workers assets runtime
+  // rather than by the JavaScript entry point.
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+
+  // The existing remote database. Created and migrated by the owner; nothing
+  // in this repository creates or mutates it.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "portfolio-cms",
+      "database_id": "1e85ce4f-d5e4-44e4-b589-e00992bc0b60"
+    }
+  ],
+
+  // The existing media bucket. The public site only ever *reads* from it —
+  // `/media/[id]` serves bytes — while writes and deletes belong to the admin
+  // app, which is not deployed yet.
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "portfolio-media"
+    }
+  ]
+}

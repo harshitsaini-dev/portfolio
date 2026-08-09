@@ -8,10 +8,13 @@
     "start": "next start -p 3000",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "node --conditions=react-server scripts/site-content-tests.mjs",
+    "test": "node --conditions=react-server scripts/site-content-tests.mjs && node --conditions=react-server scripts/production-platform-tests.mjs",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:preview": "opennextjs-cloudflare preview",
     "dev:clean": "node -e \"require('node:fs').rmSync('.next',{recursive:true,force:true})\" && next dev -p 3000"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "1.20.2",
     "@portfolio/database": "workspace:*",
     "@portfolio/schemas": "workspace:*",
     "@portfolio/types": "workspace:*",

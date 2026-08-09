@@ -96,7 +96,28 @@ export function getDevPlatformBindings(): Promise<DevPlatformBindings> {
     // line is unreachable in production, because every caller throws on a
     // production build before getting here and Next inlines that comparison
     // at build time.
-    const { getPlatformProxy } = await import("wrangler");
+    //
+    // The specifier is computed at runtime, and that is load-bearing, not
+    // paranoia. A literal `import("wrangler")` is statically analysable, and
+    // OpenNext's esbuild pass follows it: measured on the Worker bundle, it
+    // inlined wrangler, miniflare, undici and the workerd binary into the
+    // server handler — 211MB of dev toolchain — and the resulting Worker
+    // failed to build because undici's SqliteCacheStore reaches for
+    // `node:sqlite`, which workerd does not provide.
+    //
+    // Constant expressions are not enough of a shield: the first attempt was
+    // `["wrang", "ler"].join("")`, and Turbopack constant-folded it straight
+    // back to the literal in the compiled chunk — measured, not guessed. An
+    // environment variable read cannot be folded, because only a known
+    // allowlist (`NODE_ENV`, `NEXT_PUBLIC_*`) is inlined at build time.
+    // `WRANGLER_IMPORT_SPECIFIER` is never set anywhere; its entire job is to
+    // be unknowable at build time so every bundler leaves this import alone.
+    // The guarded branch never executes in production, so the unresolvable
+    // import is dead code there — exactly the outcome wanted.
+    const wranglerSpecifier = process.env.WRANGLER_IMPORT_SPECIFIER ?? "wrangler";
+    const { getPlatformProxy } = (await import(
+      /* webpackIgnore: true */ wranglerSpecifier
+    )) as typeof import("wrangler");
     const { resolve } = await import("node:path");
 
     // The repo-root local bindings config, and the same `.wrangler/state/v3`

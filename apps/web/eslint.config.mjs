@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // OpenNext build output: generated Worker bundles, not source. Linting
+    // them fails on their compiled require() style — and they are already
+    // gitignored for the same reason.
+    ".open-next/**",
   ]),
 ]);
 

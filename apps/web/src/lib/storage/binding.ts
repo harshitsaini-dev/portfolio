@@ -36,16 +36,28 @@ export class StorageUnavailableError extends Error {
   }
 }
 
-let registeredProvider: SiteStorageProvider | null = null;
+/**
+ * Registration state, on `globalThis` rather than at module scope, for the
+ * reason documented at length in `../db/binding.ts`: Turbopack compiles this
+ * module once per entry graph, `register()` writes into the instrumentation
+ * copy, and a module-scoped variable leaves every other copy reading `null`.
+ */
+const providerKey = Symbol.for("portfolio.web.siteStorageProvider");
+type ProviderHolder = { [providerKey]?: SiteStorageProvider | null };
 
 /** Register the provider that resolves object storage. */
 export function setSiteStorageProvider(provider: SiteStorageProvider): void {
-  registeredProvider = provider;
+  (globalThis as ProviderHolder)[providerKey] = provider;
 }
 
 /** Undo `setSiteStorageProvider`. Exists so tests cannot leak into each other. */
 export function clearSiteStorageProvider(): void {
-  registeredProvider = null;
+  (globalThis as ProviderHolder)[providerKey] = null;
+}
+
+/** The registered provider, from whichever module copy wrote it. */
+function registeredSiteStorageProvider(): SiteStorageProvider | null {
+  return (globalThis as ProviderHolder)[providerKey] ?? null;
 }
 
 /** Resolve the locally simulated bucket through the single wrangler seam. */
@@ -64,12 +76,13 @@ async function getDevelopmentStorage(): Promise<ObjectStorage> {
 
 /** Resolve object storage for this environment. */
 export async function getSiteStorage(): Promise<ObjectStorage> {
-  if (!registeredProvider) {
+  const provider = registeredSiteStorageProvider();
+  if (!provider) {
     if (process.env.NODE_ENV === "production") {
       throw new StorageUnavailableError(
-        "no storage provider is registered. Production binding resolution is " +
-          "not implemented yet — Phase 22 must call setSiteStorageProvider() " +
-          "with getCloudflareContext().env.MEDIA from @opennextjs/cloudflare",
+        "no storage provider is registered. The instrumentation entry point " +
+          "should have called setSiteStorageProvider() at isolate start — " +
+          "see src/instrumentation.ts",
       );
     }
     return getDevelopmentStorage();
@@ -77,7 +90,7 @@ export async function getSiteStorage(): Promise<ObjectStorage> {
 
   let storage: ObjectStorage;
   try {
-    storage = await registeredProvider();
+    storage = await provider();
   } catch (cause) {
     const error = new StorageUnavailableError("the storage provider failed");
     error.cause = cause;

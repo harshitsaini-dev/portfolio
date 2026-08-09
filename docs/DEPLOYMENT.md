@@ -1,8 +1,27 @@
 # Deployment
 
-**Status: NOT IMPLEMENTED.** No deployment configuration, hosting account,
-or Cloudflare setup exists in Phase 1A. This document records the intended
-target so future work stays consistent.
+**Status: partially implemented. Nothing has been deployed.**
+
+The public site now has deployment *configuration* — `@opennextjs/cloudflare`,
+`apps/web/open-next.config.ts`, `apps/web/wrangler.jsonc` (Worker
+`portfolio-web`, `workers_dev`, `DB` and `MEDIA` bindings), and production
+provider registration in `apps/web/src/instrumentation.ts`. The Worker has been
+**built and verified end-to-end in local workerd** (HTTP 200 on `/`, 404 on an
+unknown media id, CSP with nonce). No `deploy` command has been run. The one
+remaining step is the owner running, from the repository root:
+
+```
+pnpm --filter @portfolio/web exec opennextjs-cloudflare deploy
+``` — see
+`docs/PROJECT_STATE.md` for the Windows symlink limitation that blocks it
+locally.
+
+The **admin app has no deployment configuration** and must not be deployed
+until it has a domain: a Cloudflare Access application cannot be attached to a
+`*.workers.dev` hostname, and the admin fails closed without Access.
+
+The rest of this document records the intended target and the outstanding
+manual actions.
 
 ## Intended target (future)
 
@@ -59,11 +78,17 @@ that depends on them is written.
    directory, so no committed configuration file names a bucket and CI needs
    no Cloudflare resource. This step is only for driving the admin UI locally
    once upload screens exist.
-5. **Bind the bucket in the Phase 22 deployment configuration** for whichever
-   Workers need it, alongside the D1 binding, and register it through
-   `setAdminStorageProvider()`. Cloudflare's `R2Bucket` is already proven to
-   satisfy the `ObjectStorage` contract without a cast, so this is a
-   registration call rather than a redesign.
+5. **Bind the bucket in the deployment configuration** for whichever Workers
+   need it, alongside the D1 binding, and register it through the app's
+   storage seam. Cloudflare's `R2Bucket` is already proven to satisfy the
+   `ObjectStorage` contract without a cast, so this is a registration call
+   rather than a redesign.
+
+   **Done for `apps/web`** — `MEDIA` is bound in `apps/web/wrangler.jsonc` and
+   registered via `setSiteStorageProvider()` in
+   `apps/web/src/instrumentation.ts`. The public site only reads from the
+   bucket. **Still outstanding for `apps/admin`**, which does the writing and
+   has no deployment configuration yet.
 6. *(Optional, later)* A **custom domain** in front of the bucket, only if
    the delivery architecture is ever changed to serve objects directly. The
    selected architecture does **not** need one.

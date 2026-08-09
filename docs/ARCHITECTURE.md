@@ -438,17 +438,27 @@ than held in a global — a Worker isolate can serve more than one
 environment, so shared mutable repository state would be both a
 correctness and an isolation hazard.
 
-- **Production: explicitly not implemented.** The documented
+- **Production: still not implemented *for the admin*.** The documented
   `@opennextjs/cloudflare` API for reaching a Worker binding is
-  `getCloudflareContext().env.DB`. That package is not installed, because
-  installing it also requires an app-level `wrangler.json`
-  (`compatibility_date`, `nodejs_compat`), an `open-next.config.ts`, and
-  `initOpenNextCloudflareForDev()` in `next.config.ts` — that is Phase 22.
-  So the module exposes a narrow provider seam,
+  `getCloudflareContext().env.DB`. The module exposes a narrow provider seam,
   `setAdminDatabaseProvider(() => Promise<D1Like>)`, and **production fails
-  closed with a clear internal error** until Phase 22 registers
-  `async () => getCloudflareContext().env.DB`. Nothing here claims to work
-  in production today.
+  closed with a clear internal error** until a deployment slice registers a
+  provider. Nothing in the admin claims to work in production today.
+
+  The public site has since done exactly this — see
+  `apps/web/src/instrumentation.ts`, which registers providers built by
+  `apps/web/src/lib/production-platform.ts`. Two details from that work apply
+  to the admin when its turn comes, and both were found by testing rather than
+  by reading:
+
+  - Registration must happen at **isolate start** and read the binding at
+    **request time**. Reading one during `register()` would fail before any
+    request exists.
+  - `getCloudflareContext({ async: true })` falls back to Wrangler's
+    `getPlatformProxy()` — miniflare's *local* bindings — when there is no
+    Worker context and `NEXT_RUNTIME` is `nodejs`. A production build running
+    on Node therefore needs an explicit workerd check, or it will quietly
+    serve the wrong database instead of failing closed.
 - **Local:** `next dev` is a Node server with no Workers `env`, so the
   binding comes from Wrangler's `getPlatformProxy()` (real workerd-backed
   local D1, `remoteBindings: false`). The import is dynamic and
