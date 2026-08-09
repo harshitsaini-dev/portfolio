@@ -185,7 +185,15 @@ export function RobotTerminal() {
         decorative console and read only if the visitor goes looking for it.
       */}
       <div
-        aria-label="Decorative console output"
+        // `aria-hidden`, not `aria-label`. The label was doing nothing useful:
+        // an `aria-label` on a role-less `div` is not exposed as anything by
+        // most assistive technology, so the "readable if you go looking for
+        // it" this replaced was not actually reachable — while axe correctly
+        // flagged it as content sitting outside any landmark.
+        //
+        // Hiding it is the honest description of what it is: decorative text
+        // that cycles forever and carries nothing the real content does not.
+        aria-hidden="true"
         className="flex flex-col gap-0.5"
       >
         {visible.map(({ key, line }) => (

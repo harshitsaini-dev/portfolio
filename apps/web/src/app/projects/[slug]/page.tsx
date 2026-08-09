@@ -73,7 +73,14 @@ export default async function ProjectPage({
             <nav aria-label="Breadcrumb" className="text-sm">
               <Link
                 href="/#projects"
-                className="text-fg-muted transition-colors duration-150 hover:text-fg"
+                // Underlined, because within this row the link is otherwise
+                // told apart from the plain text beside it by colour alone —
+                // measured at 2.54:1 against it, under the 3:1 WCAG 1.4.1
+                // requires when colour is the only distinction. An underline
+                // removes the dependency on colour entirely rather than
+                // chasing a ratio that would still fail for anyone who cannot
+                // separate the two hues.
+                className="underline underline-offset-4 text-fg-muted transition-colors duration-150 hover:text-fg"
               >
                 Projects
               </Link>

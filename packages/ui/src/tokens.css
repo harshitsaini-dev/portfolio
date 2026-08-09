@@ -11,9 +11,13 @@
  * Phase 10 can repoint a theme by overriding this one layer.
  *
  * Light is the default; dark is applied via `prefers-color-scheme`. The
- * `[data-theme]` selectors below exist so Phase 10 can add an explicit user
- * override on top of the system preference without restructuring anything —
- * nothing writes that attribute today.
+ * `[data-theme]` selectors carry an explicit user choice on top of the system
+ * preference, and the theme toggle writes that attribute.
+ *
+ * Three states, not two: an explicit `light`, an explicit `dark`, and no
+ * attribute at all, which means "follow the system". Each has to be handled
+ * separately — the media query alone cannot express "the visitor asked for
+ * light on a dark machine", which is why it is guarded below.
  */
 
 :root {
@@ -94,8 +98,22 @@
   --measure: 40rem;
 }
 
+/*
+  Guarded with `:not([data-theme="light"])`, and that guard is load-bearing.
+
+  Without it, an explicit light choice did nothing on a machine whose OS is
+  dark — measured: `data-theme="light"` set, `--bg` still `#0b0c10`. The reason
+  is that `:root[data-theme="light"]` below declares only `color-scheme`, while
+  this block declares the whole palette at equal specificity and later in the
+  file, so it kept winning. The toggle was broken in exactly the case it exists
+  for; the reverse worked, because `[data-theme="dark"]` does spell out a full
+  palette, which is why it went unnoticed.
+
+  The guard fixes it at the source rather than by duplicating twenty light
+  values into a third block that would then have to be kept in sync.
+*/
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0b0c10;
     --surface: #131419;
     --surface-muted: #1a1b22;
@@ -127,8 +145,17 @@
   }
 }
 
-/* Explicit overrides reserved for Phase 10. Kept in sync with the two
-   blocks above; nothing sets `data-theme` yet. */
+/*
+  The explicit choices, written by the theme toggle.
+
+  Light needs no palette of its own: the guarded media query above already
+  steps aside when this attribute is present, so the bare `:root` light values
+  apply on their own. Only `color-scheme` is set here, so form controls and
+  scrollbars follow the choice too.
+
+  Dark does spell out a full palette, because the bare `:root` light values
+  would otherwise apply on a light-OS machine.
+*/
 :root[data-theme="light"] {
   color-scheme: light;
 }
