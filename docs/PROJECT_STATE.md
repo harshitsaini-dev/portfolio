@@ -6,16 +6,56 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 22 — Deployment. Worker verified end-to-end in workerd; deploy
-command is the one step left, and it is the owner's.**
+**Phase 22 — DEPLOYED. The public site is live on workers.dev.**
 
-Phases 0-21 are done. Phase 22 has begun: the OpenNext adapter, the public
-site's Worker configuration, and its production binding registration are in
-place. **No deployment has been performed and no Cloudflare resource has been
-created or changed by this repository.**
+The owner ran the deploy on 2026-08-09:
+`https://portfolio-web.harshitsaini.workers.dev/` serves HTTP 200 from the
+real Worker, against the real (empty) remote D1 and R2 — verified in a real
+browser, in eight environment permutations, with zero console errors.
 
-The admin app is deliberately untouched by that slice and still has no
-deployment configuration.
+The remote database is migrated but **empty**, so the site renders its
+default sections. That includes the 3D scene and its terminal being absent:
+`isEnabled ?? false` — a portfolio with no 3D is the shipped default, and the
+scene turns on through the CMS, which cannot happen until the admin is
+deployable (domain + Access) or content reaches remote D1 another way.
+
+The admin app still has no deployment configuration, deliberately.
+
+## Production hydration report — investigated, no application defect found
+
+The owner reported `Minified React error #418` (hydration mismatch) from the
+production homepage console. Treated as a real defect and investigated to the
+end; recorded here because the *negative* result is the finding.
+
+**What was measured, all against the deployed commit:**
+
+- Eight browser scenarios in Playwright against the production URL — desktop,
+  phone 390, tablet 768, reduced motion (both widths), stored light, stored
+  dark, OS-light — **zero page errors, zero console errors** in every one.
+- A ninth run emulating the owner's environment (locale `en-IN`, timezone
+  `Asia/Kolkata`, 1536x730 at 1.25 dpr): **clean**.
+- Two consecutive SSR fetches diff to **nothing but the CSP nonce** — the
+  server output is deterministic.
+- No Cloudflare HTML injection: `cdn-cgi`, email-protection, Rocket Loader
+  all absent from the served HTML.
+- Every SSR'd client component whose first render could branch was read and
+  verified hydration-safe: the IST clock (null server snapshot; value arrives
+  after hydration), `ScrambleText` (first render is the finished string),
+  `useMediaQuery` / `usePrefersReducedMotion` (`useSyncExternalStore` with a
+  `false` server snapshot), the snake board (deterministic initial state,
+  `Math.random` only in event handlers), theme choice (`"system"` server
+  snapshot). `robot-speech.tsx` uses `new Date()` and `Math.random`, and is
+  unreachable by hydration — the whole scene mounts client-only.
+
+**Conclusion:** the application's hydration is deterministic and clean under
+every condition reproducible from here. The remaining explanation is
+something in the reporting browser mutating the DOM before React hydrates —
+an extension (dark-mode extensions and Chrome's auto-translate are the
+classic causes; React's own error text names them) — which no code change in
+this repository can fix and no blind `suppressHydrationWarning` should paper
+over. **No fix was made, nothing needs redeploying.** If the error survives
+an extension-free incognito window, that observation reopens this with a
+reproduction to chase.
 
 Phases 10-16 are complete: 10-14 were built during the polish work and their
 roadmap entries have been corrected to match, 15 is the contribution

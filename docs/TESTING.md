@@ -1176,3 +1176,29 @@ proven by the suite below instead.
 - CI already has a `test` step wired to `pnpm test` (see
   `.github/workflows/ci.yml`); future real tests should run through that
   same script.
+
+## Verifying hydration against production (Phase 22)
+
+React logs hydration mismatches in full detail only in development; in a
+production build they surface as `Minified React error #418` with a useless
+stack. The procedure that actually localises one, used for the 2026-08-09
+report (see PROJECT_STATE):
+
+1. **Reproduce across environments, not once.** Load the production URL in
+   Playwright under a matrix: widths (390/768/1440), reduced motion, stored
+   theme values, OS colour scheme, and the reporter's locale/timezone/dpr via
+   a dedicated browser context. Capture `pageerror` and console errors.
+2. **Prove the server is deterministic.** Fetch the page twice with
+   `page.request` and diff the bodies; anything beyond the CSP nonce is a
+   time- or random-dependent SSR value and the likely culprit.
+3. **Rule out edge HTML injection.** Grep the served HTML for `cdn-cgi`,
+   `email-protection`, Rocket Loader markers.
+4. **Read the first render of every SSR'd client component** that could
+   branch: anything touching `Date`, `Math.random`, `matchMedia`, storage.
+   The safe pattern in this codebase is `useSyncExternalStore` with an
+   explicit server snapshot; the failure pattern is reading a browser fact
+   during the initial render.
+5. If all of that is clean, the mismatch is being introduced by the
+   reporting browser itself (extension, auto-translate) — ask for an
+   incognito repro before changing any code, and do not reach for
+   `suppressHydrationWarning`.
