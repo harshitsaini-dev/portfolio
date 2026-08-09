@@ -72,6 +72,7 @@ export type { ContactMessageRepository } from "./repositories/contact-messages.t
 export type {
   CertificationRepository,
   EducationRepository,
+  RobotLineRepository,
   SectionRepository,
   SocialLinkRepository,
   ToolRepository,

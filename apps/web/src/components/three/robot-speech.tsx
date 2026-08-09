@@ -9,15 +9,21 @@
  * page's own typeface, it appears beside the figure, and most of the time
  * there is nothing there at all.
  *
- * ## The copy follows the same two rules as the terminal
+ * ## The copy is CMS content
  *
- * **Nothing names the infrastructure.** Telling every visitor which database
- * and object store sit behind the site hands an attacker the first half of
- * their homework, and it is decoration, not documentation.
+ * The lines were hard-coded here at first, which put editorial copy in a
+ * React file — the thing this project's "content is data-driven, never
+ * hardcoded in UI" rule exists to prevent. They come from `robot_lines` now
+ * and are edited in the admin.
  *
- * **Nothing claims a measurement it does not have.** These are static
- * strings. Printing invented counts or timings in the shape of telemetry
- * would be a lie somewhere nobody would think to check.
+ * The **greeting** is the deliberate exception, because it is computed rather
+ * than written: see below.
+ *
+ * Two rules still apply to whatever an editor writes, and the seeded copy
+ * follows them. Nothing names the infrastructure — telling every visitor
+ * which database sits behind the site hands an attacker the first half of
+ * their homework. And nothing claims a measurement it does not have, because
+ * an invented number is a lie somewhere nobody would think to check.
  *
  * ## Intermittent, not a ticker
  *
@@ -39,72 +45,20 @@ import { useIsClient } from "@/lib/hooks/use-is-client";
 import { usePrefersReducedMotion } from "@/lib/hooks/use-prefers-reduced-motion";
 
 /**
- * What it says.
+ * The greeting, and only the greeting, still lives in code.
  *
- * ## Not a feature tour
+ * Everything else the robot says is CMS content — see `robot_lines`. This
+ * cannot be, because it is *computed*: a stored row saying "good morning"
+ * would be wrong for most of the day. The lines and the greeting are combined
+ * at the moment one is picked.
  *
- * The first version narrated the site — "everything here is editable", "the
- * projects rotate on their own". The owner cut all of it, and rightly: a
- * portfolio that explains its own interface is a portfolio that does not
- * trust it. The figure now says things worth hearing on their own.
+ * The hour is read **in India** rather than in the visitor's zone. The figure
+ * stands in for the owner, so its "good morning" should mean his morning; a
+ * visitor elsewhere being greeted with "good evening" over their breakfast is
+ * the intended behaviour, not a bug.
  *
- * ## Facts have to actually be facts
- *
- * Every line below is checkable, and the ones that could not be stated
- * precisely were dropped rather than softened. There is no "over 40 years" or
- * "the first ever" here, because a number invented to sound authoritative is
- * a lie in the one place nobody would think to check — the same rule the
- * terminal follows about never printing a measurement it does not have.
- *
- * Quotes are attributed. An unattributed aphorism reads as the site's own
- * cleverness; a named one is a citation.
- *
- * ## Emoji
- *
- * On request, and safe here in a way they would not be in body copy: this
- * element is `aria-hidden`, so nothing is announced as "waving hand sign"
- * mid-sentence.
- */
-const FACTS = [
-  "JavaScript's first version took about 10 days 🔥",
-  "Python is named after Monty Python, not the snake 🐍",
-  "A real moth was taped into a 1947 computer log 🦋",
-  "Java was called Oak before it was called Java 🌳",
-  "SQL was originally spelled SEQUEL 🗃️",
-  "Rust has no null. That was the point 🦀",
-  "Linux began as one student's hobby project 🐧",
-  "Git exists because of a licensing fallout 🌿",
-  "The first computer programmer was Ada Lovelace 💡",
-  "HTTP 418 says: I'm a teapot 🫖",
-] as const;
-
-const QUOTES = [
-  "“Talk is cheap. Show me the code.” — Torvalds",
-  "“Premature optimization is the root of all evil.” — Knuth",
-  "“Simplicity is prerequisite for reliability.” — Dijkstra",
-  "“Programs must be written for people to read.” — Abelson",
-  "“Any fool can write code a computer understands.” — Fowler",
-  "“First, solve the problem. Then, write the code.” — Johnson",
-] as const;
-
-/** Small interjections, so it is not only reciting. */
-const EXPRESSIONS = [
-  "hmm 🤔",
-  "oh — hello there 👀",
-  "beep boop 🤖",
-  "just thinking 💭",
-  "still here ☕",
-  "nice scrolling 🛹",
-] as const;
-
-/**
- * Greetings, chosen by the hour **in India** rather than the visitor's zone.
- *
- * The figure stands in for the owner, so its "good morning" should mean his
- * morning. A visitor in another timezone being greeted with "good evening" at
- * their breakfast is the correct behaviour here, not a bug.
- *
- * Boundaries: morning to noon, afternoon to 5pm, evening to 9pm, then night.
+ * Boundaries: night until 5, morning to noon, afternoon to 5pm, evening to
+ * 9pm, then night again.
  */
 const GREETINGS: readonly (readonly [limit: number, text: string])[] = [
   [5, "still up? 🌙"],
@@ -141,7 +95,7 @@ function greeting(): string {
 const VISIBLE_MS = 4600;
 const GAP_MS = 7200;
 
-export function RobotSpeech() {
+export function RobotSpeech({ lines }: { lines: readonly string[] }) {
   const isClient = useIsClient();
   const reducedMotion = usePrefersReducedMotion();
   const [line, setLine] = useState<string | null>(null);
@@ -177,7 +131,7 @@ export function RobotSpeech() {
         clock at that moment, not at mount. Somebody who leaves the page open
         across 5pm should see the greeting change.
       */
-      const pool = [greeting(), ...FACTS, ...QUOTES, ...EXPRESSIONS];
+      const pool = [greeting(), ...lines];
       // Never the same line twice running. A repeat reads as the animation
       // having stalled rather than as a coincidence.
       let next = current;
@@ -191,7 +145,7 @@ export function RobotSpeech() {
     // a label, and the page has an entrance of its own to finish first.
     timer = setTimeout(show, 3200);
     return () => clearTimeout(timer);
-  }, [enabled]);
+  }, [enabled, lines]);
 
   /*
     Hidden once the footer is in view.

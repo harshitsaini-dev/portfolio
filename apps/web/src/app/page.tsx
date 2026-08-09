@@ -66,7 +66,9 @@ export default async function Home() {
               projected coordinates and has nothing to pin to without it, and
               on its own setting, because it is the most opinionated thing on
               the page and the owner may not always want it talking. */}
-          {content.scene.isSpeechEnabled ? <RobotSpeech /> : null}
+          {content.scene.isSpeechEnabled ? (
+            <RobotSpeech lines={content.robotLines} />
+          ) : null}
         </>
       ) : null}
 

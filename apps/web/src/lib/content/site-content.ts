@@ -302,6 +302,7 @@ export async function getSiteContent(): Promise<SiteContent> {
     certificationRows,
     categoryRows,
     toolRows,
+    robotLineRows,
     mediaRows,
     sectionRows,
     socialRows,
@@ -316,6 +317,8 @@ export async function getSiteContent(): Promise<SiteContent> {
     repos.certifications.list({ visibleOnly: true }),
     repos.skills.listWithSkills({ visibleOnly: true }),
     repos.tools.list({ visibleOnly: true }),
+    // Visible only: an unticked line means the robot should not say it.
+    repos.robotLines.list({ visibleOnly: true }),
     repos.media.list(),
     // Deliberately NOT `visibleOnly`. Sections are the one read here that
     // wants the hidden rows too: `resolveSections` has to tell "no row, so
@@ -410,6 +413,10 @@ export async function getSiteContent(): Promise<SiteContent> {
       toSkillCategory(category, category.skills, assets),
     ),
     tools: toolRows.map((row) => toTool(row, assets)),
+    // Plain strings: the public site needs nothing from these rows but
+    // their text, and passing whole records would hand a decorative
+    // component ids and timestamps it has no business knowing.
+    robotLines: robotLineRows.map((row) => row.text),
     contact: {
       heading: "Get in touch",
       body: profileRow?.availability
