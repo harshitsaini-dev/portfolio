@@ -6,7 +6,7 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 19 — Performance. Complete.**
+**Phase 20 — Automated/MCP testing. Complete.**
 
 Phase 9 is code complete with provisioning outstanding (below). Phases 10-16
 are complete: 10-14 were built during the polish work and their roadmap
@@ -19,6 +19,80 @@ All seven slices are merged. What remains is **not code**: no R2 bucket
 exists, no bucket binding is in any committed config, and creating them is a
 human action — see `docs/DEPLOYMENT.md`. Everything runs against miniflare's
 local simulation until then.
+
+## Phase 20 — end-to-end tests (branch `feat/e2e-tests`)
+
+40 Playwright tests across a desktop and a phone profile, in `e2e/`, run in CI
+as its own job. `@playwright/test` is the one new dependency, and the roadmap
+named it for this phase.
+
+### Every test is a regression test
+
+Not a coverage exercise. Each spec corresponds to a defect that actually
+shipped and was found by measuring a real page:
+
+| spec | the defect it guards |
+| --- | --- |
+| `theme.spec.ts` | an explicit light choice losing to the dark media query |
+| `layout.spec.ts` | the hero portrait 150px past the edge of a phone |
+| `nav-drawer.spec.ts` | the drawer appearing with no animation |
+| `playground.spec.ts` | a snake board that had to be scrolled to be played |
+| `accessibility.spec.ts` | focus visibility and the skip link |
+
+### They were verified to fail
+
+A test that cannot fail proves nothing. The theme guard was removed from
+`tokens.css` and the suite re-run: **exactly one** test failed — "with the OS
+preferring dark, an explicit light choice wins" — and the other five theme
+tests passed, because they were never broken. That precision is the point.
+
+### They assert intermediate states, not end states
+
+The drawer tests sample `left` and `display` across frames while it opens and
+closes. Checking only "open" and "closed" would have passed against the broken
+version, which was fully open on the first frame — the bug *was* the missing
+in-between.
+
+Likewise the theme tests assert both directions. Dark-on-a-light-machine always
+worked, so a one-directional test would have been green throughout.
+
+### Two things the first run got wrong
+
+**The settle helper hung.** It waited for `document.getAnimations()` to be
+quiet before measuring, and the cursor ring and robot run permanent loops by
+design, so that is never true — every layout test timed out at 90s. It waits on
+`main.getAnimations()` now, which is the entrance animation and nothing else.
+Waiting matters: `page-enter` transforms `main`, and a transformed box reads as
+overflow.
+
+**The target-size bar was wrong.** The first version asserted 44px — the AAA
+figure — and failed on three project-card titles at 23px. Raising every text
+link to 44px would have been a design change to satisfy a number the project
+never committed to. The test asserts WCAG 2.5.8 AA (24x24) instead, and the
+23px titles were fixed, because they missed even that by one pixel.
+
+### Run against an empty database, deliberately
+
+CI applies migrations to a fresh local D1 and seeds nothing. The site is
+required to render its default sections with no CMS rows, and an empty database
+is the one state reproducible on every machine. Anything needing a particular
+project or image belongs in the node suites.
+
+`next dev`, not `next start`, for the reason recorded in Phase 19: there is no
+D1 binding outside Wrangler and the seam fails closed. So **no test asserts on
+a duration** — dev timings are compile-dominated. Structure, geometry and
+computed styles are reliable; milliseconds are not.
+
+### Known gap
+
+The `e2e/` specs are not covered by `pnpm typecheck`, which walks workspace
+packages and does not include the repository root. Playwright transpiles them,
+so a syntax error fails the run, but a type error would not be caught before
+then.
+
+Checks run: `pnpm lint`, `pnpm typecheck`, `pnpm test` (703/703 admin and the
+rest), `pnpm build`, and `pnpm test:e2e` — 37 passed, 3 skipped (the drawer
+tests, correctly, on the desktop profile where it does not exist).
 
 ## Phase 19 — performance (branch `feat/performance-pass`)
 

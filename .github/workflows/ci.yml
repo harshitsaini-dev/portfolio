@@ -38,3 +38,47 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      # An empty but migrated local database. `--local` is not optional: it
+      # keeps this entirely inside miniflare, with no account and no network,
+      # and the repository rule is that CI never touches a remote D1.
+      #
+      # No seed data, deliberately — the site must render its default sections
+      # with no CMS rows, and an empty database is the one state that is
+      # reproducible on every machine.
+      - name: Prepare the local database
+        run: pnpm exec wrangler d1 migrations apply portfolio-cms --local -c wrangler.d1.jsonc
+
+      - name: End-to-end tests
+        run: pnpm test:e2e
+
+      - name: Upload failure traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7

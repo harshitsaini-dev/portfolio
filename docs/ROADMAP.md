@@ -406,10 +406,17 @@ size variants, so a phone downloads a full-resolution portrait for a ~340px
 box. That is the plain-`<img>` decision recorded in `ContentImage`, which
 already names Phase 22 as the point to revisit it.
 
-## Phase 20 — Automated/MCP testing
+## Phase 20 — Automated/MCP testing — **Complete**
 
-Real automated test coverage — unit, integration, and Playwright E2E —
-replacing the Phase 1 no-op `test` scripts.
+The unit and integration layer was already real — the Phase 1 no-op scripts
+were replaced phase by phase and now run 703, 243, 181, 173, 161, 146 and 83
+checks. What did not exist was **Playwright E2E**, and that is what this phase
+added: 40 browser tests across a desktop and a phone profile, wired into CI as
+its own job.
+
+Every one of them is a regression test for a defect that actually shipped into
+this repository. None were written speculatively, and each was verified to fail
+against the bug it describes.
 
 ## Phase 21 — Security review
 
