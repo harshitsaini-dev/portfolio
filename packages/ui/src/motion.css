@@ -296,3 +296,153 @@
     animation: portfolio-enter 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Project carousel: the 3D stage
+ *
+ * The arrangement lives here rather than in inline styles so it can be gated
+ * by media queries, which JavaScript state cannot be. Two gates, both of which
+ * must pass before a single card moves:
+ *
+ *   1. `prefers-reduced-motion: no-preference` — a visitor who asked for
+ *      stillness gets the plain grid, whatever the component's state says.
+ *   2. `min-width: 48rem` — below the tablet breakpoint the cards are already
+ *      one per row and full width. Stacking them in perspective there would
+ *      shrink a card that has nothing to spare.
+ *
+ * Outside those, `.project-stage` and `.project-slide` mean nothing at all and
+ * the list is the grid it was before. That is the important property: the
+ * hidden state is what needs the gate, and here there is no hidden state to
+ * strand — the CSS only ever *adds* the stacking.
+ *
+ * The whole transform is derived from two custom properties the component
+ * sets per slide, `--offset` (signed, taking the shorter way round a loop) and
+ * `--distance` (its magnitude). One source, so position, depth, rotation,
+ * fade and stacking order cannot disagree with each other.
+ * ------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) and (min-width: 48rem) {
+  .project-stage {
+    position: relative;
+    display: block;
+    /* A single column again: the slides are positioned, not laid out. */
+    grid-template-columns: none;
+    /* Fixed, because absolutely positioned children contribute no height.
+
+       Measured rather than guessed: a card is a 16:9 cover at the slide width
+       (about 306px) plus roughly 214px of title, summary, tags and actions,
+       so a card with a cover needs about 524px and 30rem clipped its action
+       row off the bottom. 34rem clears the tallest card the section renders.
+
+       The cards do NOT stretch to fill it — see below. Stretching made the
+       ones without a cover open a large void between their summary and their
+       actions, because the card foot is pushed down by `mt-auto`. */
+    height: 34rem;
+    /* Depth. Larger values flatten the effect; smaller ones distort the card
+       edges badly enough to look like a rendering bug. */
+    perspective: 1600px;
+    perspective-origin: 50% 45%;
+
+    /*
+      Clipped to the stage.
+
+      Not cosmetic — a correctness fix. Measured at 1440px: the neighbour at
+      offset +1 reached x=1337 against a stage that ends at 1252, and the one
+      at +2 reached 1627, well past the viewport. Slides at zero opacity still
+      occupy their position, so fading them out does not help; without this
+      the page grows a horizontal scrollbar.
+
+      On its own it cut each receding card off along a hard vertical line,
+      which read as a rendering error rather than as depth. The mask below
+      keeps the clip and softens how it arrives.
+    */
+    overflow: hidden;
+
+    /*
+      Fades each edge out instead of slicing there.
+
+      The clip still does the work — this only decides how the cut looks. Fully
+      opaque across the middle 70%, which covers the active card and the inner
+      part of both neighbours, with a long ramp over the outer 15% at each
+      side. A short ramp was tried first and still read as an edge; the fade
+      has to be wide enough that no single line is where the card ends.
+
+      `mask-image` is prefixed for WebKit because Safari still needs it, and a
+      browser that supports neither simply gets the hard edge — a cosmetic
+      difference, never a missing card.
+    */
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      black 15%,
+      black 85%,
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      black 15%,
+      black 85%,
+      transparent 100%
+    );
+  }
+
+  .project-stage .project-slide {
+    position: absolute;
+    top: 0;
+    /* Centred by its own width rather than with `inset: 0` and auto margins,
+       so the translate below measures from the middle of the stage. */
+    left: 50%;
+    /* Narrower than the two-column grid's card on purpose. At 34rem the
+       active card was wide enough that its neighbours sat underneath it
+       rather than beside it, and the stack read as ghosted text bleeding out
+       from behind the front card. */
+    width: min(28rem, 56%);
+    margin-left: calc(min(28rem, 56%) / -2);
+    /* Natural height, anchored to the top of the stage. Every slide therefore
+       starts at the same line and simply ends where its content ends, which
+       is what a shelf of cards looks like. */
+    height: auto;
+
+    transform-style: preserve-3d;
+    /* The neighbours have to clear the active card's edge, or the effect
+       reads as a stack of paper seen end-on. 46% and 66% both left them
+       occluded, because a translate of less than 100% of the slide width
+       cannot clear a card that is one slide wide. 105% puts each neighbour's
+       inner edge just past the active card's outer one, with the rotation and
+       depth opening the gap further. */
+    transform: translateX(calc(var(--offset) * 105%))
+      translateZ(calc(var(--distance) * -220px))
+      rotateY(calc(var(--offset) * -30deg));
+
+    /* Neighbours recede rather than disappear, and anything off-stage fades
+       out completely instead of being unmounted — so it animates back in. */
+    opacity: calc(var(--on-stage) * (1 - var(--distance) * 0.45));
+
+    /* The active card is in front; each step back sits behind the last. */
+    z-index: calc(10 - var(--distance));
+
+    /* Off-stage cards must not intercept a click meant for the card in
+       front. The active one is the only interactive slide. */
+    pointer-events: none;
+
+    transition:
+      transform 620ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 620ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform, opacity;
+  }
+
+  .project-stage .project-slide[inert] {
+    /* Belt and braces alongside `inert`: a browser that has not implemented
+       the attribute still cannot click through to a hidden card. */
+    pointer-events: none;
+  }
+
+  .project-stage .project-slide:not([inert]) {
+    pointer-events: auto;
+  }
+
+  /* Deliberately no `height: 100%` on the card. See the stage's height note:
+     stretching every card to the tallest one opened a void inside the short
+     ones, and the cards read better sharing a top edge than a bottom one. */
+}
