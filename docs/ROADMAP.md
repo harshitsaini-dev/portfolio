@@ -381,10 +381,16 @@ at a fixed 520x520 on a 390px phone, a snake board that had to be scrolled
 sideways to be played, and a navigation drawer that appeared with no motion at
 all.
 
-## Phase 18 — Accessibility
+## Phase 18 — Accessibility — **Complete**
 
-A dedicated accessibility pass across both apps. See
+A dedicated accessibility pass across both apps, run with axe-core against the
+public home, a project case study, and three admin screens, at WCAG 2.0/2.1 A
+and AA, in both themes and at two widths. See
 `.claude/skills/accessibility-review`.
+
+It found one defect that no static review would have: an explicit **light**
+choice did nothing on a machine whose OS prefers dark. The toggle was broken
+in exactly the case it exists for.
 
 ## Phase 19 — Performance
 

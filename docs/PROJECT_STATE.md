@@ -6,7 +6,7 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 17 — Mobile. Complete.**
+**Phase 18 — Accessibility. Complete.**
 
 Phase 9 is code complete with provisioning outstanding (below). Phases 10-16
 are complete: 10-14 were built during the polish work and their roadmap
@@ -19,6 +19,68 @@ All seven slices are merged. What remains is **not code**: no R2 bucket
 exists, no bucket binding is in any committed config, and creating them is a
 human action — see `docs/DEPLOYMENT.md`. Everything runs against miniflare's
 local simulation until then.
+
+## Phase 18 — accessibility pass (branch `feat/accessibility-pass`)
+
+Run with axe-core 4.12 against the public home, a project case study, and
+three admin screens (dashboard, projects list, new-project form), at WCAG
+2.0/2.1 A and AA, in both themes, at 1440 and 390.
+
+### The light theme did not exist on a dark machine
+
+The serious one, and no static review would have found it. Measured: with
+`data-theme="light"` set, `--bg` was still `#0b0c10`.
+
+`:root[data-theme="light"]` declared only `color-scheme`. The
+`@media (prefers-color-scheme: dark)` block declared the whole palette at
+**equal specificity and later in the file**, so it kept winning — meaning a
+visitor whose OS prefers dark, who explicitly picked light, got no change at
+all. The toggle was broken in precisely the case it exists for.
+
+It went unnoticed because the reverse works: `[data-theme="dark"]` does spell
+out a full palette, so dark-on-a-light-machine was always fine, and that is the
+direction anyone testing on a light laptop would try.
+
+Fixed by guarding the media query with `:root:not([data-theme="light"])`,
+rather than duplicating twenty light values into a third block that would then
+have to be kept in sync. Verified across all six combinations of OS preference
+(light, dark) and choice (system, light, dark) — each now resolves to the
+palette it names.
+
+### A decorative console outside every landmark
+
+The robot terminal's output carried `aria-label` on a role-less `div`, which
+most assistive technology does not expose at all — so the "readable if you go
+looking for it" that the label was written for was never actually reachable,
+while axe correctly flagged the content as sitting outside any landmark.
+
+Replaced with `aria-hidden`, which is the honest description: text that cycles
+forever and repeats nothing the real content does not already say.
+
+### A breadcrumb link told apart by colour alone
+
+On the case study, the "Projects" link measured 2.54:1 against the plain text
+beside it, under the 3:1 that WCAG 1.4.1 requires when colour is the only
+distinction. Underlined it, which removes the dependency on colour rather than
+chasing a ratio that would still fail for anyone unable to separate the hues.
+
+### What was already correct
+
+- **No violations at all** on the three admin screens.
+- Every one of 22 tab stops on the home page paints a visible focus indicator,
+  and in dark theme every indicator clears 3:1 against the page (weakest is the
+  skip link at 3.43:1). This is a computed-style question axe does not answer.
+- The skip link is the first tab stop.
+
+### One finding that turned out not to be a defect
+
+A first-time visitor on a light-preference machine gets a dark site. That is
+not the media query being ignored: `layout.tsx` renders `data-theme` from the
+CMS **site default**, which is currently dark. Deliberate, and the visitor's
+own choice still overrides it.
+
+Checks run: `pnpm lint`, `pnpm typecheck`, `pnpm test` (703/703 admin, 243/243,
+181/181, 173/173, 161/161, 146/146, 83/83), `pnpm build` — all passed.
 
 ## Phase 17 — mobile refinement (branch `feat/mobile-refinement`)
 
