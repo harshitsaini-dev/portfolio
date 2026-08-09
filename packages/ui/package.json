@@ -11,6 +11,7 @@
     "./tokens.css": "./src/tokens.css",
     "./scrollbars.css": "./src/scrollbars.css",
     "./motion.css": "./src/motion.css",
+    "./skeleton.css": "./src/skeleton.css",
     "./shadcn.css": "./src/shadcn.css",
     "./lib/utils": "./src/lib/utils.ts",
     "./components/*": "./src/components/*.tsx"

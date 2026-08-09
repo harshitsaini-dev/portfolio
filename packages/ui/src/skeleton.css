@@ -1,0 +1,61 @@
+/**
+ * Loading placeholders.
+ *
+ * Its own file, not part of `motion.css`, because **both apps need it and only
+ * one of them imports that**. The admin does not load `motion.css` — scroll
+ * reveals, the typewriter, the carousel stage and the hover glow are all
+ * public-site devices — so a skeleton defined there rendered in the admin as
+ * unstyled divs: correct markup, correct ARIA, and nothing visible.
+ *
+ * That is worth stating plainly because the DOM check passed while the feature
+ * was broken. Twenty-two `<div>`s with the right classes and no stylesheet to
+ * match them is a loading state that announces itself to a screen reader and
+ * shows a sighted visitor nothing at all.
+ *
+ * Import after `tokens.css` — every colour here is mixed from a token.
+ */
+
+/* ---------------------------------------------------------------------------
+ * Loading placeholders
+ *
+ * The bar itself is unconditional; only the shimmer is gated. Without the
+ * animation a skeleton is still the right shape in the right place, which is
+ * the part that stops the page jumping when content arrives — the movement is
+ * a nicety on top.
+ *
+ * That is the opposite gating to the scroll reveals, and deliberately so:
+ * there the hidden state must not exist without the mechanism to clear it,
+ * because the failure mode is invisible content. Here there is no hidden
+ * state — the failure mode is a still rectangle.
+ * ------------------------------------------------------------------------- */
+
+.skeleton {
+  background-color: color-mix(in srgb, var(--fg) 9%, transparent);
+}
+
+@keyframes portfolio-skeleton {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton {
+    /*
+      A highlight travelling across the bar, drawn as an oversized gradient
+      that is scrolled rather than as a moving child element. One painted
+      layer, no extra DOM, and it composites on the GPU.
+    */
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--fg) 8%, transparent) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: portfolio-skeleton 1.6s linear infinite;
+  }
+}

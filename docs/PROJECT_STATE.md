@@ -6,12 +6,89 @@ something passed without running it.
 
 ## Current phase
 
+**Phase 16 — loading states and skeletons. Complete.**
+
+Phase 9 is code complete with provisioning outstanding (below). Phases 10-14
+were built during the polish work and their roadmap entries have been
+corrected to match. **Phase 15 (Contribution Playground) has not been
+started** — a project *entry* of that name exists as seeded CMS content,
+which is not the same thing.
+
 **Phase 9 — R2/media. Code complete; provisioning outstanding.**
 
 All seven slices are merged. What remains is **not code**: no R2 bucket
 exists, no bucket binding is in any committed config, and creating them is a
 human action — see `docs/DEPLOYMENT.md`. Everything runs against miniflare's
 local simulation until then.
+
+## Phase 16 — loading states and skeletons (branch `feat/loading-skeletons`)
+
+`loading.tsx` on all 40 admin routes and on the public case-study route, built
+on one shared `Skeleton` primitive.
+
+### Why the admin needed this most
+
+Every admin page is dynamic and reads D1 on the server. Without a
+`loading.tsx`, Next.js holds the **previous** page on screen for the whole
+gap — click Tools from Projects and the Projects list simply stays there, with
+nothing saying anything happened.
+
+Fourteen list routes share one `CollectionLoading` and every form route shares
+one `FormLoading`, rather than forty hand-written files: forty near-identical
+files is how the third one quietly stops matching its page.
+
+### Skeletons, not spinners
+
+The bars mirror the layout that is coming — the header's three lines, the
+button at its real height, the table at its real column count. A spinner says
+"something is happening"; a skeleton says "this is what is about to be here",
+which is also what stops the page jumping when it arrives.
+
+### Accessibility
+
+Every bar is `aria-hidden`. A screen reader announcing "blank, blank, blank"
+describes the loading *mechanism* rather than the page. `SkeletonScreen` wraps
+each set in one `role="status"` with `aria-busy` and a single polite label, so
+assistive technology hears "Loading" once.
+
+### The shimmer is gated; the placeholder is not
+
+The moving highlight lives inside `prefers-reduced-motion: no-preference`.
+Without it the bars are still there, still the right shape. That is the
+**opposite** gating to the scroll reveals, and deliberately so: there the
+hidden state must not exist without the mechanism to clear it, because the
+failure mode is invisible content. Here the failure mode is a still rectangle.
+
+### Two bugs the verification caught
+
+**The admin does not import `motion.css`.** The skeleton CSS was written there
+first, so in the admin it rendered as twenty-two unstyled `<div>`s: correct
+markup, correct ARIA, and nothing visible. The DOM check passed while the
+feature was broken. The skeleton styles are their own `skeleton.css` now,
+imported by both apps — `motion.css` stays public-site-only.
+
+**The public loading state caused the layout jump it exists to prevent.** The
+first version left the site header out, reasoning that Next.js keeps the
+surrounding layout. True in general, false here: the header is rendered by
+`page.tsx`, not a layout, so it is inside the replaced segment. Measured —
+during loading there was no header, and content arrived 64px lower. A
+placeholder of the same height now holds the space, and the measured shift is
+**1px**.
+
+### How it was verified
+
+Throttling and route interception both failed in instructive ways: Next
+prefetches the case-study link, so a click transitions instantly and there is
+no loading state to see, and intercepting every request broke client-side
+navigation outright.
+
+What worked was giving the page a real 3-second delay, observing, and removing
+it again. Admin: skeleton appears with 22 styled bars, `aria-busy`, the
+shimmer running, and zero skeletons once the heading reads "Skills". Public:
+13 bars, label "Loading project", and a 1px shift on arrival.
+
+Checks run: `pnpm lint`, `pnpm typecheck`, `pnpm test` (703/703 admin, 181/181
+and 83/83 elsewhere), `pnpm build` — all passed.
 
 ## The carousel stage sizes itself (branch `fix/carousel-stage-height`)
 
