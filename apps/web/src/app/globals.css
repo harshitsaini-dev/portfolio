@@ -131,9 +131,47 @@ body {
   construction. It is also better supported, since single-layer masks predate
   `mask-composite` everywhere.
 */
-.xray-fade {
-  -webkit-mask-image: linear-gradient(to bottom, #000 68%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 68%, transparent 100%);
+/*
+  The bottom fade, on the host rather than on the overlay.
+
+  It lived on `.xray-fade` — which masks only the x-ray layer — so the cut-out
+  photograph itself ended at a hard edge and only the overlay dissolved. On the
+  host it covers the photograph and the overlay in one pass, which is what the
+  owner asked for and also the only way the two can fade *together*: two
+  gradients on two elements ramp independently and the overlay wins the tail.
+
+  `.xray-fade` keeps its name and its nesting role — it is still the element
+  the circular window masks inside of — it just no longer carries the ramp.
+*/
+.portrait-fade {
+  /*
+    An **eased** ramp, not a two-stop linear one.
+
+    `#000 68%, transparent 100%` was the first attempt and the owner reported a
+    visible edge in it. The edge is real and it is not at the bottom: a two-stop
+    gradient is opaque right up to 68% and then falls at a constant rate, so the
+    rate of change jumps from nothing to everything at that one line. The eye
+    reads that discontinuity as a horizontal seam across the shirt even though
+    no pixel there is fully transparent.
+
+    The stops below approximate a smooth ease instead, so opacity *and* its rate
+    of change move continuously and there is no line to find. It also finishes
+    at 96% rather than 100% — the last few percent of a linear ramp are nearly
+    transparent anyway, and landing early guarantees the box edge itself can
+    never show.
+  */
+  --portrait-fade: linear-gradient(
+    to bottom,
+    #000 42%,
+    rgb(0 0 0 / 0.94) 56%,
+    rgb(0 0 0 / 0.78) 67%,
+    rgb(0 0 0 / 0.52) 77%,
+    rgb(0 0 0 / 0.26) 86%,
+    rgb(0 0 0 / 0.08) 92%,
+    transparent 96%
+  );
+  -webkit-mask-image: var(--portrait-fade);
+  mask-image: var(--portrait-fade);
 }
 
 .xray-window {
@@ -286,6 +324,89 @@ html {
 ::selection {
   background: var(--selection-bg);
   color: var(--selection-fg);
+}
+
+/*
+  The narrow-viewport navigation drawer.
+
+  The owner reported it opening with no animation, and the reason is structural
+  rather than a missing class: `showModal()` moves the element from
+  `display: none` into the top layer in a single step. A transition needs a
+  previous computed value to interpolate from, and a `display: none` element
+  has no rendered frame at all — so the drawer was always painted fully open.
+
+  Three pieces make it animate, and it is broken without any one of them:
+
+  * `@starting-style` supplies the missing first frame — the values the browser
+    should treat as "before" on the very first render.
+  * `allow-discrete` on `display` lets it flip at the *end* of the close
+    transition instead of immediately, so the drawer is still visible while it
+    slides out.
+  * `overlay` is the top-layer membership itself. Without transitioning it the
+    element leaves the top layer the instant `close()` is called, and the exit
+    animation plays somewhere invisible.
+
+  `translate` rather than `transform`, for the same reason the reveal
+  animations use it: an animation running with `fill: both` would otherwise win
+  the cascade over a `transform` declaration.
+*/
+.nav-drawer {
+  translate: 100% 0;
+  opacity: 0;
+  transition:
+    translate 260ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    opacity 180ms ease-out,
+    display 260ms allow-discrete,
+    overlay 260ms allow-discrete;
+}
+
+.nav-drawer[open] {
+  translate: 0 0;
+  opacity: 1;
+}
+
+@starting-style {
+  .nav-drawer[open] {
+    translate: 100% 0;
+    opacity: 0;
+  }
+}
+
+/* The scrim fades rather than appearing with the panel: a backdrop that snaps
+   on reads as a flash, which is the thing the animation exists to avoid. */
+.nav-drawer::backdrop {
+  opacity: 0;
+  transition:
+    opacity 260ms ease-out,
+    display 260ms allow-discrete,
+    overlay 260ms allow-discrete;
+}
+
+.nav-drawer[open]::backdrop {
+  opacity: 1;
+}
+
+@starting-style {
+  .nav-drawer[open]::backdrop {
+    opacity: 0;
+  }
+}
+
+/*
+  Reduced motion: no slide, no fade, but the drawer must still *work*. Zeroing
+  the durations rather than dropping the rules keeps the discrete `display` and
+  `overlay` steps in place — removing them entirely would be fine too, but this
+  way there is one code path and no chance of the open state being missed.
+*/
+@media (prefers-reduced-motion: reduce) {
+  .nav-drawer,
+  .nav-drawer::backdrop {
+    transition-duration: 1ms;
+  }
+
+  .nav-drawer {
+    translate: 0 0;
+  }
 }
 
 /* Anchor targets clear the sticky header. */

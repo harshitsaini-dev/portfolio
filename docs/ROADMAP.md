@@ -369,10 +369,17 @@ public case-study route. Skeletons mirror the layout they replace rather than
 spinning, are `aria-hidden` under one polite status message, and keep their
 shape when the shimmer is suppressed by reduced motion.
 
-## Phase 17 — Mobile
+## Phase 17 — Mobile — **Complete**
 
-Mobile-specific refinement, including touch targets and reduced work on
-constrained devices.
+Mobile-specific refinement: touch targets, and the layout defects that only a
+narrow viewport exposes.
+
+The audit found no page-level horizontal overflow at 390, 768 or 1440 — the
+elements that measured wider than the viewport sat inside deliberate
+`overflow-x-auto` containers. What it did find was the hero portrait rendering
+at a fixed 520x520 on a 390px phone, a snake board that had to be scrolled
+sideways to be played, and a navigation drawer that appeared with no motion at
+all.
 
 ## Phase 18 — Accessibility
 

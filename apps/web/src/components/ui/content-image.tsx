@@ -33,6 +33,7 @@ export function ContentImage({
   size = 40,
   fluid = false,
   decorative = false,
+  sizing = "fixed",
   radius = "rounded-md",
   className = "",
 }: {
@@ -43,6 +44,23 @@ export function ContentImage({
   fluid?: boolean;
   /** True when adjacent text already conveys the same information. */
   decorative?: boolean;
+  /**
+   * Who decides the rendered size.
+   *
+   * `"fixed"` (the default) pins it inline at `size`, which is right for a
+   * logo beside text: 40px is 40px whatever the source file is.
+   *
+   * `"css"` hands the decision to the caller's classes and keeps `size` only
+   * as the intrinsic `width`/`height` attributes, so the box is still
+   * reserved before the bytes arrive.
+   *
+   * The option exists because the hero portrait needed it and could not have
+   * it: an inline style beats a class, so its responsive
+   * `h-[26rem] sm:h-[34rem] lg:h-[38rem]` had never applied and the portrait
+   * rendered at a flat 520px on every screen — 150px past the edge of a
+   * 390px phone. Measured, not guessed.
+   */
+  sizing?: "fixed" | "css";
   /**
    * Corner radius utility.
    *
@@ -74,11 +92,18 @@ export function ContentImage({
       // `img { max-width: 100% }` reset, which otherwise lets a tight flex or
       // table column compress the image below its stated width. Fluid mode
       // wants the opposite — fill the column, scale the height.
-      style={fluid ? undefined : { width: size, height: size }}
+      // No inline size in `css` mode: that is the whole point of it. The
+      // `width`/`height` attributes above still reserve the box.
+      style={fluid || sizing === "css" ? undefined : { width: size, height: size }}
       className={
         fluid
           ? `h-auto w-full object-cover ${radius} ${className}`
-          : `max-w-none shrink-0 object-contain ${radius} ${className}`
+          : sizing === "css"
+            // `max-w-full`, not `max-w-none`: in this mode the caller's CSS
+            // sets the height and the width follows, and the image must still
+            // never exceed its container on a narrow screen.
+            ? `max-w-full shrink-0 object-contain ${radius} ${className}`
+            : `max-w-none shrink-0 object-contain ${radius} ${className}`
       }
       loading="lazy"
       decoding="async"

@@ -6,11 +6,12 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 15 — Contribution Playground. Complete.**
+**Phase 17 — Mobile. Complete.**
 
-Phase 9 is code complete with provisioning outstanding (below). Phases 10-14
-were built during the polish work and their roadmap entries have been
-corrected to match. Phase 16 (loading states) is complete, and Phase 15 now is too.
+Phase 9 is code complete with provisioning outstanding (below). Phases 10-16
+are complete: 10-14 were built during the polish work and their roadmap
+entries have been corrected to match, 15 is the contribution playground, 16 is
+loading states.
 
 **Phase 9 — R2/media. Code complete; provisioning outstanding.**
 
@@ -18,6 +19,103 @@ All seven slices are merged. What remains is **not code**: no R2 bucket
 exists, no bucket binding is in any committed config, and creating them is a
 human action — see `docs/DEPLOYMENT.md`. Everything runs against miniflare's
 local simulation until then.
+
+## Phase 17 — mobile refinement (branch `feat/mobile-refinement`)
+
+### What the audit did *not* find
+
+No page-level horizontal overflow at 390x844, 768x1024 or 1440x900, on the
+public home, a case study, or the admin. Everything that measured wider than
+the viewport sat inside a deliberate `overflow-x-auto` container.
+
+One reading did say otherwise and was wrong: `main` measured 385px wide in a
+380px viewport, offset by -4px. That is `page-enter` — an entrance animation
+that scales and translates the element — so `getBoundingClientRect` was
+reporting a *transformed* box mid-animation. Measured after it settles,
+`scrollWidth` and `clientWidth` are both 380. Worth recording because a
+transform reads as overflow in every one of these sweeps.
+
+### The portrait had never been responsive
+
+The hero portrait rendered 520x520 on a 390px phone — 150px past the edge.
+`ContentImage`'s fixed mode sets `style="width:520px;height:520px"` inline, and
+an inline style beats a class, so the hero's `h-[26rem] sm:h-[34rem]
+lg:h-[38rem]` had **never applied at any width**. The responsive classes were
+in the source the whole time, doing nothing.
+
+The fix is a `sizing?: "fixed" | "css"` prop: in `css` mode `ContentImage`
+writes no inline size and lets the caller's classes decide. The `width`/
+`height` attributes still reserve the box, so nothing regresses on layout
+shift. Both portrait call sites in `xray-portrait.tsx` pass it. Measured
+after: 347x424 on the phone, 544 at 768, 608 at 1440.
+
+### The cut-out photo now fades into the page
+
+The bottom fade lived on `.xray-fade`, which masks only the x-ray overlay — so
+the photograph itself ended at a hard horizontal edge and only the overlay
+dissolved. Moved to the host as `.portrait-fade`, covering photograph and
+overlay in one pass. Two gradients on two elements would ramp independently
+and the overlay would win the tail; one mask on the parent cannot.
+
+The first attempt was `#000 68%, transparent 100%` and the owner reported a
+visible edge in it. **The edge was real and it was not at the bottom.** A
+two-stop gradient is fully opaque up to 68% and then falls at a constant rate,
+so the *rate of change* jumps from nothing to everything at that one line, and
+the eye reads the discontinuity as a seam even though no pixel there is
+transparent. The replacement is a seven-stop eased ramp — opacity and its
+derivative both move continuously — finishing at 96% so the box edge can never
+show. Verified in both themes; light is where a seam shows worst.
+
+### The navigation drawer opened with no animation
+
+Structural, not a missing class. `showModal()` moves the element from
+`display: none` into the top layer in one step, and a transition needs a
+previous computed value to interpolate from — a `display: none` element has no
+rendered frame, so the drawer was always painted fully open.
+
+Three things are needed together, and it stays broken without any one:
+`@starting-style` supplies the missing first frame; `allow-discrete` on
+`display` defers the flip to the *end* of the close transition so the drawer is
+still visible while it slides out; and `overlay` must transition too, or the
+element leaves the top layer the instant `close()` is called and the exit plays
+somewhere invisible.
+
+Measured opening: `left` 380 → 267 → 108, opacity 0 → 0.35 → 1. Measured
+closing: `display` stays `block` while `left` goes 108 → 365, then flips to
+`none`.
+
+### The snake board is played, not scrolled
+
+It was fifteen flex rows of fixed 16px cells inside a horizontally scrolling
+container, so a phone player had to scroll sideways to see the wall they were
+about to hit. Replaced with one CSS grid of `repeat(30, minmax(0, 1fr))` and
+`aspect-square` cells: `1fr` divides whatever width there is, so the board
+scales rather than overflowing, and with the row wrappers gone there is
+nothing left to scroll.
+
+The cell *count* stays fixed at every width deliberately. A board that changed
+shape on a phone would be a different game, and the best score is a single
+number shared across both.
+
+Measured: 340x172 with 8.9px cells at 390, 672x332 with 18px cells at 1440
+(the fixed cells were 16px), no wrapper scroll and no page overflow at either.
+Play verified after the change — the head moves x11 → x19 along y7, ArrowUp
+takes it to y4, and hitting the right wall ends the round — which is what
+proves the flattened index → (x, y) mapping still matches the game logic.
+
+### Touch targets
+
+The social row's "X" link measured 33x44 and the header brand 81x20. Both
+grew to a 44px minimum. The brand is not inline text in a sentence, so the
+WCAG 2.5.8 inline exception does not cover it; the header row is already
+`h-16`, so the larger box costs no layout.
+
+The remaining sub-44px controls are inline text links inside prose, which the
+exception does cover.
+
+Checks run: `pnpm lint`, `pnpm typecheck`, `pnpm test` (703/703 admin, 181/181
+and 83/83 media, web suites passing), `pnpm build` — all passed. Verified in
+Chromium at 390x844 and 1440x900, in both themes.
 
 ## Phase 15 — the Contribution Playground (branch `feat/contribution-playground`)
 

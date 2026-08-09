@@ -67,9 +67,12 @@ import { usePrefersReducedMotion } from "@/lib/hooks/use-prefers-reduced-motion"
  * Board size, in cells.
  *
  * Not the contribution graph's own 53x7: seven rows makes a corridor, not a
- * board. This keeps the graph's *look* — same cell size, same level palette —
- * at a shape that is actually playable, and still fits a phone once it
- * scrolls sideways.
+ * board. This keeps the graph's *look* — same level palette, same square
+ * cells — at a shape that is actually playable.
+ *
+ * The count is fixed at every width, and the cells scale to fit instead. That
+ * is deliberate: a board that changed shape on a phone would be a different
+ * game, and the best score is a single number shared across both.
  */
 const COLUMNS = 30;
 const ROWS = 15;
@@ -441,48 +444,65 @@ export function ContributionPlayground() {
         everything a screen reader needs, and 450 announced squares carry
         nothing.
       */}
-      <div className="-mx-1 overflow-x-auto px-1 pb-2">
+      <div className="w-full pb-2">
         <div
           ref={boardRef}
           tabIndex={0}
           role="application"
           aria-label="Snake game board. Arrow keys or W A S D to steer, space to pause."
           onKeyDown={onKeyDown}
-          style={
-            reducedMotion
-              ? undefined
+          style={{
+            // One grid of fixed-count fractional tracks rather than fifteen
+            // flex rows of fixed-size cells. That is what makes the board fit
+            // any width: `1fr` divides whatever space there is, so the board
+            // scales instead of overflowing.
+            gridTemplateColumns: `repeat(${COLUMNS}, minmax(0, 1fr))`,
+            ...(reducedMotion
+              ? null
               : {
                   perspective: "1400px",
                   transform: "rotateX(14deg)",
                   transformOrigin: "center bottom",
-                }
-          }
-          className="inline-flex w-max flex-col gap-1 rounded-lg p-2 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
+                }),
+          }}
+          // `max-w-2xl` caps it so the cells do not become dinner plates on a
+          // wide screen — roughly the size the fixed 16px cells used to be.
+          className="grid w-full max-w-2xl gap-0.5 rounded-lg p-2 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent sm:gap-1"
         >
-          {Array.from({ length: ROWS }, (_, y) => (
-            <div key={y} className="flex gap-1" aria-hidden="true">
-              {Array.from({ length: COLUMNS }, (_, x) => {
-                const key = `${x},${y}`;
-                const isHead = key === headKey;
-                const isBody = occupied.has(key);
-                const isFood = food.current.x === x && food.current.y === y;
-                return (
-                  <span
-                    key={x}
-                    className={`size-4 shrink-0 rounded-[0.25rem] border transition-colors duration-100 ${
-                      isHead
-                        ? "border-accent bg-accent"
-                        : isBody
-                          ? "border-accent/40 bg-accent/60"
-                          : isFood
-                            ? "border-success/60 bg-success"
-                            : "border-subtle bg-surface-muted"
-                    }`}
-                  />
-                );
-              })}
-            </div>
-          ))}
+          {/*
+            Flattened to one cell list. The board was fifteen row elements
+            inside a horizontally scrolling container, which meant a phone
+            player had to scroll sideways to see the wall they were about to
+            hit — so the game was to be scrolled rather than played, which the
+            owner rightly called out. A grid needs no row wrappers, and without
+            them there is nothing left to overflow.
+
+            `aspect-square` keeps the cells square at every width, so the
+            playing field stays proportional as it scales.
+          */}
+          {Array.from({ length: ROWS * COLUMNS }, (_, index) => {
+            const x = index % COLUMNS;
+            const y = Math.floor(index / COLUMNS);
+            const key = `${x},${y}`;
+            const isHead = key === headKey;
+            const isBody = occupied.has(key);
+            const isFood = food.current.x === x && food.current.y === y;
+            return (
+              <span
+                key={key}
+                aria-hidden="true"
+                className={`aspect-square w-full rounded-[0.15rem] border transition-colors duration-100 sm:rounded-[0.25rem] ${
+                  isHead
+                    ? "border-accent bg-accent"
+                    : isBody
+                      ? "border-accent/40 bg-accent/60"
+                      : isFood
+                        ? "border-success/60 bg-success"
+                        : "border-subtle bg-surface-muted"
+                }`}
+              />
+            );
+          })}
         </div>
       </div>
 
