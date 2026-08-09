@@ -6,6 +6,7 @@ import { Hero } from "@/components/hero";
 import { ProjectsSection } from "@/components/projects-section";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { RobotSpeech } from "@/components/three/robot-speech";
 import { RobotTerminal } from "@/components/three/robot-terminal";
 import { HeroSceneMount } from "@/components/three/hero-scene-mount";
 import { CustomCursor } from "@/components/ui/custom-cursor";
@@ -58,7 +59,15 @@ export default async function Home() {
         scene is allowed, because it is the scene's narration.
       */}
       {content.scene.isEnabled ? (
-        <RobotTerminal />
+        <>
+          <RobotTerminal />
+          {/* The figure's own voice, as opposed to its log. Gated twice:
+              on the scene, because the bubble is positioned from the figure's
+              projected coordinates and has nothing to pin to without it, and
+              on its own setting, because it is the most opinionated thing on
+              the page and the owner may not always want it talking. */}
+          {content.scene.isSpeechEnabled ? <RobotSpeech /> : null}
+        </>
       ) : null}
 
       <CustomCursor />

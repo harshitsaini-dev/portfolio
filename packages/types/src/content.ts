@@ -609,6 +609,14 @@ export interface SceneSettings {
   readonly isEnabled: boolean;
   readonly qualityPreset: SceneQualityPreset;
   readonly isMobileEnabled: boolean;
+  /**
+   * Whether the figure's speech bubble may appear.
+   *
+   * A sub-feature of the scene, not an independent one: the bubble is
+   * positioned from the figure's projected screen coordinates, so with no
+   * scene there is nothing to pin it to.
+   */
+  readonly isSpeechEnabled: boolean;
   readonly maxPixelRatio: number;
   readonly updatedAt: IsoTimestamp;
 }
@@ -617,6 +625,7 @@ export interface SceneSettingsInput {
   readonly isEnabled?: boolean;
   readonly qualityPreset?: SceneQualityPreset;
   readonly isMobileEnabled?: boolean;
+  readonly isSpeechEnabled?: boolean;
   readonly maxPixelRatio?: number;
 }
 

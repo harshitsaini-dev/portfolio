@@ -215,6 +215,8 @@ export interface SiteTheme {
 export interface SceneConfig {
   readonly isEnabled: boolean;
   readonly isMobileEnabled: boolean;
+  /** Whether the figure's speech bubble may appear. */
+  readonly isSpeechEnabled: boolean;
   readonly maxPixelRatio: number;
 }
 

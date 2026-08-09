@@ -8,6 +8,141 @@ something passed without running it.
 
 **Phase 9 — R2/media. IN PROGRESS.** Not complete.
 
+## The hooded robot, rebuilt by hand (branch `feat/robot-rebuild`)
+
+The supplied glTF model was dropped at the owner's request, so the hero's
+figure is composed from primitives again — rebuilt against a screenshot rather
+than tuned from memory.
+
+### Proportions are the whole job
+
+With geometry, ratios are what decide whether a figure reads as a character:
+the hood is wider than the body (1.56 against 1.16) and nearly as tall as the
+torso and legs together, the face is a dark plate with two glowing slots
+rather than round eyes and a smile, and the limbs are short and thick.
+
+The previous version failed on all three — a spherical hood swallowed the
+head, the shoulder joints sat level with the face so the arms appeared to grow
+out of it, and pale hands floated free of the sleeves. Every part is now
+placed from one origin (the torso centre) instead of nudged individually.
+
+### Four bugs the owner reported, each with a real cause
+
+**A "glitching nose".** Z-fighting: the hood is 1.5 deep so its front surface
+is at z = 0.75, and the face plate was 0.14 thick at z = 0.68 — putting *its*
+front at exactly 0.75 too. Two coplanar surfaces give the depth buffer nothing
+to decide with, and it alternates per pixel. The stack is now strictly
+ordered: hood front 0.75, plate 0.69–0.83, brim outside the plate in XY, eyes
+0.845–0.895.
+
+**A bar sticking out of the head.** The brim torus was rotated 90° about X,
+which laid it flat in the XZ plane. A torus is authored in the XY plane, which
+is already the plane of the face — the rotation was the bug, not the geometry.
+
+**Walking off the side of the window on scroll.** The x bound was fixed while
+the visible frame is not: moving toward the camera *shrinks* it. At z = 0 the
+viewport is about 6.6 units wide; at z = +1 it is about 5.3, and `DEPTH` moves
+the figure exactly that far forward. The bound is now measured every frame
+with `getCurrentViewport` at the figure's own depth. The first attempt at this
+still clipped the arm, because it used the hood's half-width — the arms reach
+much further, especially mid-wave.
+
+**The head barely followed the cursor.** Yaw was 0.5 radians across the full
+screen width, so most of the time it was a few degrees of nothing. Now 0.85,
+with the body taking 35% of the turn — a head that swivels on a motionless
+torso reads as a doll.
+
+### Scroll turns it left, right, then left
+
+`sin(scroll · π · 2.5)` passes through +1 at a fifth of the way down, −1 at
+three fifths, and +1 again at the end. A sine eases through each reversal
+instead of snapping.
+
+### The robot speaks
+
+`RobotSpeech` shows one line at a time in a bubble beside the figure — 4.6s
+on, 7.2s off, never the same line twice running. Deliberately unlike the
+terminal beside it: the terminal is a machine's log in monospace, this is the
+figure talking, in the page's own typeface, with nothing there most of the
+time.
+
+**The copy is not a feature tour.** The first version narrated the site —
+"everything here is editable", "the projects rotate on their own". The owner
+cut all of it: a portfolio that explains its own interface is one that does
+not trust it. It now says short programming facts, attributed quotes, small
+interjections, and a greeting chosen by the hour **in India** rather than the
+visitor's zone — the figure stands in for the owner, so its "good morning"
+should mean his.
+
+Every fact is checkable, and the ones that could not be stated precisely were
+dropped rather than softened. No "over 40 years", no "the first ever": a
+number invented to sound authoritative is a lie in the one place nobody would
+think to check.
+
+The copy follows the terminal's two rules: nothing names the infrastructure,
+and nothing claims a measurement it does not have. Each line carries an emoji,
+which is safe here in a way it would not be in body copy — the element is
+`aria-hidden`, so nothing is announced as "waving hand sign" mid-sentence, and
+a screen reader is not interrupted every eight seconds by small talk. Not
+rendered at all under reduced motion or below `lg`.
+
+**The bubble is pinned to the figure, not to a corner.** The scene projects
+the top of the hood through the camera each frame and publishes it as
+`--robot-x` / `--robot-y` on the document element; the bubble reads those in
+CSS and never re-renders. That avoids a second copy of the positioning maths,
+which would be free to drift from the first. Measured: the bubble's centre
+lands at 1204.9px against a published anchor of 1204.9px.
+
+The custom properties carry fallbacks, so a browser where the scene never
+starts puts the bubble where the figure would have been rather than at the
+page origin, and a `clamp` keeps it on screen when the figure is at the
+right-hand margin.
+
+### A switch for it, in the CMS
+
+Migration 0006 adds `scene_settings.is_speech_enabled`, plumbed through types,
+schema, repository, admin form and the public mapper.
+
+It lives in `scene_settings` rather than `site_settings` because the bubble
+exists only when the scene does — it is positioned from the figure's projected
+coordinates, so with no scene there is nothing to pin it to. Putting the
+switch beside `is_enabled` keeps that dependency visible instead of offering
+an apparently independent toggle that silently does nothing.
+
+It defaults **on**, unlike every other column in that table. They are off
+because the scene as a whole is opt-in; this is a sub-feature of something
+already opted into.
+
+Verified end to end: unchecked in the CMS → 0 bubbles on the public site,
+checked → 1.
+
+### A clock in the header
+
+`08 - August - 2026 09:54 AM IST`, always in India whoever is looking. That is
+the point of putting it on a portfolio — it answers whether this is a
+reasonable hour to expect a reply, which is the one thing a reader cannot work
+out for themselves. A visitor's local time was shown beside it briefly and the
+owner cut it.
+
+`Intl.DateTimeFormat` with `timeZone: "Asia/Kolkata"` does the conversion; a
+hard-coded +05:30 would bake a political fact into this file that belongs in
+the platform's database. Assembled from `formatToParts`, because no locale
+produces exactly this punctuation.
+
+Read through `useSyncExternalStore` with the **formatted string** as the
+snapshot — returning a fresh `Date` would fail the `Object.is` check every
+call and re-render forever, where a string changes only when the displayed
+minute does. The server snapshot is null, so the server's clock and the
+browser's can never disagree during hydration. Unlike the robot, this is real
+content: a `<time>` element with a machine-readable `dateTime`, not hidden
+from assistive technology.
+
+Checks run: `pnpm lint`, `pnpm typecheck`, `pnpm test` (611/611), `pnpm build`
+— all passed. Verified in Chromium: the figure stays in frame at every scroll
+position, the face no longer flickers, distinct speech lines rotate, the
+bubble's centre lands within 0.1px of the published anchor, and the clock
+matches an independently formatted IST value.
+
 ## X-ray portrait, and a second image the CMS owns (branch `feat/xray-portrait`)
 
 Hovering the hero portrait opens a circular window onto a robot version of the

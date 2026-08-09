@@ -352,6 +352,7 @@ export async function getSiteContent(): Promise<SiteContent> {
     scene: {
       isEnabled: sceneSettings?.isEnabled ?? false,
       isMobileEnabled: sceneSettings?.isMobileEnabled ?? false,
+      isSpeechEnabled: sceneSettings?.isSpeechEnabled ?? true,
       maxPixelRatio: sceneSettings?.maxPixelRatio ?? 2,
     },
     theme: {
