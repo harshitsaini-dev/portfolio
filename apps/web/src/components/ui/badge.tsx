@@ -22,7 +22,7 @@ export function BadgeList({ items, label }: BadgeListProps) {
       {items.map((item) => (
         <li
           key={item}
-          className="rounded-full border border-subtle bg-surface-muted px-2.5 py-1 text-xs font-medium text-fg-muted"
+          className="glow-hover rounded-full border border-subtle bg-surface-muted px-2.5 py-1 text-xs font-medium text-fg-muted"
         >
           {item}
         </li>

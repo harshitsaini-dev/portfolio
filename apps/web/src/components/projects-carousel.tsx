@@ -294,7 +294,7 @@ function CarouselButton({
       // `min-h-11`/`min-w-11` is the project's minimum target size, and the
       // focus ring is explicit rather than inherited so it stays visible over
       // the moving cards behind it.
-      className="press inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-strong bg-surface text-fg transition-colors duration-150 hover:border-accent hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      className="press glow-hover glass inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-strong text-fg hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
     >
       {children}
     </button>

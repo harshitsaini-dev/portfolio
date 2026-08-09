@@ -171,11 +171,41 @@ Rules that keep it that way:
 - **Shallow depth.** One hairline border plus a barely-there shadow.
   Stacked heavy shadows are what make a professional layout start to look
   like a template demo.
-- **One glow, one place.** A single soft accent wash sits behind the hero
-  heading, on a decorative element hidden from assistive technology and
-  suppressed below the `sm` breakpoint. There is no other glow on the site.
-- **No glassmorphism system.** The sticky header uses a single translucent
-  background with a blur; nothing else does.
+- **Two glows, and they do different jobs.** *Revised — the original rule was
+  "one glow, one place: there is no other glow on the site", and the owner
+  asked for a hover glow. Recorded here rather than quietly contradicted.*
+
+  1. **Ambient.** A single soft accent wash behind the hero heading, on a
+     decorative element hidden from assistive technology and suppressed below
+     the `sm` breakpoint. Still the only glow that is *always on*, and still
+     the only one anywhere else on the page.
+  2. **Interaction.** A short accent glow that exists **only while something
+     is hovered or focused**, on `--glow-hover`.
+
+  The distinction is what keeps the original rule's intent. Ambient glow is
+  decoration and more of it reads as a template; interaction glow is feedback,
+  it is absent at rest, and it appears on exactly the thing under the pointer.
+  A page at rest looks the same as it did before this rule changed.
+
+  It is bounded: one token, one utility class, driven by hover **and**
+  `focus-visible`, so a keyboard reaches the same affordance a mouse does.
+- **Glass, on surfaces that sit over something.** *Revised — the original rule
+  was "no glassmorphism system: the sticky header uses a single translucent
+  background with a blur, nothing else does", and the owner asked for glass
+  and blur. Recorded here rather than quietly contradicted.*
+
+  Panels that sit over moving or decorative content — cards, the contact
+  panel, the header — use a translucent fill with a backdrop blur. Panels over
+  flat background do not need it and do not get it.
+
+  **Legibility is the constraint, not taste.** The 3D figure passes *behind*
+  the page, and this project has already had one report of text becoming hard
+  to read where it showed through a semi-transparent surface. So the fill
+  stays high-opacity (around 85%) rather than the 40–60% that reads as
+  "glassy" in a screenshot: the blur does the work, the transparency is a hint.
+  Body text contrast is measured against the worst case, not assumed.
+
+  Blur is one value from a token, not per-component guesswork.
 - **Sections separated by hairline rules**, not alternating background
   bands — banding at this content density reads as busy.
 
@@ -195,7 +225,7 @@ theme change repoints one layer instead of touching components.
 | Lines | `--border-subtle`, `--border-strong` |
 | Accent | `--accent`, `--accent-fg`, `--accent-soft` |
 | Interaction | `--ring`, `--selection-bg`, `--selection-fg` |
-| Depth | `--shadow-sm`, `--shadow-md`, `--glow-accent` |
+| Depth | `--shadow-sm`, `--shadow-md`, `--glow-accent`, `--glow-hover` |
 | Radius | `--radius-sm/md/lg/full` |
 | Layout | `--page-max`, `--measure` |
 

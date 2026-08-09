@@ -13,6 +13,78 @@ exists, no bucket binding is in any committed config, and creating them is a
 human action — see `docs/DEPLOYMENT.md`. Everything runs against miniflare's
 local simulation until then.
 
+## Hover glow and glass (branch `feat/glow-and-glass`)
+
+Requested: a glow on hover, "like when you hover a skill", plus glass and
+blur. Both reverse rules recorded in `docs/DESIGN.md`, so that file was
+updated beside the originals rather than quietly contradicted.
+
+### Two glows, doing different jobs
+
+The old rule was *"one glow, one place: there is no other glow on the site"*.
+It now reads: an **ambient** glow (the hero wash, always on, still the only
+one) and an **interaction** glow that exists only while something is hovered
+or focused.
+
+That distinction keeps the original intent. Ambient glow is decoration and
+more of it reads as a template; interaction glow is feedback, absent at rest,
+on exactly the thing under the pointer. **A page at rest looks the same as it
+did before.**
+
+One token, two utilities, driven by `:hover` **and** `:focus-visible` — plus
+`:has(:focus-visible)` so a card whose link is focused lights up too. A
+keyboard reaches the same affordance a mouse does.
+
+### What is and is not gated on reduced motion
+
+The glow and the border are **not** gated: they are feedback that a hover
+registered, they do not move, and gating them would leave a visitor who asked
+for less motion with no hover state at all — the same reasoning that keeps
+`.press` outside the guard. The **lift is** gated, because that is the part
+that moves. Verified under emulation: glow and border present, lift absent.
+
+### Glass, bounded by legibility
+
+The old rule was *"no glassmorphism system"*. Panels that sit over something —
+cards, the contact panel — now use a translucent fill with a backdrop blur.
+
+The fill is **86%, not the 40-60% that reads as glassy in a screenshot**,
+because the 3D figure passes behind the page and this project has already had
+one report of text becoming hard to read where it showed through. The blur
+carries the effect; the transparency is a hint.
+
+Measured rather than assumed, compositing the card fill over the palest thing
+that can pass behind it (the robot's hood, `#dfe3ee`): body text **5.42:1**,
+headings **11.58:1**, pills **5.42:1** — all above AA. Over the page
+background: 7.75, 16.57, 7.75.
+
+### Two bugs found by measuring
+
+**The lift silently did nothing on any `.reveal` card.** `transform:
+translateY(-2px)` was being overridden by the reveal animation, which runs
+with `both` — its filled `to` state (`transform: none`) stays applied forever,
+and an animation's value beats a normal declaration in the cascade. The glow
+appeared and the card did not move. The lift uses the independent `translate`
+property now, which the reveal never touches, so the two compose.
+
+**Hovering a skill lit up the card *and* the pill.** The skill category card
+was marked `interactive`, which contradicted the rule written in the same
+change — a panel that lights up without being interactive promises something
+it cannot deliver, and a skill category card is not clickable. Two effects at
+once read as blur rather than as "this one". The pills glow; the card holds
+still. Project cards keep it, because they contain a link.
+
+### Applied to
+
+Skill pills, tool rows (a tinted variant, since a row has no border to light),
+project cards, technology badges, carousel arrows, the contact panel and the
+skill category cards. The bespoke hover on project cards — its own translate,
+border and shadow — was replaced by the shared one: three components each
+inventing a hover is how a site ends up with three hover languages.
+
+Checks run: `pnpm lint`, `pnpm typecheck`, `pnpm test` (703/703 admin, 181/181
+and 83/83 elsewhere), `pnpm build` — all passed.
+
 ## Phase 9 slice 6 — the résumé CMS (branch `feat/resume-cms`)
 
 The last piece of Phase 9. The `resumes` repository, the media service's
