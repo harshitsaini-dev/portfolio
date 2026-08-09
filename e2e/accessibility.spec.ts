@@ -68,12 +68,32 @@ test("every tab stop paints an indicator that clears 3:1", async ({ page }) => {
         return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
       };
 
+      const ratio = (a: number, b: number) =>
+        (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+
+      /*
+        Compared against **both** adjacent surfaces, and the better one wins.
+
+        WCAG 1.4.11 is about the indicator against the colours next to it, and
+        a ring drawn around a filled button has two neighbours: the page behind
+        it and the button's own fill. A ring that is invisible against one but
+        obvious against the other is a visible ring.
+
+        Measuring only the page background is what the first version did, and
+        it reported a 1.03:1 failure on the contact form's primary button in
+        CI — a button whose ring is plainly visible because it contrasts with
+        the accent fill it sits on.
+      */
+      const ring = luminance(channels(cs.outlineColor));
       const pageBg = luminance(
         channels(getComputedStyle(document.body).backgroundColor),
       );
-      const ring = luminance(channels(cs.outlineColor));
-      const contrast =
-        (Math.max(ring, pageBg) + 0.05) / (Math.min(ring, pageBg) + 0.05);
+      const ownBg = luminance(channels(cs.backgroundColor));
+      const isTransparent = /rgba?\([^)]*,\s*0\s*\)/.test(cs.backgroundColor);
+
+      const contrast = isTransparent
+        ? ratio(ring, pageBg)
+        : Math.max(ratio(ring, pageBg), ratio(ring, ownBg));
 
       return {
         label: (el.getAttribute("aria-label") || el.textContent || "")
