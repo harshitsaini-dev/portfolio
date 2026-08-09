@@ -83,6 +83,26 @@ body {
   cursor: none !important;
 }
 
+/**
+ * Smooth scrolling, and the padding an anchor needs because of it.
+ *
+ * Native `scroll-behavior` rather than a smooth-scroll library: a library
+ * takes over the scroll position, which breaks the browser's own restoration
+ * on back-navigation, fights trackpad momentum, and — most relevant here —
+ * breaks CSS scroll-driven animations, which read the *real* scroll position
+ * the library has stopped updating.
+ *
+ * `scroll-padding-top` keeps a section from landing under the sticky header
+ * when its anchor is followed. 5rem is the header's height plus a little air.
+ *
+ * The reduced-motion block below sets `scroll-behavior: auto`, so a visitor
+ * who asked for less motion gets an instant jump instead.
+ */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+
 ::selection {
   background: var(--selection-bg);
   color: var(--selection-fg);

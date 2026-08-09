@@ -252,3 +252,47 @@
       portfolio-caret 700ms step-end 300ms infinite;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Page entrance
+ *
+ * Runs once as the preloader lifts away. Separate from `.rise`, which staggers
+ * individual hero elements — this is the whole page settling into place
+ * underneath the curtain, and it is deliberately slower and smaller so the
+ * two read as one movement rather than two competing ones.
+ *
+ * Inside `prefers-reduced-motion: no-preference` like everything else here:
+ * without the animation the page is simply there, never held at a transform
+ * that nothing will clear.
+ * ------------------------------------------------------------------------- */
+
+@keyframes portfolio-enter {
+  from {
+    opacity: 0;
+    transform: scale(1.02);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /*
+    Gated on `.is-loaded`, which the preloader puts on <html> when it
+    finishes.
+    
+    Without the gate the animation ran on mount — behind the curtain, where
+    nobody could see it — and the page was simply *there* when the curtain
+    lifted. Reported as the entrance not happening, and it was not: it had
+    already finished.
+    
+    The gate is also why this is safe. The animation supplies its own
+    from-state, so a page where the class never arrives (no JavaScript, a
+    failed preloader) has no animation and no hidden state — it is just the
+    page.
+  */
+  .is-loaded .page-enter {
+    animation: portfolio-enter 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}

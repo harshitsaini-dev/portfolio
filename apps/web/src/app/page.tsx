@@ -9,6 +9,7 @@ import { SiteHeader } from "@/components/site-header";
 import { RobotTerminal } from "@/components/three/robot-terminal";
 import { HeroSceneMount } from "@/components/three/hero-scene-mount";
 import { CustomCursor } from "@/components/ui/custom-cursor";
+import { Preloader } from "@/components/ui/preloader";
 import { SkillsSection } from "@/components/skills-section";
 import { getSiteContent } from "@/lib/content/site-content";
 
@@ -63,6 +64,14 @@ export default async function Home() {
 
       <CustomCursor />
 
+      {/*
+        The opening loader. Rendered last in the tree but painted over
+        everything by z-index, so the page beneath is already server-rendered
+        and readable — the curtain is visual only, and a browser that runs no
+        JavaScript never sees it.
+      */}
+      <Preloader />
+
       <SiteHeader siteName={content.siteName} navigation={content.navigation} />
 
       {/* `tabIndex={-1}` makes the skip-link target programmatically
@@ -72,7 +81,8 @@ export default async function Home() {
           reader users are not moved to the main content and the behaviour
           is inconsistent across browsers. -1 keeps it out of the normal tab
           order; it is only reachable by activating the skip link. */}
-      <main id="main-content" tabIndex={-1} className="flex-1">
+      {/* Settles into place as the preloader lifts. See `motion.css`. */}
+      <main id="main-content" tabIndex={-1} className="page-enter flex-1">
         <Hero
           profile={content.profile}
           contact={content.contact}
