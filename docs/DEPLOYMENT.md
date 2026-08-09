@@ -18,9 +18,38 @@ Run it from a Linux environment (the WSL clone): the OpenNext bundling step
 needs symlinks that Windows denies without Developer Mode — see
 `docs/PROJECT_STATE.md`.
 
-The **admin app has no deployment configuration** and must not be deployed
-until it has a domain: a Cloudflare Access application cannot be attached to a
-`*.workers.dev` hostname, and the admin fails closed without Access.
+The **admin app is deployment-ready but not deployed**: Worker
+`portfolio-admin`, same bindings, verified in local workerd (see
+PROJECT_STATE). It must go behind Cloudflare Access, and Cloudflare supports
+attaching Access directly to a workers.dev Worker from the dashboard — so no
+custom domain is required for a protected admin. The app fails closed without
+Access: every unauthenticated request lands on `/denied`.
+
+## Deploying the admin (owner actions, in this order)
+
+1. **Create the Access application** (dashboard: Zero Trust → Access →
+   Applications → Add → Self-hosted). Target the admin Worker's hostname
+   `portfolio-admin.<account-subdomain>.workers.dev`; add a policy allowing
+   your email. Note the **AUD tag** and your team domain
+   (`<team>.cloudflareaccess.com`). Both are public configuration, not
+   secrets.
+2. **Set the two vars** on the Worker — either uncomment `vars` in
+   `apps/admin/wrangler.jsonc` and fill them in, or set
+   `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD` as plain-text variables in the
+   dashboard after the first deploy. Never set `ADMIN_DEV_AUTH` on a deployed
+   Worker (a production build ignores it anyway).
+3. **Deploy**, from the WSL clone:
+
+   ```
+   pnpm --filter @portfolio/admin exec opennextjs-cloudflare deploy
+   ```
+
+4. **Enable Access on the workers.dev domain** if not already active for the
+   Worker (Workers & Pages → portfolio-admin → Settings → Domains & Routes →
+   Enable Cloudflare Access).
+5. **Verify** (see docs/TESTING.md): an incognito visit must hit the
+   Cloudflare Access login, not the admin; after logging in with an allowed
+   email, the dashboard must load; sign-out must return to the login.
 
 The rest of this document records the intended target and the outstanding
 manual actions.
@@ -63,6 +92,8 @@ that depends on them is written.
    deliberate — see `docs/DATABASE.md`.
 2. **Configure the Cloudflare Access application** for the admin app, and
    set `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD`. Neither is a secret.
+   *Still outstanding — the full ordered steps are in "Deploying the admin"
+   above.*
 
 ### New for Phase 9 (R2/media) — none of this exists yet
 

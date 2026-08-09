@@ -94,7 +94,20 @@ export function getDevPlatformBindings(): Promise<DevPlatformBindings> {
     // line is unreachable in production, because every caller throws on a
     // production build before getting here and Next inlines that comparison
     // at build time.
-    const { getPlatformProxy } = await import("wrangler");
+    //
+    // The specifier is computed at runtime because reachability does not stop
+    // a bundler: with a literal specifier, OpenNext's esbuild pass inlined
+    // wrangler, miniflare, undici and the workerd binary into the *web* app's
+    // Worker — 211MB, failing on undici's `node:sqlite` — and Turbopack even
+    // constant-folds expressions like `["wrang","ler"].join("")` back to the
+    // literal. An env var that is never set cannot be folded, because only an
+    // allowlist (`NODE_ENV`, `NEXT_PUBLIC_*`) is inlined at build time. The
+    // full account is in `apps/web/src/lib/dev-platform.ts`, where it was
+    // found.
+    const wranglerSpecifier = process.env.WRANGLER_IMPORT_SPECIFIER ?? "wrangler";
+    const { getPlatformProxy } = (await import(
+      /* webpackIgnore: true */ wranglerSpecifier
+    )) as typeof import("wrangler");
     const { resolve } = await import("node:path");
 
     // The repo-root local bindings config, and the same `.wrangler/state/v3`

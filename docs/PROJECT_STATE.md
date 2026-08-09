@@ -21,6 +21,69 @@ deployable (domain + Access) or content reaches remote D1 another way.
 
 The admin app still has no deployment configuration, deliberately.
 
+## Phase 22 slice 3 — the admin Worker, ready to deploy behind Access
+
+The admin CMS now has the same deployment shape as the public site, with every
+lesson from slices 1-2 applied up front rather than rediscovered:
+
+- `apps/admin/wrangler.jsonc` — Worker **portfolio-admin**, expected at
+  `https://portfolio-admin.<account-subdomain>.workers.dev`, same
+  compatibility date/flags, same `DB` (portfolio-cms) and `MEDIA`
+  (portfolio-media) bindings. The admin is the *writer* through both.
+- `open-next.config.ts` with no cache overrides — every route is dynamic, and
+  a CMS is the one place a stale cache is actively harmful.
+- `instrumentation.ts` + `production-platform.ts` with all three guards,
+  including `isWorkersRuntime()` — for the admin, the `next start` fallback
+  failure would mean silently *writing* to a local database.
+- Both admin seams moved from module-scoped `let` to `globalThis` +
+  `Symbol.for` — the Turbopack chunk-graph duplication measured on the web.
+- The dev-platform `wrangler` import specifier is runtime-computed — the
+  esbuild inlining measured on the web (211MB, `node:sqlite`).
+- 26 new checks in `production-platform-tests.mjs`; five existing assertions
+  that had pinned the *pre-deployment* state were updated to assert the new
+  invariants (the strengthened one: no runtime `wrangler` specifier a bundler
+  could follow).
+
+### Verified in workerd (local preview, port 8788)
+
+The Worker builds — 32MB server function, zero dev-toolchain entries, zero
+`node:sqlite` — and serves. The security boundary was exercised
+unauthenticated against the **production build**, where `ADMIN_DEV_AUTH` is
+ignored by design:
+
+- `/` → 307 → `/denied`, which renders the real "Access denied" page with
+  zero console errors.
+- `/projects` (protected route) → 307 → `/denied`.
+- A fabricated Server Action POST → 404 (transport-level rejection; real
+  authorization is proven by the 703-check action-auth suite).
+- `/media/<id>/raw` → 500 with an **empty body**: `requireAdminIdentity()`
+  throws before any binding is touched. Fail-closed, nothing leaked.
+- Headers: CSP with per-request nonce, `X-Frame-Options: DENY`,
+  `X-Robots-Tag: noindex, nofollow`.
+- The server log shows the exact right reason:
+  `access denied (not_configured): Cloudflare Access is not configured and
+  development auth is not enabled`.
+
+### What local preview cannot prove
+
+A real authenticated Access flow. There is no Access application in front of
+a local workerd, so "an authenticated identity reaches the admin shell" is
+**not verified** and can only be verified after the owner creates the Access
+application and deploys. What *is* verified is the half that matters for
+safety: without Access, everything is denied.
+
+### Migration status
+
+All seven migrations are applied to the remote `portfolio-cms` database
+(owner-reported, and consistent with the live public site returning 200 from
+it). Nothing remote was touched by this slice.
+
+### Not deployed
+
+Deploying before the Access application exists yields a Worker that denies
+everyone — safe but useless. The owner's dashboard steps are in
+`docs/DEPLOYMENT.md`.
+
 ## Production hydration report — investigated, no application defect found
 
 The owner reported `Minified React error #418` (hydration mismatch) from the

@@ -1,0 +1,76 @@
+{
+  // ---------------------------------------------------------------------
+  // Production Worker configuration for the ADMIN CMS.
+  //
+  // The same shape as apps/web/wrangler.jsonc — see the notes there for what
+  // is shared. What is different here is the security posture:
+  //
+  //   * This Worker MUST sit behind Cloudflare Access. The application fails
+  //     closed without it — `readAccessConfig()` denies everything when the
+  //     two CF_ACCESS_* vars are missing, and `requireAdminIdentity()`
+  //     verifies the `Cf-Access-Jwt-Assertion` header on every Server Action
+  //     and protected route. Deploying without Access configured therefore
+  //     yields a Worker that serves nothing but denials — annoying, but safe.
+  //
+  //   * Cloudflare can attach Access directly to a workers.dev Worker from
+  //     the dashboard: Workers & Pages -> portfolio-admin -> Settings ->
+  //     Domains & Routes -> workers.dev -> Enable Cloudflare Access. That,
+  //     and creating the Access application/policy, are OWNER actions — no
+  //     code or command in this repository performs them.
+  //
+  //   * The two vars below are PUBLIC configuration, not secrets: the team
+  //     domain is a public hostname and the AUD tag is a public identifier.
+  //     They are left unset here because their values belong to the owner's
+  //     Access application, which does not exist yet. Set them in the
+  //     dashboard (Settings -> Variables) or fill them in here once the
+  //     Access application exists. No API token, Access client secret, or
+  //     private key is used anywhere — verification is against Cloudflare's
+  //     public JWKS.
+  //
+  //   * ADMIN_DEV_AUTH must never be set on this Worker. A production build
+  //     ignores it by design, and its absence keeps that design honest.
+  // ---------------------------------------------------------------------
+  "$schema": "node_modules/wrangler/config-schema.json",
+
+  // https://portfolio-admin.<account-subdomain>.workers.dev
+  "name": "portfolio-admin",
+
+  "main": ".open-next/worker.js",
+
+  // Kept in lockstep with apps/web/wrangler.jsonc — same workerd, same date.
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+
+  "workers_dev": true,
+
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+
+  // Public configuration for Cloudflare Access verification. Values are the
+  // owner's to fill — see the header note. Uncomment and set, or set the same
+  // names as dashboard variables.
+  // "vars": {
+  //   "CF_ACCESS_TEAM_DOMAIN": "<team>.cloudflareaccess.com",
+  //   "CF_ACCESS_AUD": "<the Access application's AUD tag>"
+  // },
+
+  // The same database the public site reads. The admin is the writer.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "portfolio-cms",
+      "database_id": "1e85ce4f-d5e4-44e4-b589-e00992bc0b60"
+    }
+  ],
+
+  // The same bucket the public site serves from. The admin is the writer:
+  // uploads, replacements and deletes all happen through this binding.
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "portfolio-media"
+    }
+  ]
+}

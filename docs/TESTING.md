@@ -1202,3 +1202,20 @@ report (see PROJECT_STATE):
    reporting browser itself (extension, auto-translate) — ask for an
    incognito repro before changing any code, and do not reach for
    `suppressHydrationWarning`.
+
+## Verifying the admin Worker locally (Phase 22)
+
+`pnpm --filter @portfolio/admin cf:build && pnpm --filter @portfolio/admin
+cf:preview -- --port 8788` runs the real production Worker in workerd. What
+that preview CAN prove: the fail-closed half of the security boundary. In a
+production build `ADMIN_DEV_AUTH` is ignored and no Access sits in front, so
+every request must be denied — `/` and every protected route 307 to
+`/denied`, a fabricated Server Action POST is rejected, `/media/<id>/raw`
+fails closed with an empty body, and the log reads
+`access denied (not_configured)`. Console must be free of errors, and the
+CSP/noindex/frame headers must be present.
+
+What it CANNOT prove: a real authenticated Access flow. That is only
+verifiable against the deployed Worker with the Access application in front —
+incognito hits the Access login; an allowed email reaches the dashboard.
+Never claim the authenticated path is verified from a local preview.
