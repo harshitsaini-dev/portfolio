@@ -276,9 +276,17 @@ try {
     "the binding module names the real OpenNext API it defers to",
     bindingSource.includes("getCloudflareContext"),
   );
+  // Inverted when deployment arrived: the adapter is now a real dependency,
+  // and the runtime entry point is the one non-test registrar of the seam.
   check(
-    "@opennextjs/cloudflare is not a dependency yet (deployment is Phase 22)",
-    !readFileSync(join(appRoot, "package.json"), "utf8").includes("@opennextjs/cloudflare"),
+    "@opennextjs/cloudflare is a dependency (deployment slice landed)",
+    readFileSync(join(appRoot, "package.json"), "utf8").includes("@opennextjs/cloudflare"),
+  );
+  check(
+    "instrumentation.ts registers the provider at isolate start",
+    readFileSync(join(appRoot, "src", "instrumentation.ts"), "utf8").includes(
+      "setAdminDatabaseProvider",
+    ),
   );
 
   // =========================================================================
@@ -304,10 +312,10 @@ try {
     productionError?.name,
   );
   check(
-    "the internal error explains that Phase 22 must register the real provider",
+    "the internal error names the registrar that should have run",
     typeof productionError?.message === "string" &&
       productionError.message.includes("setAdminDatabaseProvider") &&
-      productionError.message.includes("getCloudflareContext"),
+      productionError.message.includes("instrumentation"),
     productionError?.message,
   );
   check(
@@ -394,20 +402,26 @@ try {
     join(appRoot, "src", "lib", "dev-platform.ts"),
     "utf8",
   );
-  const bindingImports = platformSource.match(/from\s+"wrangler"|import\(\s*"wrangler"\s*\)/g) ?? [];
+  // The invariant STRENGTHENED with deployment: not merely "dynamic, not
+  // static" but "not statically analysable at all". A literal
+  // `import("wrangler")` — dynamic though it is — let OpenNext's esbuild
+  // inline wrangler, miniflare, undici and the workerd binary into the web
+  // Worker (211MB, failing on undici's `node:sqlite`), so the specifier is
+  // now computed through an env var no bundler can fold.
   check(
-    "the dev-platform module references `wrangler` exactly once",
-    bindingImports.length === 1,
-    JSON.stringify(bindingImports),
+    "no runtime `wrangler` specifier a bundler could follow",
+    // `typeof import("wrangler")` is exempt: type-only, erased at compile.
+    !/from\s+"wrangler"/.test(platformSource) &&
+      !/await\s+import\(\s*"wrangler"\s*\)/.test(platformSource),
   );
   check(
-    "that reference is a dynamic import, not a static one",
-    /await import\(\s*"wrangler"\s*\)/.test(platformSource) &&
-      !/^\s*import .* from "wrangler"/m.test(platformSource),
+    "the runtime-computed specifier and its type anchor are present",
+    platformSource.includes("WRANGLER_IMPORT_SPECIFIER") &&
+      platformSource.includes('typeof import("wrangler")'),
   );
   check(
     "it lives in the development-only resolver",
-    /getDevPlatformBindings[\s\S]*?await import\(\s*"wrangler"\s*\)/.test(platformSource),
+    /getDevPlatformBindings[\s\S]*?WRANGLER_IMPORT_SPECIFIER/.test(platformSource),
   );
   check(
     "the D1 binding module no longer names `wrangler` itself",

@@ -832,8 +832,8 @@ try {
     /setAdminStorageProvider/.test(unavailable?.message ?? ""),
   );
   check(
-    "and it names the OpenNext API a deployment will register",
-    /getCloudflareContext/.test(unavailable?.message ?? ""),
+    "and it names the registrar that should have run",
+    /instrumentation/.test(unavailable?.message ?? ""),
   );
 
   // The production branch must be keyed on NODE_ENV and nothing else, so a

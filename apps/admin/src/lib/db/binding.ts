@@ -73,26 +73,41 @@ export class DatabaseUnavailableError extends Error {
  * The registered provider, if any.
  *
  * Module-scoped registration state, not per-request state: it is written
- * once at startup (by the future Phase 22 runtime entry point, or by a test
- * supplying a disposable database) and only read thereafter. The
+ * once at startup (by the runtime entry point in `instrumentation.ts`, or by
+ * a test supplying a disposable database) and only read thereafter. The
  * *repositories* are still built per call — see `getAdminRepositories()`.
+ *
+ * On `globalThis` under `Symbol.for`, not in a module-scoped `let`. The web
+ * app shipped with module scope and it broke the deployed Worker: Turbopack
+ * compiles the instrumentation entry and the route entries into separate
+ * chunk graphs, each with its own copy of this module, so registration landed
+ * in one copy while every page read `null` from another. Three compiled
+ * copies were counted in `.next/server/chunks`. The symbol registry is shared
+ * by all of them — the same mechanism `dev-platform.ts` already uses for its
+ * proxy cache.
  */
-let registeredProvider: AdminDatabaseProvider | null = null;
+const providerKey = Symbol.for("portfolio.admin.databaseProvider");
+type ProviderHolder = { [providerKey]?: AdminDatabaseProvider | null };
 
 /**
  * Register the provider that resolves the D1 binding.
  *
- * Two intended callers, and no others: the Phase 22 OpenNext runtime entry
- * point, and tests that need the real composition boundary to run against a
- * disposable local database.
+ * Two intended callers, and no others: the runtime entry point in
+ * `instrumentation.ts`, and tests that need the real composition boundary to
+ * run against a disposable local database.
  */
 export function setAdminDatabaseProvider(provider: AdminDatabaseProvider): void {
-  registeredProvider = provider;
+  (globalThis as ProviderHolder)[providerKey] = provider;
 }
 
 /** Undo `setAdminDatabaseProvider`. Exists so tests cannot leak into each other. */
 export function clearAdminDatabaseProvider(): void {
-  registeredProvider = null;
+  (globalThis as ProviderHolder)[providerKey] = null;
+}
+
+/** The registered provider, from whichever module copy wrote it. */
+function registeredAdminDatabaseProvider(): AdminDatabaseProvider | null {
+  return (globalThis as ProviderHolder)[providerKey] ?? null;
 }
 
 /**
@@ -119,16 +134,17 @@ async function getDevelopmentDatabase(): Promise<D1Like> {
 
 /** Resolve the D1 binding for this environment. */
 export async function getAdminDatabase(): Promise<D1Like> {
-  if (registeredProvider) return registeredProvider();
+  const provider = registeredAdminDatabaseProvider();
+  if (provider) return provider();
 
   if (process.env.NODE_ENV === "production") {
     // Fail closed, and be specific about *why* in the server log. There is
     // deliberately no development fallback here: a dev fallback reachable in
     // production is how a deployment quietly serves the wrong database.
     throw new DatabaseUnavailableError(
-      "no D1 provider is registered. Production binding resolution is not " +
-        "implemented yet — Phase 22 must call setAdminDatabaseProvider() with " +
-        "getCloudflareContext().env.DB from @opennextjs/cloudflare",
+      "no D1 provider is registered. The instrumentation entry point should " +
+        "have called setAdminDatabaseProvider() at isolate start — see " +
+        "src/instrumentation.ts",
     );
   }
 

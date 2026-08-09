@@ -70,30 +70,39 @@ export class StorageUnavailableError extends Error {
 /**
  * The registered provider, if any.
  *
- * Module-scoped registration state, not per-request state: written once at
- * startup (or by a test) and only read thereafter.
+ * Written once at startup (or by a test) and only read thereafter — and held
+ * on `globalThis` under `Symbol.for` rather than in a module-scoped `let`,
+ * for the reason documented in `../db/binding.ts`: Turbopack gives each entry
+ * graph its own copy of this module, and module scope leaves every copy but
+ * the registering one reading `null`.
  */
-let registeredProvider: AdminStorageProvider | null = null;
+const providerKey = Symbol.for("portfolio.admin.storageProvider");
+type ProviderHolder = { [providerKey]?: AdminStorageProvider | null };
 
 /**
  * Register the provider that resolves object storage.
  *
- * Two intended callers and no others: the future deployment runtime entry
- * point, and tests that need the real composition boundary to run against a
- * fake or a disposable local bucket.
+ * Two intended callers and no others: the runtime entry point in
+ * `instrumentation.ts`, and tests that need the real composition boundary to
+ * run against a fake or a disposable local bucket.
  */
 export function setAdminStorageProvider(provider: AdminStorageProvider): void {
-  registeredProvider = provider;
+  (globalThis as ProviderHolder)[providerKey] = provider;
 }
 
 /** Undo `setAdminStorageProvider`. Exists so tests cannot leak into each other. */
 export function clearAdminStorageProvider(): void {
-  registeredProvider = null;
+  (globalThis as ProviderHolder)[providerKey] = null;
+}
+
+/** The registered provider, from whichever module copy wrote it. */
+function registeredAdminStorageProvider(): AdminStorageProvider | null {
+  return (globalThis as ProviderHolder)[providerKey] ?? null;
 }
 
 /** Whether a provider is currently registered. Does not resolve it. */
 export function hasAdminStorageProvider(): boolean {
-  return registeredProvider !== null;
+  return registeredAdminStorageProvider() !== null;
 }
 
 /**
@@ -126,15 +135,16 @@ async function getDevelopmentStorage(): Promise<ObjectStorage> {
  * server log.
  */
 export async function getAdminStorage(): Promise<ObjectStorage> {
-  if (!registeredProvider) {
+  const provider = registeredAdminStorageProvider();
+  if (!provider) {
     if (process.env.NODE_ENV === "production") {
       // Fail closed, and be specific about *why* in the server log. There is
       // deliberately no production fallback: a development path reachable in
       // production is how a deployment quietly writes to the wrong bucket.
       throw new StorageUnavailableError(
-        "no storage provider is registered. Production binding resolution is " +
-          "not implemented yet — Phase 22 must call setAdminStorageProvider() " +
-          "with getCloudflareContext().env.MEDIA from @opennextjs/cloudflare",
+        "no storage provider is registered. The instrumentation entry point " +
+          "should have called setAdminStorageProvider() at isolate start — " +
+          "see src/instrumentation.ts",
       );
     }
     return getDevelopmentStorage();
@@ -142,7 +152,7 @@ export async function getAdminStorage(): Promise<ObjectStorage> {
 
   let storage: ObjectStorage;
   try {
-    storage = await registeredProvider();
+    storage = await provider();
   } catch (cause) {
     const error = new StorageUnavailableError("the storage provider failed");
     error.cause = cause;
