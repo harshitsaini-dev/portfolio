@@ -3,6 +3,7 @@ import Link from "next/link";
 import { SiteNavMenu } from "@/components/site-nav-menu";
 import { Container } from "@/components/ui/container";
 import { actionVariant } from "@/components/ui/action";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import type { NavigationItem } from "@/data/types";
 
 interface SiteHeaderProps {
@@ -34,24 +35,30 @@ export function SiteHeader({ siteName, navigation }: SiteHeaderProps) {
         >
           {siteName}
         </Link>
-        <SiteNavMenu navigation={navigation} />
+        {/* The right-hand group. The theme control sits last, in the corner,
+            and stays outside the menu drawer so it is reachable at every
+            width — a display preference is not a navigation link. */}
+        <div className="flex items-center gap-1">
+          <nav aria-label="Sections" className="hidden md:block">
+            {/* The inline row appears only where every link fits, so it never
+                needs to scroll. */}
+            <ul className="flex flex-wrap gap-1">
+              {navigation.map((item) => (
+                <li key={item.targetId}>
+                  <a
+                    href={`/#${item.targetId}`}
+                    className={`link-underline inline-flex min-h-11 items-center whitespace-nowrap rounded-md px-3 text-sm font-medium transition-colors duration-150 ${actionVariant.quiet}`}
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
 
-        {/* The inline row appears only where every link fits, so it never
-            needs to scroll. */}
-        <nav aria-label="Sections" className="hidden md:block">
-          <ul className="flex flex-wrap gap-1">
-            {navigation.map((item) => (
-              <li key={item.targetId}>
-                <a
-                  href={`/#${item.targetId}`}
-                  className={`link-underline inline-flex min-h-11 items-center whitespace-nowrap rounded-md px-3 text-sm font-medium transition-colors duration-150 ${actionVariant.quiet}`}
-                >
-                  {item.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
+          <ThemeToggle />
+          <SiteNavMenu navigation={navigation} />
+        </div>
       </Container>
     </header>
   );

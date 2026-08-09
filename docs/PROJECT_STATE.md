@@ -8,6 +8,61 @@ something passed without running it.
 
 **Phase 9 — R2/media. IN PROGRESS.** Not complete.
 
+## Public theme toggle (branch `feat/public-theme-toggle`)
+
+A light/dark control in the public site's header, top right, on the owner's
+request.
+
+### It layers over the CMS default rather than replacing it
+
+Two separate things, and keeping them separate is the design. `default_theme`
+is the *site's* setting, owned by the admin and server-rendered into
+`data-theme`. The toggle stores one *visitor's* override in `localStorage` on
+top of it. A site configured "dark" still starts dark for everyone who has not
+chosen.
+
+Three states, matching the `THEME_PREFERENCES` the schema already models:
+system, light, dark. A two-way switch would be simpler and would take
+something away — once a visitor touched it they could never get back to
+following their operating system, which is the default and what most people
+want. Choosing "system" removes the attribute rather than writing
+`data-theme="system"`, which matches no rule and would only look like it did
+something.
+
+### The flash is prevented in the document, not in React
+
+A blocking script in `<head>` applies the stored choice before the first
+paint. A component cannot: by the time React hydrates the page has already
+been painted in the site default, so a visitor who chose dark would see a
+white flash on every navigation.
+
+The script interpolates nothing — the only value in it is a constant key, and
+the only thing it writes is one of two hard-coded strings behind an equality
+check, so a tampered storage value cannot reach the DOM as anything but a
+removal.
+
+### A real hydration error, and the right fix
+
+Measured, not assumed: with the site default at dark and a stored choice of
+light, React logged a hydration mismatch on `<html>` — the server said one
+thing and the pre-paint script had already made it say another.
+
+`suppressHydrationWarning` on that element only. It does not cascade, so every
+other mismatch on the page is still reported. The difference there is the
+entire point of the script; anywhere else it would be hiding a bug.
+
+### Read as an external store
+
+`useSyncExternalStore` rather than `useState` plus a mount effect — the same
+pattern the rest of this app uses, and the one the lint config enforces. It
+also means a change in one tab reaches the others through the `storage` event,
+and the server snapshot is explicit.
+
+Checks run: `pnpm lint`, `pnpm typecheck`, `pnpm test` (611/611), `pnpm build`
+— all passed. Verified in Chromium: the full cycle dark → system → light →
+dark with the background actually changing, persistence across reload, the
+attribute present before hydration, and zero console errors.
+
 ## Portrait, terminal and cursor polish (branch `feat/hero-polish`)
 
 Four owner requests, plus a real bug found along the way.
