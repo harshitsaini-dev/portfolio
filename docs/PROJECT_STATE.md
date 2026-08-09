@@ -6,7 +6,78 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 9 — R2/media. IN PROGRESS.** Not complete.
+**Phase 9 — R2/media. Code complete; provisioning outstanding.**
+
+All seven slices are merged. What remains is **not code**: no R2 bucket
+exists, no bucket binding is in any committed config, and creating them is a
+human action — see `docs/DEPLOYMENT.md`. Everything runs against miniflare's
+local simulation until then.
+
+## Phase 9 slice 6 — the résumé CMS (branch `feat/resume-cms`)
+
+The last piece of Phase 9. The `resumes` repository, the media service's
+résumé path and the public download link in the hero all existed and were
+tested; there was no screen to create one.
+
+### Shape
+
+A résumé record points at an uploaded PDF and carries a label. Uploading
+happens in the media library, which already accepts PDFs — so this is an
+attach-and-label screen, not a second uploader. Create, edit, publish and
+delete, with a `getDocumentOptions` helper mirroring `getMediaOptions`: the
+picker offers documents only, because the public route serves whatever the row
+points at and offering images would let somebody publish a screenshot as a
+résumé.
+
+### Publishing is its own action, deliberately
+
+At most one résumé may be current, enforced by a **partial unique index**
+rather than by application logic. Setting the flag through a normal update
+would trip that index whenever another row held it, so `isCurrent` is absent
+from both the create and update schemas — there is no path by which a form
+could reach the unsafe route — and `repos.resumes.makeCurrent()` clears the
+others in the same batch.
+
+Creating never publishes. That is stated on the New screen, so the absence of
+a "current" checkbox reads as a decision rather than an oversight.
+
+### Deleting a résumé does not delete its file
+
+`resumes.media_asset_id` is `ON DELETE RESTRICT`, so the database blocks
+deleting a *media asset* a résumé points at. Deleting the *résumé* leaves the
+PDF in the library, and the confirmation says so. It also says, only when
+true, that deleting the published one removes the download from the site.
+
+### Verified end to end in Chromium
+
+Uploaded a PDF; confirmed the empty list says the public site shows no
+download; created a résumé and confirmed the public site still showed none;
+published it and confirmed the download link appeared pointing at
+`/media/[id]`; created and published a second and confirmed **exactly one**
+row carried the Published badge; unticked Visible on the published one and
+confirmed the public link disappeared; deleted both and confirmed the site was
+back to no download.
+
+One correction along the way: the first check reported the public link as
+missing when it was present. The assertion compared the link's text for
+equality with the label, and the link carries an `sr-only` "(opens in a new
+tab)" suffix. The test was wrong, not the page.
+
+### A small copy fix
+
+`MediaPickerField` hard-coded "No image" for its empty option. On a picker
+offering PDFs that is simply wrong, and a control that mislabels its own empty
+state teaches an editor to distrust the rest of the form. The wording is now a
+prop defaulting to the old value, so no existing caller changed.
+
+### The auth sweep paid for itself immediately
+
+The coverage invariant added with the robot lines picked up all four new
+résumé actions with no work: the admin suite went from 695 to **703 checks**
+without a line written for it.
+
+Checks run: `pnpm lint`, `pnpm typecheck`, `pnpm test` (703/703 admin, 181/181
+and 83/83 elsewhere), `pnpm build` — all passed.
 
 ## Phase 9 slice 5 — project gallery attachment (branch `feat/project-gallery`)
 

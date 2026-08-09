@@ -70,6 +70,7 @@ export function MediaPickerField({
   onChange,
   errors,
   hint,
+  emptyLabel = "No image",
 }: {
   id: string;
   label: string;
@@ -79,6 +80,15 @@ export function MediaPickerField({
   onChange: (value: string) => void;
   errors?: readonly string[];
   hint?: string;
+  /**
+   * Wording for the "nothing chosen" option.
+   *
+   * Defaults to "No image" because almost every picker chooses one. The
+   * résumé picker offers PDFs, where "No image" is simply wrong — and a
+   * control that mislabels its own empty state teaches an editor to distrust
+   * the rest of the form.
+   */
+  emptyLabel?: string;
 }) {
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
@@ -131,7 +141,7 @@ export function MediaPickerField({
               hasError ? "border-danger" : "border-strong"
             }`}
           >
-            <option value="">No image</option>
+            <option value="">{emptyLabel}</option>
             {options.map((option) => (
               <option key={option.id} value={option.id}>
                 {optionLabel(option)}

@@ -257,15 +257,20 @@ partial-update regression fixes. The remote database schema remains
 is still pending**; both are deployment prerequisites carried into later
 phases, not Phase 8 gaps.
 
-## Phase 9 — R2/media
+## Phase 9 — R2/media — **Complete (code); provisioning outstanding**
 
 Cloudflare R2 integration for project media and resume uploads, including
 upload validation.
 
-**In progress.** The audit is merged (`e3321d7`), its prerequisite regression
-is fixed and merged (`89f67f8`), the storage seam and upload policy are
-merged (`79ad35b`, `3808983`), and the **media service is implemented and
-awaiting review**.
+**All seven slices are complete.** The audit, the prerequisite regression
+fix, the storage seam and upload policy, the media service, the media library
+CMS, project gallery attachment, the résumé CMS and the public delivery routes
+are all merged.
+
+**What is still not done is provisioning, and that is a human action.** No R2
+bucket exists, no bucket binding is in any committed config, and nothing here
+creates one — see `docs/DEPLOYMENT.md`. Everything above runs against
+miniflare's local simulation.
 
 Still true, and unchanged by any of it: **nothing has been provisioned.** No
 R2 bucket, no bucket binding in any committed config, no deployment resource.
@@ -301,10 +306,9 @@ Planned slice order:
 5. ~~Project media attachment and project cover image~~ — **done.** The
    cover and icon pickers already existed; the per-project gallery is now
    attachable, ordered and captioned in the admin.
-6. Résumé upload and the current-résumé surface. **The only slice with no
-   admin surface at all** — the `resumes` repository, the media service's
-   résumé path and the public download link in the hero all exist and are
-   tested; nothing can upload one.
+6. ~~Résumé upload and the current-résumé surface~~ — **done.** A résumé
+   record points at an uploaded PDF and carries a label; publishing one puts
+   the download on the public site, and publishing another replaces it.
 7. ~~Public delivery routes for images and the current résumé~~ — **already
    done**, and recorded late: `apps/web/src/app/media/[id]/route.ts` serves
    both, and the hero renders the résumé link whenever a current résumé

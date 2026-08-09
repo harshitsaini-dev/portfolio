@@ -41,3 +41,29 @@ export async function getMediaOptions(): Promise<MediaOption[]> {
       byteSize: asset.byteSize,
     }));
 }
+
+/**
+ * The uploaded PDFs an editor may attach to a résumé.
+ *
+ * The mirror image of the list above, and separate for the same reason it is:
+ * the filter belongs next to the intent, not inside the picker, so a caller
+ * cannot forget it. Offering an image here would let somebody publish a
+ * "résumé" that is a screenshot, and the public download route serves whatever
+ * the row points at.
+ *
+ * Newest first, from the repository, unsorted here — an editor attaching a
+ * résumé has almost always just uploaded it.
+ */
+export async function getDocumentOptions(): Promise<MediaOption[]> {
+  const repos = await getAdminRepositories();
+  const assets = await repos.media.list();
+
+  return assets
+    .filter((asset) => !isImageContentType(asset.contentType))
+    .map((asset) => ({
+      id: asset.id,
+      contentType: asset.contentType,
+      altText: asset.altText,
+      byteSize: asset.byteSize,
+    }));
+}

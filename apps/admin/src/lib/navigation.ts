@@ -71,6 +71,9 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
     heading: "Operations",
     items: [
       { label: "Media", href: "/media" },
+      // Beside Media rather than under Content: a resume is a file with a
+      // publish switch, and the file it points at is uploaded next door.
+      { label: "Resumes", href: "/resumes" },
       { label: "Settings", href: "/settings" },
       { label: "Inbox", href: "/inbox" },
     ],
