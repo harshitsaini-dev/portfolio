@@ -38,7 +38,22 @@ export function SkillsSection({
 
           return (
             <li key={category.id}>
-              <Surface as="article" aria-labelledby={headingId} className="h-full">
+              {/*
+                Glass, but **not** `interactive`.
+
+                A skill category card is not clickable, and this file's own
+                rule is that a panel which lights up without being interactive
+                promises something it cannot deliver. It was `interactive` at
+                first, and hovering a pill lit up the card *and* the pill at
+                once — two effects competing, which reads as blur rather than
+                as "this one". The pills glow; the card holds still.
+              */}
+              <Surface
+                as="article"
+                aria-labelledby={headingId}
+                glass
+                className="h-full"
+              >
                 <div className="flex items-center gap-3">
                   {/* Decorative: the heading beside it says the same thing. */}
                   {category.image ? (
@@ -59,7 +74,11 @@ export function SkillsSection({
                   {category.skills.map((skill) => (
                     <li
                       key={skill.id}
-                      className="inline-flex items-center gap-2 rounded-full border border-subtle bg-surface-muted px-3 py-1 text-xs font-medium text-fg-muted"
+                      /* The owner's example: a skill lights up under the
+                          pointer. Not interactive — there is nothing to click
+                          — so this is decoration, and the glow is the whole
+                          affordance rather than a promise of a destination. */
+                      className="glow-hover inline-flex items-center gap-2 rounded-full border border-subtle bg-surface-muted px-3 py-1 text-xs font-medium text-fg-muted"
                     >
                       {skill.image ? (
                         <ContentImage image={skill.image} size={16} decorative />
@@ -91,9 +110,11 @@ export function SkillsSection({
           {tools.map((tool) => (
             <div
               key={tool.id}
-              className="flex items-center justify-between gap-4 border-b border-subtle pb-3"
+              /* A row has no border to light up, so it takes the tinted
+                  variant instead. */
+              className="glow-row -mx-2 flex items-center justify-between gap-4 rounded-md border-b border-subtle px-2 pb-3"
             >
-              <dt className="flex items-center gap-3 text-sm font-medium text-fg">
+              <dt className="glow-title flex items-center gap-3 text-sm font-medium text-fg">
                 {tool.image ? (
                   <ContentImage image={tool.image} size={24} decorative />
                 ) : null}

@@ -26,7 +26,14 @@ export function ProjectCard({ project }: { project: Project }) {
       as="article"
       aria-labelledby={headingId}
       padded={false}
-      className="reveal group flex h-full flex-col overflow-hidden transition-[colors,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-strong hover:shadow-md"
+      glass
+      interactive
+      /*
+        The bespoke hover here — a translate, a border and a shadow — is gone
+        in favour of the shared one. Three components each inventing their own
+        hover is how a site ends up with three hover languages.
+      */
+      className="reveal group flex h-full flex-col overflow-hidden"
     >
       {project.cover ? (
         // Decorative: the title, summary and technologies below say
@@ -48,7 +55,7 @@ export function ProjectCard({ project }: { project: Project }) {
             {project.image ? (
               <ContentImage image={project.image} size={32} decorative />
             ) : null}
-            <h3 id={headingId} className={type.subheading}>
+            <h3 id={headingId} className={`glow-title ${type.subheading}`}>
               <Link
                 href={`/projects/${project.slug}`}
                 className="transition-colors duration-150 hover:text-accent"

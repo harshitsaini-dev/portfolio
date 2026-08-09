@@ -46,6 +46,7 @@ export function ContactSection({
       <Surface
         tone="muted"
         padded={false}
+        glass
         className="grid max-w-3xl gap-8 p-6 sm:p-7 md:grid-cols-[minmax(0,0.62fr)_minmax(0,1fr)] md:gap-8"
       >
         {/* Centred against the form rather than top-aligned. The copy is a

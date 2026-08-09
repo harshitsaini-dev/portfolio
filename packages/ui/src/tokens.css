@@ -59,8 +59,28 @@
   /* Restrained. Two levels only — anything more reads as visual noise. */
   --shadow-sm: 0 1px 2px rgb(18 19 26 / 6%);
   --shadow-md: 0 6px 24px -12px rgb(18 19 26 / 18%);
-  /* The single sanctioned glow, used only behind the hero accent. */
+  /* The ambient glow, used only behind the hero accent. Always on, one place. */
   --glow-accent: 0 0 60px -12px rgb(37 71 208 / 22%);
+  /*
+    The interaction glow. Distinct from the one above in the way that matters:
+    it exists only while something is hovered or focused, never at rest.
+
+    Tighter and stronger than the ambient wash — 24px against 60px — because
+    it has to read as belonging to one element rather than washing the area
+    around it.
+  */
+  --glow-hover: 0 0 24px -6px rgb(37 71 208 / 38%);
+
+  /*
+    Glass. One blur radius for the whole site — a second value is how a
+    "system" turns into per-component guesswork.
+
+    The fill is deliberately near-opaque. The 3D figure passes behind the page
+    and legibility is the constraint; the blur carries the effect and the
+    transparency is a hint, not the point.
+  */
+  --glass-blur: 14px;
+  --glass-fill: rgb(255 255 255 / 86%);
 
   /* ---- Radius ------------------------------------------------------ */
   --radius-sm: 0.375rem;
@@ -102,6 +122,8 @@
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
     --shadow-md: 0 6px 24px -12px rgb(0 0 0 / 70%);
     --glow-accent: 0 0 60px -12px rgb(142 166 255 / 18%);
+    --glow-hover: 0 0 26px -6px rgb(142 166 255 / 40%);
+    --glass-fill: rgb(19 20 25 / 86%);
   }
 }
 
@@ -134,4 +156,6 @@
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
   --shadow-md: 0 6px 24px -12px rgb(0 0 0 / 70%);
   --glow-accent: 0 0 60px -12px rgb(142 166 255 / 18%);
+  --glow-hover: 0 0 26px -6px rgb(142 166 255 / 40%);
+  --glass-fill: rgb(19 20 25 / 86%);
 }

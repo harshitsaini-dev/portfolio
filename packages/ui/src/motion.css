@@ -446,3 +446,148 @@
      stretching every card to the tallest one opened a void inside the short
      ones, and the cards read better sharing a top edge than a bottom one. */
 }
+
+/* ---------------------------------------------------------------------------
+ * Hover and focus affordances
+ *
+ * One class, used everywhere something reacts to a pointer, so the site has a
+ * single hover language rather than a different treatment per component. The
+ * design rule it implements — and the rule it replaced — is recorded in
+ * `docs/DESIGN.md`.
+ *
+ * ## Focus gets the same treatment as hover
+ *
+ * `:focus-visible` sits beside `:hover` in every rule, and `:has(:focus-visible)`
+ * covers the common case of a card whose *link* is focused rather than the card
+ * itself. An effect that only exists for a mouse tells a keyboard user less
+ * than the page tells everybody else.
+ *
+ * The focus ring is untouched: this adds to it rather than replacing it. A
+ * glow is not a focus indicator — it is too soft to satisfy a contrast
+ * requirement and it is applied to non-interactive things too.
+ *
+ * ## What is and is not gated on reduced motion
+ *
+ * The **glow and the border are not gated.** They are feedback that a hover
+ * registered, they do not move, and removing them would leave a visitor who
+ * asked for less motion with no hover state at all — the same reasoning that
+ * keeps `.press` outside the guard.
+ *
+ * The **lift is gated**, because that is the part that actually moves.
+ * ------------------------------------------------------------------------- */
+
+.glow-hover {
+  transition:
+    border-color 200ms ease,
+    box-shadow 260ms ease,
+    background-color 200ms ease,
+    translate 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.glow-hover:hover,
+.glow-hover:focus-visible,
+.glow-hover:has(:focus-visible) {
+  /*
+    Mixed toward the accent rather than set to it. A full-strength accent
+    border on every hovered pill would make the accent mean "hovered" as well
+    as "this is the action", and the design rule is that it means one thing.
+  */
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border-strong));
+  box-shadow: var(--glow-hover);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /*
+    The lift uses the independent `translate` property, not `transform`.
+
+    This is not a style preference — `transform: translateY(-2px)` **silently
+    did nothing** on any card carrying `.reveal`. That animation runs with
+    `both`, so its filled `to` state (`transform: none`) stays applied
+    forever, and an animation's value beats a normal declaration in the
+    cascade. Measured: the glow appeared and the card did not move.
+
+    `translate` is a separate property the reveal never touches, so the two
+    compose instead of fighting.
+  */
+  .glow-hover:hover,
+  .glow-hover:focus-visible,
+  .glow-hover:has(:focus-visible) {
+    translate: 0 -2px;
+  }
+}
+
+/*
+ * The same affordance for something with no border of its own — a row in a
+ * list, a table cell. It cannot lift a border it does not have, so it takes a
+ * faint surface tint instead and keeps the glow.
+ */
+.glow-row {
+  transition:
+    background-color 200ms ease,
+    box-shadow 260ms ease,
+    color 200ms ease;
+}
+
+.glow-row:hover,
+.glow-row:focus-visible,
+.glow-row:has(:focus-visible) {
+  background-color: color-mix(in srgb, var(--accent) 7%, transparent);
+  box-shadow: var(--glow-hover);
+}
+
+/*
+ * Text that lights up rather than glows.
+ *
+ * For headings and labels inside something already glowing: a second glow on
+ * the text inside a glowing card is two effects competing, and the eye reads
+ * it as blur rather than as emphasis.
+ */
+.glow-hover:hover .glow-title,
+.glow-hover:focus-visible .glow-title,
+.glow-hover:has(:focus-visible) .glow-title,
+.glow-row:hover .glow-title,
+.glow-row:has(:focus-visible) .glow-title {
+  color: var(--accent);
+}
+
+.glow-title {
+  transition: color 200ms ease;
+}
+
+/* ---------------------------------------------------------------------------
+ * Glass
+ *
+ * A translucent fill with a backdrop blur, for panels that sit over something
+ * — the 3D figure passes behind the page, and glass is what lets a card
+ * acknowledge that instead of hiding it behind a flat rectangle.
+ *
+ * ## The fill is near-opaque, and that is the point
+ *
+ * The look people mean by "glassmorphism" is usually 40–60% opacity. At those
+ * values body text over a moving figure stops being reliably readable, and
+ * this project has already had that reported once. So the blur carries the
+ * effect and the transparency is a hint: 86% fill, measured rather than
+ * eyeballed.
+ *
+ * ## It degrades to a solid panel
+ *
+ * A browser without `backdrop-filter` gets the fill and no blur — which is a
+ * slightly translucent card, not a broken one. Nothing here is load-bearing.
+ * ------------------------------------------------------------------------- */
+
+.glass {
+  background-color: var(--glass-fill);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
+}
+
+/*
+ * A brighter top edge, the way a real pane catches light.
+ *
+ * `inset` so it draws inside the border rather than adding to the element's
+ * footprint, and only on the top edge — a highlight all the way round reads as
+ * a second border.
+ */
+.glass-edge {
+  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 12%);
+}
