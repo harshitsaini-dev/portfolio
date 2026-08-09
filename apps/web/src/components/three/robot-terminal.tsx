@@ -45,18 +45,48 @@ import { usePrefersReducedMotion } from "@/lib/hooks/use-prefers-reduced-motion"
  * What is left is the machine talking about the work and the person, which
  * is what a portfolio is for.
  */
-const LINES = [
-  "> booting portfolio…",
-  "> loading projects…            ok",
-  "> loading experience…          ok",
-  "> rendering the good parts",
-  "> he builds things that load fast",
-  "> and still work with a keyboard",
-  "> everything here is editable",
-  "> scroll — I'll come with you",
-  "> I respect reduced motion",
-  "> idle. waiting for input…",
-] as const;
+/**
+ * A line's tone, which decides its colour.
+ *
+ * Structured rather than a formatted string, because the owner asked for the
+ * console to be coloured and a single string cannot be. Splitting the prompt,
+ * the body and the status out means each is coloured from a token instead of
+ * the whole line sharing one muted grey — and it keeps the copy readable in
+ * source, where the alternative is markup buried in string literals.
+ */
+type LineTone = "system" | "speech";
+
+interface TerminalLine {
+  readonly text: string;
+  readonly tone: LineTone;
+  /** Printed right-aligned in the success colour when present. */
+  readonly status?: string;
+}
+
+const LINES: readonly TerminalLine[] = [
+  { text: "booting portfolio…", tone: "system" },
+  { text: "loading projects…", tone: "system", status: "ok" },
+  { text: "loading experience…", tone: "system", status: "ok" },
+  { text: "rendering the good parts", tone: "system" },
+  { text: "he builds things that load fast", tone: "speech" },
+  { text: "and still work with a keyboard", tone: "speech" },
+  { text: "everything here is editable", tone: "speech" },
+  { text: "scroll — I'll come with you", tone: "speech" },
+  { text: "I respect reduced motion", tone: "speech" },
+  { text: "idle. waiting for input…", tone: "system" },
+];
+
+/**
+ * Two levels, not a rainbow.
+ *
+ * The machine's own chatter stays quiet; the lines where it talks about the
+ * person step forward. Colouring every line differently would turn a piece of
+ * background decoration into the brightest thing on the page.
+ */
+const TONE_CLASSES: Readonly<Record<LineTone, string>> = {
+  system: "text-fg-muted",
+  speech: "text-fg",
+};
 
 /** How long each line stays before the next arrives. */
 const LINE_INTERVAL_MS = 2200;
@@ -111,14 +141,21 @@ export function RobotTerminal() {
     ? LINES.slice(0, WINDOW_SIZE).map((line, i) => ({ key: i, line }))
     : Array.from({ length: Math.min(tick + 1, WINDOW_SIZE) }, (_, offset) => {
         const index = tick - (Math.min(tick + 1, WINDOW_SIZE) - 1) + offset;
-        return { key: index, line: LINES[index % LINES.length] as string };
+        // The index is always in range because it is taken modulo the array
+        // length; the assertion tells `noUncheckedIndexedAccess` that.
+        return { key: index, line: LINES[index % LINES.length] as TerminalLine };
       });
 
   return (
     <div
       /*
-        Fixed to the bottom-left, and hidden once the footer is in view.
-        
+        Fixed to the bottom-right, and hidden once the footer is in view.
+
+        Right rather than left, on the owner's instruction. It also puts the
+        panel on the same side as the robot, so the two read as one thing —
+        the figure and the console it is talking through — instead of sitting
+        in opposite corners with the page between them.
+
         It sat over the footer before, covering the social links and the
         credit line — reported. A panel pinned to the viewport will always
         collide with whatever is at the bottom of the page, so it fades out
@@ -127,7 +164,7 @@ export function RobotTerminal() {
         
         `pointer-events-none` so it never covers a link even while visible.
       */
-      className={`pointer-events-none fixed bottom-5 left-5 z-20 hidden w-[17rem] rounded-lg border border-subtle bg-surface/90 p-3 font-mono text-[0.7rem] leading-relaxed text-fg-muted shadow-lg backdrop-blur-sm transition-opacity duration-300 lg:block sm:w-[19rem] sm:text-xs ${
+      className={`pointer-events-none fixed bottom-5 right-5 z-20 hidden w-[17rem] rounded-lg border border-subtle bg-surface/90 p-3 font-mono text-[0.7rem] leading-relaxed text-fg-muted shadow-lg backdrop-blur-sm transition-opacity duration-300 lg:block sm:w-[19rem] sm:text-xs ${
         atFooter ? "opacity-0" : "opacity-100"
       }`}
     >
@@ -152,8 +189,21 @@ export function RobotTerminal() {
         className="flex flex-col gap-0.5"
       >
         {visible.map(({ key, line }) => (
-          <p key={key} className="whitespace-pre-wrap break-words">
-            {line}
+          <p
+            key={key}
+            className={`flex items-baseline gap-2 break-words ${TONE_CLASSES[line.tone]}`}
+          >
+            {/* The prompt, in the accent. `select-none` so copying a line
+                does not drag the chrome along with the text. */}
+            <span aria-hidden="true" className="select-none text-accent">
+              &gt;
+            </span>
+            <span className="min-w-0 flex-1">{line.text}</span>
+            {line.status ? (
+              // Pushed to the right edge by the flex row rather than padded
+              // into place with spaces, which only lined up at one font size.
+              <span className="shrink-0 text-success">{line.status}</span>
+            ) : null}
           </p>
         ))}
       </div>

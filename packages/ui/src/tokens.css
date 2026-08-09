@@ -42,6 +42,13 @@
      conveyed by colour alone. */
   --danger: #b3261e;
   --danger-fg: #ffffff;
+  /* The counterpart to --danger. The set had a failure colour and no success
+     one, so anything wanting to say "done" reached for the accent, which is
+     the brand and already means "this is the action". Like --danger it is
+     contrast-checked and never the only carrier of meaning — the terminal
+     that uses it prints the word "ok" beside it. */
+  --success: #1c6b3f;
+  --success-fg: #ffffff;
 
   /* ---- Interaction ------------------------------------------------- */
   --ring: #2547d0;
@@ -85,6 +92,8 @@
 
     --danger: #f2b8b5;
     --danger-fg: #0b0c10;
+    --success: #7fd6a4;
+    --success-fg: #0b0c10;
 
     --ring: #8ea6ff;
     --selection-bg: #2a3563;
@@ -117,6 +126,8 @@
   --accent-soft: #171a27;
   --danger: #f2b8b5;
   --danger-fg: #0b0c10;
+  --success: #7fd6a4;
+  --success-fg: #0b0c10;
   --ring: #8ea6ff;
   --selection-bg: #2a3563;
   --selection-fg: #f1f2f5;

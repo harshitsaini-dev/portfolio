@@ -34,6 +34,24 @@
   --color-accent-soft: var(--accent-soft);
   --color-ring: var(--ring);
 
+  /*
+    Status colours.
+
+    `danger` was missing here, and the contact form has been asking for it
+    since Phase 11: `text-danger` and `border-danger` generated no utility at
+    all, so a validation error rendered in the ordinary foreground colour and
+    an "error" border was the same hairline as every other. Measured in the
+    browser rather than assumed — `.text-danger` computed to `--fg`.
+
+    It was never a WCAG failure, because the errors say what is wrong in words
+    and colour was never carrying the meaning alone. It was simply a style
+    that silently did nothing, which is the kind of bug that survives review.
+  */
+  --color-danger: var(--danger);
+  --color-danger-fg: var(--danger-fg);
+  --color-success: var(--success);
+  --color-success-fg: var(--success-fg);
+
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);
@@ -81,6 +99,51 @@ body {
 */
 .has-custom-cursor * {
   cursor: none !important;
+}
+
+/**
+ * The ring's inverted state, over running text.
+ *
+ * ## `backdrop-filter`, not a white disc in `difference` mode
+ *
+ * Both produce the same arithmetic — difference against white is `255 - x`,
+ * which is exactly what `invert(1)` computes — but they behave very
+ * differently while the state is *changing*.
+ *
+ * The blend version has to transition its `background-color` from transparent
+ * to white to switch on, and every frame in between is a translucent white
+ * veil laid over the text. That half-state is what made the effect look
+ * cheap: the ring appeared to flash pale before it inverted.
+ *
+ * `backdrop-filter` has no such in-between. The filter applies to whatever is
+ * behind the element, so there is no veil to pass through.
+ *
+ * ## The amount is animated, not switched
+ *
+ * `--cursor-invert` is written by the component every frame with an eased
+ * value, so the inversion ramps from 0 to 1 as the ring grows. Toggling the
+ * effect on instead left it arriving at full strength in a single frame while
+ * the ring was still moving, which read as a jump rather than a transition.
+ * The fallback of `1` only applies if the property is somehow missing, which
+ * keeps the effect working rather than silently disabling it.
+ *
+ * ## Nothing is drawn on top
+ *
+ * The fill and the border both go fully transparent. A disc that both inverts
+ * its backdrop *and* paints something of its own reads as two overlapping
+ * shapes; the inversion should be the only thing there.
+ *
+ * A browser without `backdrop-filter` support simply gets the ring it already
+ * had, which is a missing flourish rather than a broken pointer.
+ *
+ * Outside `prefers-reduced-motion` on purpose: the component does not render
+ * at all under reduced motion, so there is nothing here to guard.
+ */
+.cursor-invert {
+  background-color: transparent;
+  border-color: transparent;
+  -webkit-backdrop-filter: invert(var(--cursor-invert, 1));
+  backdrop-filter: invert(var(--cursor-invert, 1));
 }
 
 /**

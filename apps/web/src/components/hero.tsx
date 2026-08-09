@@ -150,12 +150,27 @@ export function Hero({
                 image={profile.image}
                 size={520}
                 radius="rounded-none"
-                // Sized in `rem` against the viewport rather than by the
-                // pixel value above, which only reserves the box before the
-                // bytes arrive. A cut-out is the second subject of the hero,
-                // not a thumbnail beside it, so it is given the height to
-                // read as a person.
-                className="relative h-[26rem] w-auto object-contain drop-shadow-2xl sm:h-[34rem] lg:h-[38rem]"
+                /*
+                  Sized in `rem` against the viewport rather than by the pixel
+                  value above, which only reserves the box before the bytes
+                  arrive. A cut-out is the second subject of the hero, not a
+                  thumbnail beside it, so it is given the height to read as a
+                  person.
+
+                  The mask dissolves the base into the page.
+
+                  A cut-out ends wherever the photograph was cropped, and that
+                  edge is a hard horizontal line across the torso — the one
+                  thing that gives away that a figure was pasted onto a
+                  background. Fading the bottom sixth means there is no line to
+                  notice: the figure simply stops being opaque.
+
+                  Held fully opaque to 68% so nothing above the waist is
+                  touched, and prefixed for WebKit because Safari still needs
+                  it. A browser supporting neither gets the hard edge, which is
+                  the current behaviour and never a missing photograph.
+                */
+                className="relative h-[26rem] w-auto object-contain drop-shadow-2xl [-webkit-mask-image:linear-gradient(to_bottom,black_68%,transparent_100%)] [mask-image:linear-gradient(to_bottom,black_68%,transparent_100%)] sm:h-[34rem] lg:h-[38rem]"
               />
             </div>
           ) : null}

@@ -8,6 +8,77 @@ something passed without running it.
 
 **Phase 9 — R2/media. IN PROGRESS.** Not complete.
 
+## Portrait, terminal and cursor polish (branch `feat/hero-polish`)
+
+Four owner requests, plus a real bug found along the way.
+
+### The cut-out portrait is live
+
+`photo.png` was uploaded through the admin media library — the real upload
+path, not a fixture — and set as the profile photo. 343,533 bytes, detected as
+`image/png`, served from `/media/019fe42d-…` at 768x768.
+
+Its base is now masked with a gradient so the figure dissolves into the page
+instead of ending at the hard horizontal line where the photograph was
+cropped. That line is the single thing that gives away a pasted-on cut-out.
+Opaque to 68% so nothing above the waist is touched.
+
+### The robot terminal moved to the bottom-right
+
+On instruction, and it reads better there: the panel is now on the same side
+as the robot, so the figure and the console it speaks through are one thing
+rather than two objects in opposite corners.
+
+Its lines are also structured data now rather than pre-padded strings, so each
+part can be coloured — accent prompt, muted system chatter, foreground for the
+lines about the person, and a success-coloured `ok`. The status is pushed
+right by flex rather than by spaces, which only lined up at one font size.
+
+### `--success` added, and `--danger` was never wired up on the public site
+
+The token set had a failure colour and no success one, so anything meaning
+"done" reached for the accent — which is the brand and already means "this is
+the action". `--success` is defined for both themes and contrast-checked:
+11.1:1 against the page background in dark.
+
+Adding it surfaced an existing bug. `apps/web`'s `@theme` block never mapped
+`--color-danger`, so `text-danger` and `border-danger` in the contact form
+generated no utility at all — measured in the browser, `.text-danger` computed
+to `--fg`. Validation errors have been rendering in the ordinary foreground
+colour since Phase 11. Not a WCAG failure, because the errors say what is
+wrong in words and colour was never carrying the meaning alone; it was a style
+that silently did nothing. Both `danger` and `success` are mapped now.
+
+### The cursor inverts what it is over
+
+Over running text and over links and buttons, the ring inverts its backdrop.
+
+Three corrections came out of the owner's feedback, and each had a real cause:
+
+- **Blocky pixels.** The ring was a 32px element scaled *up* to 2.6. Because
+  `will-change: transform` promotes it to its own layer, the browser
+  rasterised it once at 32px and stretched that bitmap. It is rendered at 80px
+  and scaled *down* now; shrinking a bitmap does not enlarge its pixels.
+- **`mix-blend-mode: difference` replaced by `backdrop-filter: invert()`.**
+  The arithmetic is identical, but the blend version had to transition its
+  background from transparent to white, and every frame in between was a pale
+  veil over the text.
+- **No motion between the two states.** The inversion was switched on at full
+  strength while the ring was still growing. `--cursor-invert` is written each
+  frame with an eased value, so the effect ramps with the ring.
+
+Rates were tuned twice against the owner's eye — the original finished in
+about 170ms and read as a flip, 760ms read as sluggish, and the inversion now
+settles at about 430ms. Measured: monotonic ramp, 0 to 95% in 490ms.
+
+The easing is genuinely framerate-independent now. The old comment claimed
+that above `x += (target - x) * 0.2`, which is exactly the fixed-fraction
+form it warned about; all three eased values use `1 - exp(-k·dt)`.
+
+Checks run: `pnpm lint`, `pnpm typecheck`, `pnpm test` (611/611), `pnpm build`
+— all passed. Verified in Chromium: portrait mask, terminal position and
+colours, cursor inversion over text and over links, and the ramp timing.
+
 ## Projects as a 3D slideshow (branch `feat/projects-carousel`)
 
 A coverflow-style carousel with previous/next arrows and an automatic loop, on
