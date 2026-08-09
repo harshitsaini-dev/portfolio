@@ -418,11 +418,21 @@ Every one of them is a regression test for a defect that actually shipped into
 this repository. None were written speculatively, and each was verified to fail
 against the bug it describes.
 
-## Phase 21 — Security review
+## Phase 21 — Security review — **Complete**
 
-A dedicated security pass: authorization, input validation, secrets,
-security headers, and upload/URL handling. See
-`.claude/skills/security-review`.
+A dedicated security pass: authorization, input validation, secrets, security
+headers, and upload/URL handling. See `.claude/skills/security-review`.
+
+The one gap was the one the codebase had already named: **no
+Content-Security-Policy**, deferred from Phase 1 with a note that this phase
+would add and verify it. It is now set in middleware with a per-request nonce,
+in both apps, and covered by end-to-end tests that fail when the nonce is
+removed.
+
+Everything else was already in place and the work was confirming it:
+authorization on every Server Action, an upload allowlist with per-type size
+limits, no secrets anywhere in the tree, and CI still scoped to
+`contents: read`.
 
 ## Phase 22 — Deployment
 

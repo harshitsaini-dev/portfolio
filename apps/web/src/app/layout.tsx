@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { headers } from "next/headers";
 
 import { accentCustomProperties } from "@portfolio/ui";
 
@@ -89,6 +90,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const { theme } = await getSiteContent();
 
+  // Set by `middleware.ts`. The inline theme script below is the one script on
+  // the page Next does not stamp for us, so without this the CSP blocks it and
+  // every visitor with a stored preference gets a flash of the site default.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html
       lang="en"
@@ -130,7 +136,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           value in it is a constant key and the only thing written to the DOM
           is one of two hard-coded strings behind an equality check.
         */}
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
