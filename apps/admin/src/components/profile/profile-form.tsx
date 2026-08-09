@@ -37,6 +37,7 @@ import {
 export interface ProfileFormValues {
   /** The chosen media asset id, or `""` for no photograph. */
   avatarMediaId: string;
+  xrayMediaId: string;
   fullName: string;
   headline: string;
   tagline: string;
@@ -48,6 +49,7 @@ export interface ProfileFormValues {
 
 export const emptyProfileValues: ProfileFormValues = {
   avatarMediaId: "",
+  xrayMediaId: "",
   fullName: "",
   headline: "",
   tagline: "",
@@ -255,6 +257,28 @@ export function ProfileForm({
           errors={fieldErrors.avatarMediaId}
           hint="Optional photograph shown on the public site."
           onChange={(value) => update("avatarMediaId", value)}
+        />
+
+        {/*
+          The second half of a pair.
+
+          The hero opens a circular window onto this image as the pointer
+          moves across the photograph above, so the two only work together if
+          they were shot or rendered in the same frame — same crop, same pose,
+          same size. Nothing here can check that: no validation can tell
+          whether two pictures line up, so the hint says it plainly instead.
+
+          Leaving it empty is a supported state, not an incomplete one. The
+          public site falls back to a drawn figure.
+        */}
+        <MediaPickerField
+          id={`${fieldId}-xray`}
+          label="X-ray photo"
+          value={values.xrayMediaId}
+          options={mediaOptions}
+          errors={fieldErrors.xrayMediaId}
+          hint="Optional. Revealed under the profile photo when a visitor hovers it. Use the same pose and crop as the photo above, or the two will not line up."
+          onChange={(value) => update("xrayMediaId", value)}
         />
       </section>
 

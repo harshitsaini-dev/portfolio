@@ -68,6 +68,13 @@ export interface ContentImage {
 export interface Profile {
   /** The owner's photograph, if one was chosen and described. */
   readonly image: ContentImage | null;
+  /**
+   * The portrait revealed underneath by the hero's hover window.
+   *
+   * Null is the ordinary case, and the hero falls back to a drawn figure —
+   * so this being absent costs a nicer effect, never the effect itself.
+   */
+  readonly xrayImage: ContentImage | null;
   readonly name: string;
   readonly role: string;
   readonly tagline: string;

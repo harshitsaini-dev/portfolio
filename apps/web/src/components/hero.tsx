@@ -1,8 +1,8 @@
 import { PlaceholderAction } from "@/components/placeholder-action";
 import { Container } from "@/components/ui/container";
-import { ContentImage } from "@/components/ui/content-image";
 import { SocialRow } from "@/components/ui/social-row";
 import { Typewriter } from "@/components/ui/typewriter";
+import { XrayPortrait } from "@/components/ui/xray-portrait";
 import { actionVariant } from "@/components/ui/action";
 import { type } from "@/components/ui/typography";
 import type {
@@ -146,10 +146,16 @@ export function Hero({
                 aria-hidden="true"
                 className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[24rem] w-[24rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent-soft blur-3xl sm:h-[32rem] sm:w-[32rem]"
               />
-              <ContentImage
+              {/*
+                Wrapped so a machine-view layer can be revealed around the
+                cursor — see `XrayPortrait`. The photograph itself is
+                unchanged and is what remains on touch, under reduced motion,
+                or with no JavaScript: the overlay is not rendered at all in
+                those cases rather than rendered and hidden.
+              */}
+              <XrayPortrait
                 image={profile.image}
-                size={520}
-                radius="rounded-none"
+                xrayImage={profile.xrayImage}
                 /*
                   Sized in `rem` against the viewport rather than by the pixel
                   value above, which only reserves the box before the bytes

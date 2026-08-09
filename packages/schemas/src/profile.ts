@@ -70,6 +70,15 @@ const optionalEmail = z
 export const profileSaveSchema = z
   .object({
     avatarMediaId: mediaReferenceCreate,
+    /**
+     * The portrait revealed under the avatar by the hero's hover window.
+     *
+     * Validated exactly like the avatar — same reference rules, same
+     * "" means none. The pairing between the two is a matter of what an
+     * editor uploads, not something this schema can check: no validation can
+     * tell whether two images line up.
+     */
+    xrayMediaId: mediaReferenceCreate,
     fullName: z.string().trim().min(1, "Required").max(120, "Too long"),
     headline: z.string().trim().min(1, "Required").max(160, "Too long"),
     tagline: optionalText(200),

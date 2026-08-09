@@ -8,6 +8,74 @@ something passed without running it.
 
 **Phase 9 — R2/media. IN PROGRESS.** Not complete.
 
+## X-ray portrait, and a second image the CMS owns (branch `feat/xray-portrait`)
+
+Hovering the hero portrait opens a circular window onto a robot version of the
+same figure. The pair is configured in the CMS.
+
+### Migration 0005 — `profile.xray_media_id`
+
+A second nullable media reference, `ON DELETE SET NULL` like every other one.
+A separate column rather than a variant of the avatar, because the site never
+chooses between the two — it composites one over the other, and each carries
+its own alt text. A single column plus a naming convention would put that
+relationship in a filename, where nothing could enforce it.
+
+Plumbed end to end: types, Zod schema, the profile repository's read and
+upsert, the admin form's second picker, and the public content mapper. Applied
+to the local D1 only.
+
+### The generated figure is the fallback, not the plan
+
+`RobotSkeleton` draws an endoskeleton whose every coordinate was sampled from
+the portrait's **own alpha channel** — head at y 30–195 and widest (127px) at
+y 80, shoulders opening from 157px at y 220 to 245px at y 260 — so the skull
+plate is a traced outline rather than a rounded rectangle, and it sits inside
+the face instead of on top of it. Those numbers describe *that photograph*.
+
+It is used only when no x-ray image is configured. The owner supplied one
+(`xrays.png`, 1024x1024, same pose and crop), so the site uses that.
+
+An earlier attempt showed a filtered negative of the photo instead. Wrong
+twice: a negative of a person is still a person, and the filter chain blew a
+dark navy jacket out to a flat white disc.
+
+### Three bugs, each with a real cause
+
+**`mask-composite: intersect` did not intersect.** Two mask layers on one
+element — the circular reveal and the portrait's base fade — rendered as a
+hard-edged rectangle anchored at the cursor. Reported twice as visible edges.
+Replaced with two **nested** elements, each carrying a single mask: the
+intersection then holds by construction, with no compositing keyword and much
+older browser support.
+
+**Scanlines made the boundary findable.** A regular pattern gives the eye a
+grid to notice the window's shape against, so the reveal read as a rectangle
+of texture. Dropped for the image path; the mask's falloff also widened, from
+opaque-to-55% to opaque-to-28% with a long ramp.
+
+**The window stayed open after the pointer left.** Measured: radius still at
+its full value with the pointer moved far away, which is exactly the reported
+"the whole x-ray shows at once". `pointerenter`/`pointerleave` were the cause
+and are no longer used — the pointer is tracked on `window` and whether it is
+over the portrait is recomputed **from the live rect every frame**. Geometry
+cannot get out of step with reality; events can.
+
+Verified after the fix: closed 0 → open 91.9 → closed 0 → still closed 0. And
+approaching from the top-right, the radius ramps 0 → 14 → 46 → 72 → 92 over
+about 800ms and never exceeds 92.
+
+The radius itself dropped from 130 to 92: the portrait renders into a 520px
+box, so 130 was a 260px window — half the image — with nothing much left
+outside it to look through.
+
+The `requestAnimationFrame` loop also stops once the window is shut, rather
+than running for the life of the page.
+
+Checks run: `pnpm lint`, `pnpm typecheck`, `pnpm test` (611/611), `pnpm build`
+— all passed. Verified in Chromium: the CMS saves and reloads both images,
+the reveal tracks the pointer exactly, and the open/close behaviour above.
+
 ## Public theme toggle (branch `feat/public-theme-toggle`)
 
 A light/dark control in the public site's header, top right, on the owner's

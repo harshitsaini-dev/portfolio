@@ -147,6 +147,7 @@ function toProfile(
     return {
       image: null,
       name: "Portfolio",
+      xrayImage: null,
       role: "Not set up yet",
       tagline: "This site has no profile yet. Add one from the admin CMS.",
       introduction: [],
@@ -157,6 +158,7 @@ function toProfile(
 
   return {
     image: toImage(assets, row.avatarMediaId),
+    xrayImage: toImage(assets, row.xrayMediaId),
     name: row.fullName,
     role: row.headline,
     tagline: row.tagline ?? "",
