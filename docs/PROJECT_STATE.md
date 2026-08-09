@@ -8,6 +8,66 @@ something passed without running it.
 
 **Phase 9 — R2/media. IN PROGRESS.** Not complete.
 
+## The robot's lines are CMS content (branch `feat/robot-lines-cms`)
+
+The sentences the hero's robot says were hard-coded in the component, which
+put editorial copy in a React file — the thing this project's "content is
+data-driven, never hardcoded in UI" rule exists to prevent. The owner asked to
+add and remove them from the CMS, which is that rule arriving as a request.
+
+### The slice
+
+Migration 0007 adds `robot_lines` — deliberately the plainest table in the
+schema: a sentence, an order and a visibility flag. No category, no weight, no
+scheduling, because none is needed to say a sentence and every speculative
+column is one more thing to keep true. `position` and `is_visible` follow the
+same convention as `tools` and `socials`, so the shared ordered-repository
+helper and the admin's list conventions apply without a special case.
+
+Plumbed end to end: types, Zod create/update pair, repository, three Server
+Actions, list/new/edit admin routes, delete confirmation, nav entry, and the
+public read. The 20 lines previously in the component are seeded by the
+migration, so behaviour after it is what it was before — with the difference
+that it is now editable.
+
+### What stays in code, and why
+
+The **greeting** is not a row. It is chosen from the clock in India and has to
+be computed: a stored row saying "good morning" would be wrong for most of the
+day. The component composes it with the CMS lines at the moment it picks one.
+
+The public site receives plain strings rather than records — the bubble needs
+the text and nothing else, and handing a decorative component ids and
+timestamps gives it things it has no business knowing.
+
+### The tests caught two things
+
+**The migrations smoke test failed on the new table.** It asserts the exact
+set of tables rather than a minimum, so a new one is a deliberate decision
+someone has to record. Working as intended.
+
+**The action-auth suite would not have covered these actions at all.** It
+imports each module by name, so a new entity is only guarded if somebody
+remembers to add a block — and this project has already shipped that exact
+gap once, when the protected-page invariant matched `page.*` only and the
+first `route.ts` went unguarded.
+
+So there is now a **coverage invariant** that reads the actions directory,
+imports every module, and requires every exported `*Action` to throw
+`AdminUnauthorizedError` on an unauthenticated call with an empty form — empty
+because authorization must be checked *before* validation, so an action that
+validates first returns instead of throwing, which is the bug it catches. A
+new entity is covered the moment its file exists.
+
+Verified against the broken state rather than assumed: removing
+`requireAdminIdentity()` from one action made the sweep fail with two named
+failures; restoring it returned 695/695.
+
+Checks run: `pnpm lint`, `pnpm typecheck`, `pnpm test` (695/695, up from 611),
+`pnpm build` — all passed. Verified in Chromium: create, edit and delete
+through the admin, with a new line reaching the public site's HTML and
+disappearing again after deletion.
+
 ## The hooded robot, rebuilt by hand (branch `feat/robot-rebuild`)
 
 The supplied glTF model was dropped at the owner's request, so the hero's

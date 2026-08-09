@@ -37,7 +37,7 @@
 
 import { spawnSync } from "node:child_process";
 import { createRequire, registerHooks } from "node:module";
-import { mkdtempSync, rmSync, existsSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1737,6 +1737,73 @@ try {
 
   // =========================================================================
   startGroup("A forged Access assertion is also rejected");
+
+  // =========================================================================
+  // Coverage invariant: EVERY action module, discovered rather than listed
+  //
+  // The blocks above name their modules explicitly, which is right — each
+  // asserts entity-specific things about what survived an unauthenticated
+  // attempt. But an explicit list only covers what somebody remembered to
+  // add, and this project has already been bitten by exactly that shape of
+  // gap: the protected-page invariant matched `page.*` only, so the first
+  // `route.ts` shipped unguarded.
+  //
+  // So this sweep reads the actions directory, imports every module, and
+  // requires that every exported `*Action` rejects an unauthenticated call.
+  // A new entity is covered the moment its file exists, without anybody
+  // remembering to come back here.
+  //
+  // It is a floor, not a replacement: it proves the guard is present, while
+  // the blocks above prove nothing was written when it fired.
+  // =========================================================================
+  startGroup("Every action module refuses unauthenticated callers");
+
+  clearAuthEnvironment();
+
+  const actionsDir = resolve(scriptDir, "../src/lib/actions");
+  const moduleFiles = readdirSync(actionsDir)
+    .filter((name) => name.endsWith(".ts"))
+    // `result.ts` and `contact-state.ts` are shared helpers, not endpoints.
+    .filter((name) => name !== "result.ts");
+
+  check(
+    "the actions directory was found and is not empty",
+    moduleFiles.length > 0,
+    `found ${moduleFiles.length}`,
+  );
+
+  let sweptActions = 0;
+  for (const file of moduleFiles) {
+    const moduleUnderTest = await import(`../src/lib/actions/${file}`);
+    for (const [exportName, exported] of Object.entries(moduleUnderTest)) {
+      // Server Actions in this codebase are named `<verb><Entity>Action`.
+      if (typeof exported !== "function" || !exportName.endsWith("Action")) {
+        continue;
+      }
+      sweptActions += 1;
+      // An empty form is deliberate: authorization is checked before
+      // validation, so a guarded action must throw on the guard rather than
+      // return a validation result. An action that validates first would
+      // return instead of throwing, and that is the bug this catches.
+      const attempt = await invoke(exported, new FormData());
+      equal(
+        `${file}: ${exportName} throws rather than returning`,
+        attempt.kind,
+        "threw",
+      );
+      equal(
+        `${file}: ${exportName} throws AdminUnauthorizedError`,
+        attempt.error?.name,
+        "AdminUnauthorizedError",
+      );
+    }
+  }
+
+  check(
+    "the sweep actually exercised a plausible number of actions",
+    sweptActions >= 30,
+    `swept ${sweptActions}`,
+  );
 
   // With Access configured, a caller supplying a self-signed or junk
   // assertion must be denied — and must NOT silently fall through to the

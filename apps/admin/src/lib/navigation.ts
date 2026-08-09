@@ -61,6 +61,10 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
       // visibility. Each row carries a stable `key` the site maps to a
       // component; the CMS manages the rows, not the components.
       { label: "Sections", href: "/sections" },
+      // Grouped with content rather than with settings: the on/off switch
+      // is a setting, but the sentences themselves are copy, and copy is
+      // edited where the rest of the copy is.
+      { label: "Robot lines", href: "/robot-lines" },
     ],
   },
   {

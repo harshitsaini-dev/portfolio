@@ -1,6 +1,6 @@
 ﻿/**
  * Ordered content repositories: social links, education, certifications,
- * tools, and sections.
+ * tools, sections, and the robot's lines.
  *
  * Each declares its own columns, decoder, insert bindings, and patch
  * allowlist, then delegates the shared CRUD plumbing to
@@ -22,6 +22,9 @@ import type {
   SocialLink,
   SocialLinkCreate,
   SocialLinkUpdate,
+  RobotLine,
+  RobotLineCreate,
+  RobotLineUpdate,
   Tool,
   ToolCreate,
   ToolUpdate,
@@ -407,4 +410,59 @@ export function createSectionRepository(
       }
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Robot lines
+// ---------------------------------------------------------------------------
+
+export type RobotLineRepository = OrderedRepository<
+  RobotLine,
+  RobotLineCreate,
+  RobotLineUpdate
+>;
+
+/**
+ * The sentences the hero's robot says.
+ *
+ * The simplest entry in this module: no media reference, no URL, no unique
+ * constraint. Two lines may legitimately be identical — an editor writing the
+ * same joke twice is their business, not the database's.
+ */
+export function createRobotLineRepository(
+  db: D1Like,
+  runtime: RepositoryRuntime,
+): RobotLineRepository {
+  const entity = "robot line";
+  return createOrderedRepository<RobotLine, RobotLineCreate, RobotLineUpdate>(
+    db,
+    runtime,
+    {
+      entity,
+      table: "robot_lines",
+      columns: "id, text, position, is_visible, created_at, updated_at",
+      decode: (row): RobotLine => ({
+        id: requireString(entity, row, "id"),
+        text: requireString(entity, row, "text"),
+        position: requireNumber(entity, row, "position"),
+        isVisible: requireBoolean(entity, row, "is_visible"),
+        createdAt: requireString(entity, row, "created_at"),
+        updatedAt: requireString(entity, row, "updated_at"),
+      }),
+      insertColumns: ["text", "position", "is_visible"],
+      insertValues: (input) => [
+        input.text,
+        input.position ?? 0,
+        boolToInt(input.isVisible ?? true),
+      ],
+      patch: {
+        text: { column: "text", encode: (p) => p.text },
+        position: { column: "position", encode: (p) => p.position },
+        isVisible: {
+          column: "is_visible",
+          encode: (p) => boolToInt(p.isVisible ?? true),
+        },
+      },
+    },
+  );
 }

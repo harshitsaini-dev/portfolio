@@ -162,6 +162,7 @@ const EXPECTED_TABLES = [
   "project_technologies",
   "projects",
   "resumes",
+  "robot_lines",
   "scene_settings",
   "sections",
   "site_settings",

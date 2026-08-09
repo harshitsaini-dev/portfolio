@@ -17,11 +17,13 @@ import {
   createEducationRepository,
   createSectionRepository,
   createSocialLinkRepository,
+  createRobotLineRepository,
   createToolRepository,
   type CertificationRepository,
   type EducationRepository,
   type SectionRepository,
   type SocialLinkRepository,
+  type RobotLineRepository,
   type ToolRepository,
 } from "./repositories/content.ts";
 import {
@@ -74,6 +76,8 @@ export interface Repositories {
   readonly certifications: CertificationRepository;
   readonly skills: SkillsRepository;
   readonly tools: ToolRepository;
+  /** The sentences the hero's robot says. */
+  readonly robotLines: RobotLineRepository;
   readonly sections: SectionRepository;
   readonly siteSettings: SiteSettingsRepository;
   readonly sceneSettings: SceneSettingsRepository;
@@ -109,6 +113,7 @@ export function createRepositories(
     certifications: createCertificationRepository(db, runtime),
     skills: createSkillsRepository(db, runtime),
     tools: createToolRepository(db, runtime),
+    robotLines: createRobotLineRepository(db, runtime),
     sections: createSectionRepository(db, runtime),
     siteSettings: createSiteSettingsRepository(db, runtime),
     sceneSettings: createSceneSettingsRepository(db, runtime),

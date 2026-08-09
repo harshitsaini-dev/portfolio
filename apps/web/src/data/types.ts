@@ -242,6 +242,14 @@ export interface SiteContent {
   readonly certifications: readonly Certification[];
   readonly skillCategories: readonly SkillCategory[];
   readonly tools: readonly Tool[];
+  /**
+   * What the hero's robot can say, in display order.
+   *
+   * Strings rather than records: the bubble needs the text and nothing
+   * else. The time-of-day greeting is not in here — it is computed from the
+   * clock in India and cannot be stored.
+   */
+  readonly robotLines: readonly string[];
   readonly contact: ContactCallToAction;
   readonly footerNote: string;
 }

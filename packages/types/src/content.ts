@@ -531,6 +531,36 @@ export interface ToolCreate {
 export type ToolUpdate = Partial<ToolCreate>;
 
 // ---------------------------------------------------------------------------
+// Robot lines
+// ---------------------------------------------------------------------------
+
+/**
+ * One thing the hero's robot can say.
+ *
+ * The plainest entity in the schema on purpose: a sentence, an order and a
+ * visibility flag. No category, no weight, no scheduling — none of which is
+ * needed to say a sentence, and every speculative field is one more thing to
+ * keep true.
+ *
+ * The time-of-day greeting is deliberately **not** one of these. It has to be
+ * computed from the clock in India, and a stored row saying "good morning"
+ * would be wrong for most of the day.
+ */
+export interface RobotLine extends EntityMeta {
+  readonly text: string;
+  readonly position: number;
+  readonly isVisible: boolean;
+}
+
+export interface RobotLineCreate {
+  readonly text: string;
+  readonly position?: number;
+  readonly isVisible?: boolean;
+}
+
+export type RobotLineUpdate = Partial<RobotLineCreate>;
+
+// ---------------------------------------------------------------------------
 // Sections
 // ---------------------------------------------------------------------------
 
