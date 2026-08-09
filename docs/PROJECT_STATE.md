@@ -6,7 +6,7 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 18 — Accessibility. Complete.**
+**Phase 19 — Performance. Complete.**
 
 Phase 9 is code complete with provisioning outstanding (below). Phases 10-16
 are complete: 10-14 were built during the polish work and their roadmap
@@ -19,6 +19,93 @@ All seven slices are merged. What remains is **not code**: no R2 bucket
 exists, no bucket binding is in any committed config, and creating them is a
 human action — see `docs/DEPLOYMENT.md`. Everything runs against miniflare's
 local simulation until then.
+
+## Phase 19 — performance (branch `feat/performance-pass`)
+
+### Production numbers had to come off disk
+
+`next start` cannot run here: there is no D1 binding outside Wrangler, and the
+seam fails closed by design, so the server starts and every route throws
+`DatabaseUnavailableError`. That is the seam working, not a fault.
+
+So the byte counts below are read from `.next/static` after a real production
+build — those are genuine minified production numbers — and runtime behaviour
+is measured against the dev server, where absolute timings are dominated by
+compile time and only *relative* measurements mean anything.
+
+### The 3D bundle is 872 KB and it is genuinely not downloaded
+
+Three.js and R3F are 872 KB of a 1798 KB static JS total — half of everything.
+`hero-scene-mount.tsx` already loads it through `dynamic(..., { ssr: false })`
+behind four gates: the CMS enable flag, `prefers-reduced-motion`, a small-screen
+check, and an actual WebGL context probe.
+
+The work here was proving the gates hold, because this is exactly the kind of
+thing that regresses silently — a stray eager import in the module graph and the
+chunk ships to everyone with nothing visibly different.
+
+Measured requests for three/fiber/drei chunks on the home page:
+
+| case | three chunks | canvases |
+| --- | --- | --- |
+| desktop, normal | 5 | 1 |
+| desktop, reduced motion | **0** | 0 |
+| small viewport | **0** | 0 |
+
+The canvas count matching the chunk count is the part that matters: the bundle
+arrives exactly when something renders it, and never otherwise.
+
+### The LCP image was lazy-loaded
+
+The one real defect. The hero portrait is the largest thing painted above the
+fold, so it decides LCP — and it carried `loading="lazy"`, which defers an image
+until layout is known and drops its priority.
+
+`ContentImage` gained an opt-in `priority` prop (`loading="eager"` plus
+`fetchPriority="high"`), passed only by the base portrait. Deliberately opt-in:
+a page where several images claim priority has no priority at all.
+
+Proving it needed care. The raw request-start time was useless — 3659ms on one
+run and 5649ms on the next, because the dev server's compile time swamps
+everything and varies per run. Measuring the *gap* between the HTML response
+finishing and the image being requested cancels compile time out, and that is
+stable:
+
+- **lazy (baseline):** 8, 8, 11, 7 ms
+- **eager + high:** 4, 4, 3, 4 ms
+
+Non-overlapping — the slowest prioritised run beats the fastest lazy one. On
+localhost with no contention 4ms is not the point; the point is where the
+request sits in the queue against thirty other requests on a real connection.
+
+### Layout stability is already good
+
+CLS 0.0084 at 1440 and 0.0016 at 390 — well inside the 0.1 threshold. The
+`width`/`height` attributes `ContentImage` writes are doing their job.
+
+### The x-ray portrait is gated too
+
+The second-largest asset, 828 KB, is the x-ray overlay. Verified it is not
+loaded when the effect does not run: under reduced motion the `.xray-window`
+layer is absent and the page loads one fewer media image.
+
+Worth recording, because an earlier reading looked alarming and was an artifact:
+"a phone downloads 2101 KB, more than the desktop's 1273 KB". Playwright reports
+a *fine pointer* at a 390px viewport, so `(hover: hover) and (pointer: fine)`
+matched and the overlay rendered. A real touch device fails that query and never
+loads it.
+
+### Left open, deliberately
+
+`/media/[id]` serves originals with no size variants. The portrait is 828 KB and
+renders into a ~340px box on a phone; the base portrait is another 335 KB. This
+is the largest remaining win on the site and it is **not** an oversight —
+`ContentImage` documents why it is a plain `<img>` rather than `next/image`
+(routing R2 bytes back through the optimizer inside the same Worker) and names
+Phase 22, when image serving is actually decided, as the point to revisit.
+
+Checks run: `pnpm lint`, `pnpm typecheck`, `pnpm test` (703/703 admin, 243/243,
+181/181, 83/83), `pnpm build` — all passed.
 
 ## Phase 18 — accessibility pass (branch `feat/accessibility-pass`)
 

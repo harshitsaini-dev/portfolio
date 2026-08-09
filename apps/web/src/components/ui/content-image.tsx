@@ -33,6 +33,7 @@ export function ContentImage({
   size = 40,
   fluid = false,
   decorative = false,
+  priority = false,
   sizing = "fixed",
   radius = "rounded-md",
   className = "",
@@ -44,6 +45,20 @@ export function ContentImage({
   fluid?: boolean;
   /** True when adjacent text already conveys the same information. */
   decorative?: boolean;
+  /**
+   * Above the fold, and worth fetching before anything else.
+   *
+   * `loading="lazy"` is right for almost every image here and wrong for
+   * exactly one: the hero portrait, which is the largest thing painted and so
+   * decides LCP. Lazy defers it until layout is known and drops its priority,
+   * and it showed — the request did not start until 3.7s, behind the whole
+   * bundle. This flips it to eager with a high fetch priority.
+   *
+   * Deliberately opt-in. A page where several images claim priority has no
+   * priority at all, so the default stays lazy and a caller has to say that
+   * this one image is the one that matters.
+   */
+  priority?: boolean;
   /**
    * Who decides the rendered size.
    *
@@ -105,7 +120,11 @@ export function ContentImage({
             ? `max-w-full shrink-0 object-contain ${radius} ${className}`
             : `max-w-none shrink-0 object-contain ${radius} ${className}`
       }
-      loading="lazy"
+      loading={priority ? "eager" : "lazy"}
+      fetchPriority={priority ? "high" : undefined}
+      // `async` even when prioritised: it controls whether decoding blocks the
+      // main thread, which is a separate question from when the bytes are
+      // asked for, and blocking never helps.
       decoding="async"
     />
   );

@@ -227,6 +227,10 @@ export function XrayPortrait({
         size={520}
         radius="rounded-none"
         sizing="css"
+        // The largest thing painted above the fold, so it decides LCP. Only
+        // this one — the x-ray layer below is an overlay nobody sees until
+        // they point at it, and two priority images are no priority at all.
+        priority
         className={className}
       />
 
