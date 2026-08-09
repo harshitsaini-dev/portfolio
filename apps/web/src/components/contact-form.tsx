@@ -101,7 +101,10 @@ export function ContactForm() {
   }
 
   return (
-    <form action={formAction} className="flex max-w-md flex-col gap-3">
+    // Fills its column rather than capping at `max-w-md`. The cap existed to
+    // stop the fields stretching across a full-width panel; the section now
+    // gives this a column of its own, so the cap only left dead space.
+    <form action={formAction} className="flex w-full flex-col gap-3">
       <input ref={startedAtRef} type="hidden" name="startedAt" defaultValue="" />
 
       {/* The honeypot. See the module comment for why it is positioned
@@ -136,9 +139,14 @@ export function ContactForm() {
         {state.status === "error" ? state.message : ""}
       </p>
 
-      {/* Name and email share a row from `sm` up: two short fields stacked
-          made the form twice as tall as it needed to be. */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      {/* Name and email share a row from `lg` up: two short fields stacked
+          made the form taller than it needed to be.
+
+          `lg` rather than `sm`, because the form now sits in a column beside
+          the section's copy from `md` up. Splitting at `sm` would put two
+          inputs into a ~340px column at 768px wide, which is narrow enough
+          that neither placeholder fits. */}
+      <div className="grid gap-4 lg:grid-cols-2">
       <div className="flex flex-col gap-1.5">
         {/*
           The label is visually hidden and the placeholder carries the visible
@@ -225,7 +233,7 @@ export function ContactForm() {
             fieldErrors.body ? `${fieldId}-body-error` : undefined
           }
           aria-invalid={fieldErrors.body ? true : undefined}
-          className={`${fieldClasses} min-h-32`}
+          className={`${fieldClasses} min-h-28`}
         />
         <FieldError id={`${fieldId}-body-error`} errors={fieldErrors.body} />
       </div>
