@@ -63,3 +63,9 @@ apps/*/CLAUDE.md
 
 # Misc
 *.local
+
+# Personal Windows dev-server helpers (START/STOP/RESTART). Machine-local
+# conveniences, not project tooling — deploy.sh is the committed entry point.
+/START.BAT
+/STOP.BAT
+/RESTART.BAT
