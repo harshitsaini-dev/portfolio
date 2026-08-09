@@ -392,9 +392,19 @@ It found one defect that no static review would have: an explicit **light**
 choice did nothing on a machine whose OS prefers dark. The toggle was broken
 in exactly the case it exists for.
 
-## Phase 19 — Performance
+## Phase 19 — Performance — **Complete**
 
-Performance profiling and optimization, including 3D and asset budgets.
+Performance profiling, including 3D and asset budgets.
+
+Most of it was already right and the work was proving it: Three.js is 872 KB
+of the 1.8 MB static bundle and it is genuinely not downloaded when it will not
+render. One real defect — the hero portrait, the LCP element, was
+`loading="lazy"`.
+
+One item is deliberately **left open**: `/media/[id]` serves originals with no
+size variants, so a phone downloads a full-resolution portrait for a ~340px
+box. That is the plain-`<img>` decision recorded in `ContentImage`, which
+already names Phase 22 as the point to revisit it.
 
 ## Phase 20 — Automated/MCP testing
 
