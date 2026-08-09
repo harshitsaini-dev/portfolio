@@ -10,6 +10,7 @@ import { RobotTerminal } from "@/components/three/robot-terminal";
 import { HeroSceneMount } from "@/components/three/hero-scene-mount";
 import { CustomCursor } from "@/components/ui/custom-cursor";
 import { Preloader } from "@/components/ui/preloader";
+import { SmoothScroll } from "@/components/ui/smooth-scroll";
 import { SkillsSection } from "@/components/skills-section";
 import { getSiteContent } from "@/lib/content/site-content";
 
@@ -69,6 +70,7 @@ export default async function Home() {
         JavaScript never sees it.
       */}
       <Preloader />
+      <SmoothScroll />
 
       <SiteHeader siteName={content.siteName} navigation={content.navigation} />
 

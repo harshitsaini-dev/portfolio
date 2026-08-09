@@ -86,11 +86,17 @@ body {
 /**
  * Smooth scrolling, and the padding an anchor needs because of it.
  *
- * Native `scroll-behavior` rather than a smooth-scroll library: a library
- * takes over the scroll position, which breaks the browser's own restoration
- * on back-navigation, fights trackpad momentum, and — most relevant here —
- * breaks CSS scroll-driven animations, which read the *real* scroll position
- * the library has stopped updating.
+ * `scroll-behavior: smooth` covers *programmatic* scrolls — following an
+ * anchor, calling `scrollTo`. Wheel and trackpad smoothing is a separate
+ * concern handled by `SmoothScroll`, because the browser applies those
+ * gestures directly and no stylesheet can change how they feel.
+ *
+ * An earlier version of this comment claimed that any smooth-scroll library
+ * breaks CSS scroll-driven animations. That was too broad. It is true of
+ * libraries that fake scrolling by translating a container — the document's
+ * real scroll position never moves, so `animation-timeline: view()` has
+ * nothing to read — but not of one that drives the window's actual scroll
+ * position, which is what is used here.
  *
  * `scroll-padding-top` keeps a section from landing under the sticky header
  * when its anchor is followed. 5rem is the header's height plus a little air.
