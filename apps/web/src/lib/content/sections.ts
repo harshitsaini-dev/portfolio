@@ -35,6 +35,7 @@ export const SECTION_KEYS = [
   "experience",
   "education",
   "skills",
+  "playground",
   "contact",
 ] as const;
 
@@ -107,6 +108,13 @@ const DEFAULTS: Record<SectionKey, SectionCopy> = {
     title: "Skills & tools",
     navLabel: "Skills",
     marker: "\u{1F9E0}",
+  },
+  playground: {
+    key: "playground",
+    eyebrow: "Interactive",
+    title: "Contribution playground",
+    navLabel: "Playground",
+    marker: "\u{1F3AE}",
   },
   contact: {
     key: "contact",
