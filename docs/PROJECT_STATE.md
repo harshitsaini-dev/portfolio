@@ -8,6 +8,66 @@ something passed without running it.
 
 **Phase 9 — R2/media. IN PROGRESS.** Not complete.
 
+## Projects as a 3D slideshow (branch `feat/projects-carousel`)
+
+A coverflow-style carousel with previous/next arrows and an automatic loop, on
+the owner's request. The cards are unchanged — `ProjectCard` moved out of
+`projects-section.tsx` so the grid and the carousel render the same component.
+
+### It can only ever add
+
+Three conditions gate the arrangement: JavaScript is running, motion is
+welcome, and the viewport is at least `48rem`. Fail any one and the markup is
+the two-column grid it has always been — full list, no `inert`, no arrows.
+Verified with Chromium's reduced-motion emulation: plain grid, 4 cards, 0
+inert, 0 arrows.
+
+That direction matters. The initial state is "everything visible" and the
+carousel is what takes things away, so a carousel that never starts strands
+nothing.
+
+### The JS breakpoint has to match the CSS one
+
+A real bug, caught before merge. The CSS declined to stack below `48rem`, but
+the component still marked non-active cards `inert` at any width. On a phone
+that gave four visible cards of which three had dead links and were skipped by
+screen readers — worse than either arrangement alone. `useMediaQuery` now gates
+the behaviour on the same query the stylesheet uses; the constant carries a
+comment saying they must stay in step.
+
+### Pause-on-hover was so large it read as broken
+
+Reported by the owner as the slides not auto-advancing. They were not: the
+pointer handlers were on the wrapper, which spans the full section width and
+the whole 34rem stage, so a mouse resting anywhere near the projects held the
+loop indefinitely.
+
+Pointer pausing now belongs to the active card (about 448px of a 1072px stage)
+and the controls. Focus pausing stayed on the wrapper, where it cannot misfire
+because focus only ever lands on a control or a link inside the active card.
+
+Measured after the fix: pointer inside the stage but off the card advanced
+1→2 across 7s; pointer on the card held at 2 across 8s.
+
+### Measurements, after several wrong readings
+
+Position was settled by measurement, and three intermediate screenshots were
+misread first — two were captured mid-transition, and `page.goto` to a
+URL differing only by its hash does not reload, so one showed stale component
+state. The settled numbers at 1440px: active 491→939, neighbours 92→486 and
+944→1337, no overlap.
+
+`overflow: hidden` on the stage is a correctness fix rather than a style
+choice — the slide at offset +2 reached x=1627 against a 1440px viewport, and
+a slide at zero opacity still occupies its position. The owner then reported
+the resulting edges as too strong, so a `mask-image` gradient fades the outer
+15% at each side instead of slicing there.
+
+Checks run: `pnpm lint`, `pnpm typecheck`, `pnpm test` (611/611), `pnpm build`
+— all passed. Verified in Chromium: arrows, `ArrowLeft`/`ArrowRight`, wrap in
+both directions (4→1 and 1→4), autoplay, pause behaviour, reduced-motion
+fallback, and no horizontal overflow at 1440px.
+
 ## Contact section made smaller (branch `feat/contact-compact`)
 
 The owner reported the Get in touch section taking up too much area. The form
