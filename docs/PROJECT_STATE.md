@@ -8,6 +8,36 @@ something passed without running it.
 
 **Phase 9 — R2/media. IN PROGRESS.** Not complete.
 
+## Contact section made smaller (branch `feat/contact-compact`)
+
+The owner reported the Get in touch section taking up too much area. The form
+itself was already compact; the layout around it was not.
+
+`ContactForm` was `max-w-md` inside a `max-w-2xl` panel, so it left an empty
+column down its right-hand side, and the section's copy sat *above* the form
+rather than beside it — paying for the same width twice and stacking the two
+heights. The panel now puts the copy and the form in two columns from `md` up,
+and the form fills its column.
+
+Measured in Chromium at 1440x900: the panel went from **895x360** to
+**768x338**, about 19% less area. No control was shrunk — every field keeps its
+`min-h-11` target — and the section is the same at 390px wide, where it stacks
+copy-first.
+
+Two smaller corrections went with it:
+
+- The name/email pair splits at `lg`, not `sm`. From `md` the form lives in a
+  narrower column, and splitting at `sm` put two inputs into roughly 340px at a
+  768px viewport, too narrow for either placeholder.
+- The panel passes `padded={false}` and supplies its own padding. Leaving the
+  default on put `p-5 sm:p-6` and `p-6 sm:p-7` in one class list, and Tailwind
+  resolves that by stylesheet order rather than attribute order — so which
+  padding won was incidental rather than chosen.
+
+Checks run: `pnpm lint`, `pnpm typecheck`, `pnpm test` (611/611), `pnpm build`
+— all passed. Layout verified in Chromium via Playwright at 1440x900 and
+390x844; no horizontal overflow at either.
+
 ## Phase 12 — motion (branch `feat/motion`)
 
 Scroll reveals and hover polish, built on **CSS scroll-driven animations**
