@@ -83,7 +83,12 @@ export function SiteNavMenu({
       <dialog
         ref={dialogRef}
         aria-label="Sections"
-        className="m-0 ml-auto h-full max-h-none w-[17rem] max-w-[85vw] border-l border-subtle bg-bg p-0 text-fg backdrop:bg-black/40 md:hidden"
+        // `nav-drawer` carries the slide-in. It has to be CSS rather than a
+        // class toggled here: a modal `<dialog>` goes from `display: none` to
+        // the top layer in one step, so there is no frame for a transition to
+        // start from — which is why it appeared fully open with no motion. See
+        // `globals.css`, where `@starting-style` supplies that first frame.
+        className="nav-drawer m-0 ml-auto h-full max-h-none w-[17rem] max-w-[85vw] border-l border-subtle bg-bg p-0 text-fg backdrop:bg-black/40 md:hidden"
       >
         <div className="flex h-full flex-col gap-6 overflow-y-auto p-5">
           <div className="flex items-center justify-end">

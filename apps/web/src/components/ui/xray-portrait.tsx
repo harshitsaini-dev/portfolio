@@ -216,13 +216,17 @@ export function XrayPortrait({
   }, [enabled]);
 
   return (
-    <div ref={hostRef} className="relative">
+    // `portrait-fade` masks the host, so the photograph and the x-ray overlay
+    // dissolve into the page together at the bottom. Putting it on the overlay
+    // alone left the cut-out itself ending at a hard horizontal edge.
+    <div ref={hostRef} className="portrait-fade relative">
       {/* The photograph. The real content, with the real alt text, and it is
           what remains if everything below never runs. */}
       <ContentImage
         image={image}
         size={520}
         radius="rounded-none"
+        sizing="css"
         className={className}
       />
 
@@ -267,6 +271,7 @@ export function XrayPortrait({
               image={xrayImage}
               size={520}
               radius="rounded-none"
+              sizing="css"
               decorative
               className={className}
             />

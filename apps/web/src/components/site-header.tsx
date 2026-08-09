@@ -32,7 +32,12 @@ export function SiteHeader({ siteName, navigation }: SiteHeaderProps) {
       <Container className="flex h-16 items-center justify-between gap-4">
         <Link
           href="/"
-          className="text-sm font-semibold tracking-tight text-fg transition-colors duration-150 hover:text-accent"
+          // `min-h-11` rather than padding: the brand measured 81x20 on a
+          // phone, and a 20px-tall home link is a target you miss. It is not
+          // inline text in a sentence, so the WCAG 2.5.8 inline exception does
+          // not cover it. The header row is already `h-16`, so growing the
+          // link's box costs no layout.
+          className="flex min-h-11 items-center text-sm font-semibold tracking-tight text-fg transition-colors duration-150 hover:text-accent"
         >
           {siteName}
         </Link>

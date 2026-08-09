@@ -41,7 +41,7 @@ export function SocialRow({
               // site's URL out of its logs.
               target="_blank"
               rel="noopener noreferrer me"
-              className={`inline-flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors duration-150 ${actionVariant.quiet}`}
+              className={`inline-flex min-h-11 min-w-11 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors duration-150 ${actionVariant.quiet}`}
             >
               {social.image ? (
                 <ContentImage image={social.image} size={18} decorative />
