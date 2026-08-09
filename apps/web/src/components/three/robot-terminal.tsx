@@ -74,7 +74,22 @@ export function RobotTerminal() {
   // keeps rolling rather than stopping on the final line — a console that
   // freezes reads as one that crashed.
   const [tick, setTick] = useState(0);
+  const [atFooter, setAtFooter] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Watches the footer rather than a scroll offset: the page's height changes
+  // with its content, so any fixed threshold would be wrong on a different
+  // amount of content.
+  useEffect(() => {
+    const footer = document.querySelector("footer");
+    if (!footer) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setAtFooter(Boolean(entry?.isIntersecting)),
+      { rootMargin: "0px 0px -10% 0px" },
+    );
+    observer.observe(footer);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (reducedMotion) return;
@@ -101,9 +116,20 @@ export function RobotTerminal() {
 
   return (
     <div
-      // Positioned by the parent. `pointer-events-none` so it never covers a
-      // link, even though it sits over the page.
-      className="pointer-events-none w-[17rem] rounded-lg border border-subtle bg-surface/90 p-3 font-mono text-[0.7rem] leading-relaxed text-fg-muted shadow-lg backdrop-blur-sm sm:w-[19rem] sm:text-xs"
+      /*
+        Fixed to the bottom-left, and hidden once the footer is in view.
+        
+        It sat over the footer before, covering the social links and the
+        credit line — reported. A panel pinned to the viewport will always
+        collide with whatever is at the bottom of the page, so it fades out
+        when the footer arrives rather than being nudged upward, which would
+        only move the collision somewhere else.
+        
+        `pointer-events-none` so it never covers a link even while visible.
+      */
+      className={`pointer-events-none fixed bottom-5 left-5 z-20 hidden w-[17rem] rounded-lg border border-subtle bg-surface/90 p-3 font-mono text-[0.7rem] leading-relaxed text-fg-muted shadow-lg backdrop-blur-sm transition-opacity duration-300 lg:block sm:w-[19rem] sm:text-xs ${
+        atFooter ? "opacity-0" : "opacity-100"
+      }`}
     >
       {/* The window chrome. Decorative — three dots say "terminal" to a
           sighted visitor and nothing at all to a screen reader. */}

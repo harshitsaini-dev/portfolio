@@ -57,9 +57,7 @@ export default async function Home() {
         scene is allowed, because it is the scene's narration.
       */}
       {content.scene.isEnabled ? (
-        <div className="pointer-events-none fixed bottom-5 left-5 z-20 hidden lg:block">
-          <RobotTerminal />
-        </div>
+        <RobotTerminal />
       ) : null}
 
       <CustomCursor />

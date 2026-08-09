@@ -39,7 +39,7 @@ import { actionVariant } from "@/components/ui/action";
 import { type } from "@/components/ui/typography";
 
 const fieldClasses =
-  "min-h-11 w-full rounded-md border border-strong bg-surface px-3 py-2 text-sm text-fg";
+  "min-h-11 w-full rounded-md border border-strong bg-surface px-3 py-2 text-sm text-fg placeholder:text-fg-muted/70";
 
 function FieldError({ id, errors }: { id: string; errors?: string[] }) {
   if (!errors || errors.length === 0) return null;
@@ -101,7 +101,7 @@ export function ContactForm() {
   }
 
   return (
-    <form action={formAction} className="flex max-w-lg flex-col gap-4">
+    <form action={formAction} className="flex max-w-md flex-col gap-3">
       <input ref={startedAtRef} type="hidden" name="startedAt" defaultValue="" />
 
       {/* The honeypot. See the module comment for why it is positioned
@@ -140,17 +140,17 @@ export function ContactForm() {
           made the form twice as tall as it needed to be. */}
       <div className="grid gap-4 sm:grid-cols-2">
       <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor={`${fieldId}-name`}
-          className="text-sm font-medium text-fg"
-        >
-          Name{" "}
-          <span aria-hidden="true" className="text-danger">
-            *
-          </span>
-          <span className="sr-only">(required)</span>
+        {/*
+          The label is visually hidden and the placeholder carries the visible
+          text. A placeholder alone is not a label — it disappears on the
+          first keystroke and screen readers treat it inconsistently — so the
+          real label stays in the DOM for assistive technology.
+        */}
+        <label htmlFor={`${fieldId}-name`} className="sr-only">
+          Name (required)
         </label>
         <input
+          placeholder="Name"
           id={`${fieldId}-name`}
           name="senderName"
           type="text"
@@ -167,17 +167,11 @@ export function ContactForm() {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor={`${fieldId}-email`}
-          className="text-sm font-medium text-fg"
-        >
-          Email{" "}
-          <span aria-hidden="true" className="text-danger">
-            *
-          </span>
-          <span className="sr-only">(required)</span>
+        <label htmlFor={`${fieldId}-email`} className="sr-only">
+          Email (required)
         </label>
         <input
+          placeholder="Email"
           id={`${fieldId}-email`}
           name="senderEmail"
           type="email"
@@ -198,13 +192,11 @@ export function ContactForm() {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor={`${fieldId}-subject`}
-          className="text-sm font-medium text-fg"
-        >
+        <label htmlFor={`${fieldId}-subject`} className="sr-only">
           Subject
         </label>
         <input
+          placeholder="Subject (optional)"
           id={`${fieldId}-subject`}
           name="subject"
           type="text"
@@ -219,21 +211,15 @@ export function ContactForm() {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor={`${fieldId}-body`}
-          className="text-sm font-medium text-fg"
-        >
-          Message{" "}
-          <span aria-hidden="true" className="text-danger">
-            *
-          </span>
-          <span className="sr-only">(required)</span>
+        <label htmlFor={`${fieldId}-body`} className="sr-only">
+          Message (required)
         </label>
         <textarea
+          placeholder="Message"
           id={`${fieldId}-body`}
           name="body"
           required
-          rows={4}
+          rows={3}
           maxLength={4000}
           aria-describedby={
             fieldErrors.body ? `${fieldId}-body-error` : undefined

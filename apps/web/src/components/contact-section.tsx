@@ -20,7 +20,7 @@ export function ContactSection({
       title={copy.title}
       marker={copy.marker}
     >
-      <Surface tone="muted" className="p-8 sm:p-10">
+      <Surface tone="muted" className="max-w-2xl p-6 sm:p-8">
         <p className={`max-w-2xl ${type.body}`}>{contact.body}</p>
         {/* The email address stays alongside the form. Some people would
             rather use their own mail client, and a form is not a reason to
