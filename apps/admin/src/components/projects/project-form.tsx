@@ -59,6 +59,8 @@ export interface ProjectFormValues {
   startedOn: string;
   completedOn: string;
   links: { label: string; url: string; kind: ProjectLinkKind }[];
+  /** Gallery attachments, in the order they are shown. */
+  media: { mediaAssetId: string; caption: string }[];
   technologyIds: string[];
 }
 
@@ -76,6 +78,7 @@ export const emptyProjectValues: ProjectFormValues = {
   startedOn: "",
   completedOn: "",
   links: [],
+  media: [],
   technologyIds: [],
 };
 
@@ -141,7 +144,24 @@ export function ProjectForm({
     coverMediaId: values.coverMediaId,
     links: values.links,
     technologyIds: values.technologyIds,
-    media: [],
+    /*
+      Sent whole, and only the rows with an asset chosen.
+
+      The action replaces the collection wholesale, so a half-filled row
+      would either fail validation or persist a gallery entry pointing at
+      nothing. Dropping them here means "add" can leave an empty row on
+      screen without it being a save-blocking error.
+
+      `caption` is normalised to null rather than "": the column is nullable
+      and the schema turns blank into null anyway, so sending "" would be the
+      one place a caption could round-trip as an empty string.
+    */
+    media: values.media
+      .filter((item) => item.mediaAssetId !== "")
+      .map((item) => ({
+        mediaAssetId: item.mediaAssetId,
+        caption: item.caption.trim() === "" ? null : item.caption,
+      })),
   });
 
   return (
@@ -310,16 +330,13 @@ export function ProjectForm({
         onChange={(ids) => update("technologyIds", ids)}
       />
 
-      <section aria-labelledby={`${fieldId}-media`} className="flex flex-col gap-3">
-        <h2 id={`${fieldId}-media`} className="text-sm font-semibold uppercase tracking-wider text-fg">
-          Gallery
-        </h2>
-        <p className="text-sm text-fg-muted">
-          A per-project gallery is not built yet. The cover image and icon
-          below are set from the media library, and the public case-study page
-          renders a gallery as soon as this can attach to one.
-        </p>
-      </section>
+      <GallerySection
+        idPrefix={fieldId}
+        media={values.media}
+        mediaOptions={mediaOptions}
+        errors={fieldErrors}
+        onChange={(media) => update("media", media)}
+      />
 
       <section
         aria-labelledby={`${fieldId}-imagery-heading`}
@@ -462,6 +479,150 @@ function LinksSection({
                 >
                   Remove
                   <span className="sr-only"> link {index + 1}</span>
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/**
+ * The per-project gallery.
+ *
+ * Rows of "pick an asset, optionally caption it", in the order they appear on
+ * the case-study page. Position is **implied by the order of the rows**, not
+ * typed in: the action assigns `position: index` when it saves, so there is no
+ * second source of truth to contradict the list an editor is looking at.
+ *
+ * Reordering is by moving a row up or down rather than by drag: buttons work
+ * with a keyboard and a screen reader without any extra machinery, and this
+ * list is a handful of items rather than a hundred.
+ *
+ * The public page renders whatever is here — it has done since the case-study
+ * route was built, and this form's `media: []` was the only reason nothing
+ * ever appeared.
+ */
+function GallerySection({
+  idPrefix,
+  media,
+  mediaOptions,
+  errors,
+  onChange,
+}: {
+  idPrefix: string;
+  media: ProjectFormValues["media"];
+  mediaOptions: readonly MediaOption[];
+  errors: Record<string, string[]>;
+  onChange: (media: ProjectFormValues["media"]) => void;
+}) {
+  function move(index: number, delta: number) {
+    const target = index + delta;
+    if (target < 0 || target >= media.length) return;
+    const next = [...media];
+    const moved = next[index];
+    const displaced = next[target];
+    if (!moved || !displaced) return;
+    next[index] = displaced;
+    next[target] = moved;
+    onChange(next);
+  }
+
+  return (
+    <section
+      aria-labelledby={`${idPrefix}-media`}
+      className="flex flex-col gap-4"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2
+          id={`${idPrefix}-media`}
+          className="text-sm font-semibold uppercase tracking-wider text-fg"
+        >
+          Gallery
+        </h2>
+        <button
+          type="button"
+          onClick={() => onChange([...media, { mediaAssetId: "", caption: "" }])}
+          className="inline-flex min-h-11 items-center rounded-md border border-strong bg-surface px-3 text-sm font-medium text-fg transition-colors duration-150 hover:bg-surface-muted"
+        >
+          Add image
+        </button>
+      </div>
+
+      <p className="text-sm text-fg-muted">
+        Shown on the project’s own page, in this order. The cover image below
+        is separate — it heads the card and the page, and does not need to be
+        repeated here.
+      </p>
+
+      {media.length === 0 ? (
+        <p className="text-sm text-fg-muted">No gallery images yet.</p>
+      ) : (
+        <ul className="flex flex-col gap-4">
+          {media.map((item, index) => (
+            // Keyed by index rather than by asset id: a new row starts with no
+            // asset, and two empty rows would collide on any content-derived
+            // key. The list is only ever reordered as a whole.
+            <li
+              key={index}
+              className="rounded-lg border border-subtle bg-surface p-4"
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <MediaPickerField
+                  id={`${idPrefix}-media-${index}-asset`}
+                  label={`Image ${index + 1}`}
+                  value={item.mediaAssetId}
+                  options={mediaOptions}
+                  errors={errors[`media.${index}.mediaAssetId`]}
+                  hint="Choose an uploaded image."
+                  onChange={(value) => {
+                    const next = [...media];
+                    next[index] = { ...item, mediaAssetId: value };
+                    onChange(next);
+                  }}
+                />
+                <TextField
+                  id={`${idPrefix}-media-${index}-caption`}
+                  name={`media.${index}.caption`}
+                  label="Caption"
+                  value={item.caption}
+                  errors={errors[`media.${index}.caption`]}
+                  hint="Optional. Shown beneath the image."
+                  onChange={(value) => {
+                    const next = [...media];
+                    next[index] = { ...item, caption: value };
+                    onChange(next);
+                  }}
+                />
+              </div>
+              <div className="mt-3 flex flex-wrap justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={index === 0}
+                  onClick={() => move(index, -1)}
+                  className="inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium text-fg transition-colors duration-150 hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Move up
+                  <span className="sr-only"> — image {index + 1}</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={index === media.length - 1}
+                  onClick={() => move(index, 1)}
+                  className="inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium text-fg transition-colors duration-150 hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Move down
+                  <span className="sr-only"> — image {index + 1}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onChange(media.filter((_, i) => i !== index))}
+                  className="inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium text-danger transition-colors duration-150 hover:bg-surface-muted"
+                >
+                  Remove
+                  <span className="sr-only"> image {index + 1}</span>
                 </button>
               </div>
             </li>

@@ -298,9 +298,18 @@ Planned slice order:
 4. ~~Media library CMS~~ — **done, awaiting review.** Upload Server
    Action, list, alt text, delete, plus a local development R2 binding.
    Still no bucket in Cloudflare.
-5. Project media attachment and project cover image.
-6. Résumé upload and the current-résumé surface.
-7. Public delivery routes for images and the current résumé.
+5. ~~Project media attachment and project cover image~~ — **done.** The
+   cover and icon pickers already existed; the per-project gallery is now
+   attachable, ordered and captioned in the admin.
+6. Résumé upload and the current-résumé surface. **The only slice with no
+   admin surface at all** — the `resumes` repository, the media service's
+   résumé path and the public download link in the hero all exist and are
+   tested; nothing can upload one.
+7. ~~Public delivery routes for images and the current résumé~~ — **already
+   done**, and recorded late: `apps/web/src/app/media/[id]/route.ts` serves
+   both, and the hero renders the résumé link whenever a current résumé
+   exists. It was built alongside the media service rather than as its own
+   slice, which is why this list still showed it as pending.
 
 ## Phase 10 — Theme/settings
 

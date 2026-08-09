@@ -8,6 +8,65 @@ something passed without running it.
 
 **Phase 9 — R2/media. IN PROGRESS.** Not complete.
 
+## Phase 9 slice 5 — project gallery attachment (branch `feat/project-gallery`)
+
+The per-project gallery can now be attached in the admin. That was the last
+missing piece of it: the `project_media` table, `repos.projects.setMedia`, the
+`projectMediaInputSchema`, the action's write path and the public case-study
+page's `<figure>` gallery **all already existed and were tested**. The project
+form sent `media: []` on every save, so nothing could ever be attached.
+
+### What the form does now
+
+Rows of "pick an asset, optionally caption it". Position is **implied by row
+order** — the action assigns `position: index` — so there is no second source
+of truth to contradict the list an editor is looking at. Reordering is by
+Move up / Move down rather than drag: buttons work with a keyboard and a
+screen reader with no extra machinery, and this list is a handful of items.
+
+Rows with no asset chosen are dropped from the payload rather than rejected,
+so "Add image" can leave an empty row on screen without blocking a save. A
+blank caption is normalised to `null`, because the column is nullable and
+sending `""` would be the one path by which an empty-string caption could
+round-trip.
+
+### The hazard that is now closed
+
+`updateProjectAggregate` replaces the collection wholesale whenever
+`input.media` is present, and the form always sent it — as `[]`. Nothing could
+add gallery rows, so nothing was being destroyed, but the shape was exactly
+the one that made the Phase 9 audit's `.partial()` defect destructive. The
+edit page now loads the existing rows, so saving an untouched project
+round-trips its gallery instead of clearing it.
+
+Verified in Chromium: added a row with a caption, saved, reopened and found it
+persisted, confirmed the public case-study page rendered the `Gallery`
+heading, one `<figure>`, the caption and the correct `/media/[id]` source —
+then removed the row and confirmed the removal persisted too.
+
+### A mistake worth recording
+
+The first attempt at that verification targeted "the last two `<select>`
+elements", assuming they were the gallery pickers. They were the cover and
+icon pickers, which sit *after* the gallery section — so the test silently
+rewrote the project's cover image and icon and reported the gallery as not
+saving. Both were restored, and the retest targeted the pickers by their
+labels instead.
+
+### Roadmap correction
+
+Slice 7 (public delivery routes for images and the current résumé) was already
+complete and had not been recorded — `media/[id]/route.ts` serves both, and
+the hero renders the résumé link. The roadmap has been corrected rather than
+left to imply pending work that does not exist.
+
+**Slice 6 — the résumé CMS — is the only Phase 9 work left.** The repository,
+the service's résumé path and the public surface all exist; there is no admin
+screen to upload one.
+
+Checks run: `pnpm lint`, `pnpm typecheck`, `pnpm test` (695/695 admin,
+181/181 and 83/83 in the other suites), `pnpm build` — all passed.
+
 ## The robot's lines are CMS content (branch `feat/robot-lines-cms`)
 
 The sentences the hero's robot says were hard-coded in the component, which
