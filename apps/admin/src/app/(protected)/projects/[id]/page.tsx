@@ -33,11 +33,12 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
 
     // The repository exposes `getBySlugWithRelations` but not an id
     // equivalent, so relations are composed here from its existing methods
-    // rather than widening the public API for one caller. Three bounded
-    // queries, not N+1.
-    const [links, technologies, allTechnologies] = await Promise.all([
+    // rather than widening the public API for one caller. Four bounded
+    // queries in parallel, not N+1.
+    const [links, technologies, media, allTechnologies] = await Promise.all([
       repos.projects.listLinks(project.id),
       repos.projects.listTechnologies(project.id),
+      repos.projects.listMedia(project.id),
       repos.technologies.list(),
     ]);
 
@@ -83,6 +84,14 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
               label: link.label,
               url: link.url,
               kind: link.kind,
+            })),
+            // Already ordered by `position` from the repository, and the form
+            // treats row order as the position — so it is never re-sorted
+            // here, and saving an untouched project cannot reorder its
+            // gallery.
+            media: media.map((item) => ({
+              mediaAssetId: item.mediaAssetId,
+              caption: item.caption ?? "",
             })),
             technologyIds: technologies.map((technology) => technology.id),
           }}
