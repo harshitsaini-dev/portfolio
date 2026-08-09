@@ -329,15 +329,20 @@
     grid-template-columns: none;
     /* Fixed, because absolutely positioned children contribute no height.
 
-       Measured rather than guessed: a card is a 16:9 cover at the slide width
-       (about 306px) plus roughly 214px of title, summary, tags and actions,
-       so a card with a cover needs about 524px and 30rem clipped its action
-       row off the bottom. 34rem clears the tallest card the section renders.
+       **Measured by the component, not fixed here.** It was 34rem — a number
+       derived from the cards as they were on the day, and therefore wrong the
+       moment a card grew. The owner reported exactly that: a project cut off
+       along the bottom edge. A stage whose height is a guess about its
+       contents will keep going stale.
+
+       `ProjectsCarousel` measures the tallest slide and publishes it as
+       `--stage-height`. The fallback is only for the frames before that runs;
+       it is never the steady state.
 
        The cards do NOT stretch to fill it — see below. Stretching made the
        ones without a cover open a large void between their summary and their
        actions, because the card foot is pushed down by `mt-auto`. */
-    height: 34rem;
+    height: var(--stage-height, 34rem);
     /* Depth. Larger values flatten the effect; smaller ones distort the card
        edges badly enough to look like a rendering bug. */
     perspective: 1600px;
