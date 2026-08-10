@@ -375,7 +375,7 @@ try {
   equal(
     "and in the declared default order",
     defaults.sections.map((section) => section.key).join(","),
-    "about,projects,experience,education,skills,playground,contact",
+    "about,projects,experience,education,skills,playground,terminal,notes,contact",
   );
   equal(
     "navigation is derived from the same list",
@@ -404,7 +404,7 @@ try {
   equal(
     "sections with no row keep their relative order after it",
     reordered.sections.map((section) => section.key).join(","),
-    "contact,about,projects,experience,education,skills,playground",
+    "contact,about,projects,experience,education,skills,playground,terminal,notes",
   );
   equal(
     "the navigation label follows the new title",

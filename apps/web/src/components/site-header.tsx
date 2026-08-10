@@ -3,7 +3,6 @@ import Link from "next/link";
 import { SiteNavMenu } from "@/components/site-nav-menu";
 import { Container } from "@/components/ui/container";
 import { actionVariant } from "@/components/ui/action";
-import { IstClock } from "@/components/ui/ist-clock";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import type { NavigationItem } from "@/data/types";
 
@@ -37,7 +36,7 @@ export function SiteHeader({ siteName, navigation }: SiteHeaderProps) {
           // inline text in a sentence, so the WCAG 2.5.8 inline exception does
           // not cover it. The header row is already `h-16`, so growing the
           // link's box costs no layout.
-          className="flex min-h-11 items-center text-sm font-semibold tracking-tight text-fg transition-colors duration-150 hover:text-accent"
+          className="flex min-h-11 items-center whitespace-nowrap text-sm font-semibold tracking-tight text-fg transition-colors duration-150 hover:text-accent"
         >
           {siteName}
         </Link>
@@ -45,7 +44,7 @@ export function SiteHeader({ siteName, navigation }: SiteHeaderProps) {
             and stays outside the menu drawer so it is reachable at every
             width — a display preference is not a navigation link. */}
         <div className="flex items-center gap-1">
-          <nav aria-label="Sections" className="hidden md:block">
+          <nav aria-label="Sections" className="hidden lg:block">
             {/* The inline row appears only where every link fits, so it never
                 needs to scroll. */}
             <ul className="flex flex-wrap gap-1">
@@ -62,11 +61,6 @@ export function SiteHeader({ siteName, navigation }: SiteHeaderProps) {
             </ul>
           </nav>
 
-          {/* The owner's local time. Only from `xl`, where there is room for
-              it beside the section links — below that the nav is already
-              using the width, and a clock is the least important thing in
-              the row. */}
-          <IstClock />
           <ThemeToggle />
           <SiteNavMenu navigation={navigation} />
         </div>

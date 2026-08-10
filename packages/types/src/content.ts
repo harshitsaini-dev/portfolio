@@ -298,6 +298,38 @@ export interface ProjectMediaReferenceCounts {
   readonly attachments: number;
 }
 
+/**
+ * The section keys the public site currently knows how to render.
+ *
+ * **Informational, not a constraint.** `sections.key` has no CHECK and the
+ * schemas define no enum, deliberately: a closed set would block creating a
+ * section row before its component ships, and would invent a rule the
+ * database does not have. This list exists so the admin can *suggest* the
+ * keys that will actually render something, which is the difference between
+ * an editor typing `termnal` and wondering why the page never changed, and
+ * being offered `terminal`.
+ *
+ * A key not in this list is still accepted everywhere. It simply renders
+ * nothing until a component claims it.
+ */
+export const RENDERABLE_SECTION_KEYS = [
+  "about",
+  "projects",
+  "experience",
+  "education",
+  "skills",
+  "playground",
+  // Its own key rather than a block inside `playground`, so it can be moved,
+  // renamed or switched off on its own. While the two shared a key the owner
+  // could not hide one without hiding the other.
+  "terminal",
+  // After the work and before the invitation to get in touch: someone who has
+  // read this far is deciding whether to, and the writing is the last thing
+  // that helps them decide.
+  "notes",
+  "contact",
+] as const;
+
 export interface Project extends EntityMeta {
   /**
    * Optional icon, referencing `media_assets`. `ON DELETE SET NULL`:

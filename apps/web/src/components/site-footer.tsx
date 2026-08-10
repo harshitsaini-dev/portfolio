@@ -1,3 +1,4 @@
+import { IstClock } from "@/components/ui/ist-clock";
 import { ShareButton } from "@/components/ui/share-button";
 import { Container } from "@/components/ui/container";
 import { SocialRow } from "@/components/ui/social-row";
@@ -39,7 +40,22 @@ export function SiteFooter({ siteName, note, socials }: SiteFooterProps) {
         <ShareButton title={siteName} label="Share this site" className="self-start" />
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className={`max-w-2xl ${type.fine}`}>{note}</p>
+          <div className="flex flex-col gap-2">
+            <p className={`max-w-2xl ${type.fine}`}>{note}</p>
+            {/*
+              The owner's local time. It lived in the header until nine section
+              links made the row need 1149px inside a container capped at
+              1072 — so it wrapped onto a second line at every width, and no
+              breakpoint could fix it because the container never grows.
+
+              Down here it has the room to show the full format at every size,
+              and it is arguably where it belonged: someone reading the footer
+              is deciding whether to get in touch, which is the only question
+              this number answers.
+            */}
+            <IstClock serverNowIso={new Date().toISOString()} />
+          </div>
+
           <p className="text-sm font-semibold tracking-tight text-fg">
             {siteName}
           </p>

@@ -17,7 +17,7 @@ import { SiteHeader } from "@/components/site-header";
 import { getNoteDetail } from "@/lib/content/notes";
 import { getSiteContent } from "@/lib/content/site-content";
 import { absoluteMediaUrl, getSiteOrigin } from "@/lib/site-origin";
-import { formatNoteDate } from "../page";
+import { formatNoteDate } from "@/lib/format-date";
 
 export const dynamic = "force-dynamic";
 

@@ -24,6 +24,8 @@
  */
 
 import Link from "next/link";
+import { RENDERABLE_SECTION_KEYS } from "@portfolio/types";
+
 import { PhraseListField } from "@/components/form/phrase-list-field";
 import { useActionState, useEffect, useId, useRef, useState } from "react";
 
@@ -199,7 +201,19 @@ export function SectionForm({
             required
             value={values.key}
             errors={fieldErrors.key}
-            hint="Stable machine identifier the public site maps to a component, e.g. “projects”. Lowercase letters, numbers, and single hyphens. Must be unique, and cannot be changed later."
+            /*
+              The list is spelled out rather than described, because a key
+              that matches nothing renders nothing — silently. An editor who
+              types `termnal` gets a saved row, a nav entry pointing at an
+              anchor that does not exist, and no error anywhere.
+
+              It stays a free text field on purpose: `sections.key` has no
+              CHECK and the schema defines no enum, so that a row can be
+              created before the component that renders it ships. This is a
+              suggestion, which is the same shape as the slug field's — see
+              docs/DECISIONS.md.
+            */
+            hint={`Stable machine identifier the public site maps to a component. The site renders: ${RENDERABLE_SECTION_KEYS.join(", ")}. Any other key saves fine but renders nothing until a component claims it. Lowercase letters, numbers and single hyphens; unique, and cannot be changed later.`}
             onChange={(value) => update("key", value)}
           />
         )}

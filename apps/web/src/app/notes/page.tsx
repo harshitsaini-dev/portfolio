@@ -15,22 +15,11 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getPublishedNotes } from "@/lib/content/notes";
 import { getSiteContent } from "@/lib/content/site-content";
+import { formatNoteDate } from "@/lib/format-date";
 import { absoluteMediaUrl, getSiteOrigin } from "@/lib/site-origin";
 
 export const dynamic = "force-dynamic";
 
-/** `2026-08-10` → `10 August 2026`. */
-export function formatNoteDate(value: string): string {
-  const date = new Date(`${value}T00:00:00Z`);
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleDateString("en-GB", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-        timeZone: "UTC",
-      });
-}
 
 export async function generateMetadata(): Promise<Metadata> {
   const [content, origin] = await Promise.all([getSiteContent(), getSiteOrigin()]);

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { RENDERABLE_SECTION_KEYS } from "@portfolio/types";
+
 import type { ContentImage } from "@/data/types";
 
 /**
@@ -30,16 +32,18 @@ import type { ContentImage } from "@/data/types";
  * paper over here by rendering an empty section.
  */
 
-/** Every section this page knows how to render, in default page order. */
-export const SECTION_KEYS = [
-  "about",
-  "projects",
-  "experience",
-  "education",
-  "skills",
-  "playground",
-  "contact",
-] as const;
+/**
+ * Every section this page knows how to render, in default page order.
+ *
+ * Re-exported from `@portfolio/types` rather than declared here, because the
+ * admin needs the same list to suggest keys an editor can actually use. Two
+ * copies would drift the first time a section was added, and the way that
+ * failure shows up is an editor creating a row that renders nothing.
+ *
+ * Order matters twice over: it is the page's default order, and it is the tie
+ * break for sections the CMS has not given a position to.
+ */
+export const SECTION_KEYS = RENDERABLE_SECTION_KEYS;
 
 export type SectionKey = (typeof SECTION_KEYS)[number];
 
@@ -141,6 +145,20 @@ const DEFAULTS: Record<SectionKey, SectionCopy> = {
     title: "Contribution playground",
     navLabel: "Playground",
     marker: "\u{1F3AE}",
+  },
+  terminal: {
+    key: "terminal",
+    eyebrow: "Command line",
+    title: "Try the terminal",
+    navLabel: "Terminal",
+    marker: "\u{1F4BB}",
+  },
+  notes: {
+    key: "notes",
+    eyebrow: "Writing",
+    title: "Notes",
+    navLabel: "Notes",
+    marker: "\u{1F4DD}",
   },
   contact: {
     key: "contact",

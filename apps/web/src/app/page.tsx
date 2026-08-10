@@ -1,18 +1,18 @@
 import { headers } from "next/headers";
-import Link from "next/link";
 
 import { AboutSection } from "@/components/about-section";
 import { ContactSection } from "@/components/contact-section";
 import { EducationSection } from "@/components/education-section";
 import { ExperienceSection } from "@/components/experience-section";
 import { Hero } from "@/components/hero";
+import { NotesSection } from "@/components/notes-section";
+import { TerminalSection } from "@/components/terminal-section";
 import { ProjectsSection } from "@/components/projects-section";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { PersonSchema } from "@/components/seo/person-schema";
 import { getSiteOrigin } from "@/lib/site-origin";
 import { PlaygroundSection } from "@/components/playground-section";
-import { CommandTerminal } from "@/components/ui/command-terminal";
 import { RobotSpeech } from "@/components/three/robot-speech";
 import { RobotTerminal } from "@/components/three/robot-terminal";
 import { HeroSceneMount } from "@/components/three/hero-scene-mount";
@@ -20,6 +20,7 @@ import { CustomCursor } from "@/components/ui/custom-cursor";
 import { Preloader } from "@/components/ui/preloader";
 import { SmoothScroll } from "@/components/ui/smooth-scroll";
 import { SkillsSection } from "@/components/skills-section";
+import { getPublishedNotes } from "@/lib/content/notes";
 import { getSiteContent } from "@/lib/content/site-content";
 import { buildTerminalData } from "@/lib/content/terminal-data";
 
@@ -40,8 +41,13 @@ import { buildTerminalData } from "@/lib/content/terminal-data";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [content, origin, requestHeaders] = await Promise.all([
+  const [content, notes, origin, requestHeaders] = await Promise.all([
     getSiteContent(),
+    // Read unconditionally rather than inside the section branch: it is one
+    // more query against the same database in the same round of work, and
+    // making it conditional would put a `await` inside the section map, which
+    // would serialise the page behind whichever section happened to need it.
+    getPublishedNotes(),
     getSiteOrigin(),
     headers(),
   ]);
@@ -149,6 +155,15 @@ export default async function Home() {
                   socials={content.socials}
                 />
               );
+            case "notes":
+              return (
+                <NotesSection
+                  key={copy.key}
+                  copy={copy}
+                  notes={notes}
+                  socials={content.socials}
+                />
+              );
             case "experience":
               return (
                 <ExperienceSection
@@ -176,33 +191,14 @@ export default async function Home() {
                 />
               );
             case "playground":
+              return <PlaygroundSection key={copy.key} copy={copy} />;
+            case "terminal":
               return (
-                <div key={copy.key}>
-                  <PlaygroundSection copy={copy} />
-                  {/*
-                    The terminal lives with the playground because that is what
-                    it is: something to poke at. Every command it answers shows
-                    what is already on the page, so a visitor who never types
-                    into it misses nothing.
-                  */}
-                  <div className="mx-auto mt-10 w-full max-w-5xl px-5 sm:px-8">
-                    <CommandTerminal
-                      data={terminalData}
-                      footer={
-                        <Link
-                          href="/terminal"
-                          // `inline-flex min-h-11` rather than a bare text
-                          // link: it stands alone rather than sitting in a
-                          // sentence, so it gets a real target instead of the
-                          // 16px line box it would otherwise be.
-                          className="inline-flex min-h-11 items-center text-accent underline underline-offset-4 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                        >
-                          Open terminal mode →
-                        </Link>
-                      }
-                    />
-                  </div>
-                </div>
+                <TerminalSection
+                  key={copy.key}
+                  copy={copy}
+                  data={terminalData}
+                />
               );
             case "contact":
               return (

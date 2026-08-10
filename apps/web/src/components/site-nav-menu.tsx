@@ -72,7 +72,7 @@ export function SiteNavMenu({
         onClick={open}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
-        className="inline-flex min-h-11 items-center gap-2 rounded-md border border-strong bg-surface px-3 text-sm font-medium text-fg transition-colors duration-150 hover:bg-surface-muted md:hidden"
+        className="inline-flex min-h-11 items-center gap-2 rounded-md border border-strong bg-surface px-3 text-sm font-medium text-fg transition-colors duration-150 hover:bg-surface-muted lg:hidden"
       >
         <span aria-hidden="true" className="text-base leading-none">
           ☰
@@ -88,7 +88,7 @@ export function SiteNavMenu({
         // the top layer in one step, so there is no frame for a transition to
         // start from — which is why it appeared fully open with no motion. See
         // `globals.css`, where `@starting-style` supplies that first frame.
-        className="nav-drawer m-0 ml-auto h-full max-h-none w-[17rem] max-w-[85vw] border-l border-subtle bg-bg p-0 text-fg backdrop:bg-black/40 md:hidden"
+        className="nav-drawer m-0 ml-auto h-full max-h-none w-[17rem] max-w-[85vw] border-l border-subtle bg-bg p-0 text-fg backdrop:bg-black/40 lg:hidden"
       >
         <div className="flex h-full flex-col gap-6 overflow-y-auto p-5">
           <div className="flex items-center justify-end">

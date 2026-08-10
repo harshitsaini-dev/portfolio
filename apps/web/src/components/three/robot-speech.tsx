@@ -189,10 +189,18 @@ export function RobotSpeech({ lines }: { lines: readonly string[] }) {
         the bubble, so without it a figure at the right-hand margin would push
         half the bubble past the viewport.
 
+        The upper bound is `100%`, **not** `100vw`. `100vw` includes the
+        classic scrollbar, which on Windows is around 15px wide — so the clamp
+        permitted a position that much further right than the visible area,
+        and the bubble's right edge was cut off by the viewport whenever the
+        figure drifted to that side. A fixed element's percentages resolve
+        against the initial containing block, which excludes the scrollbar, so
+        `100%` is the width that is actually on screen.
+
         `lg:block` only: below that the scene is not rendered at all.
       */
       style={{
-        left: "clamp(8.5rem, var(--robot-x, 85vw), calc(100vw - 8.5rem))",
+        left: "clamp(8.5rem, var(--robot-x, 85vw), calc(100% - 8.5rem))",
         top: "var(--robot-y, 40vh)",
       }}
       className={`pointer-events-none fixed z-20 hidden w-[15rem] -translate-x-1/2 -translate-y-full transition-opacity duration-500 lg:block ${
