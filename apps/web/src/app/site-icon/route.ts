@@ -34,6 +34,18 @@ import { getSiteContent } from "@/lib/content/site-content";
  * `favicon.ico`: the caller asked for the CMS icon specifically, and an
  * answer of "there isn't one" is more useful than a different image.
  */
+/**
+ * Never prerendered.
+ *
+ * A Route Handler does NOT inherit the layout's `force-dynamic` — that export
+ * governs the page tree, and this is its own entry point. Without this the
+ * build evaluates the handler with no D1 binding, `getSiteContent()` cannot
+ * resolve one, and the 404 branch is baked into a static response — which is
+ * exactly what production served while local dev, where nothing is
+ * prerendered, worked correctly.
+ */
+export const dynamic = "force-dynamic";
+
 export async function GET(): Promise<Response> {
   const content = await getSiteContent();
   const favicon = content.theme.favicon;
