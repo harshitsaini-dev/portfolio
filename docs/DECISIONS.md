@@ -3,6 +3,97 @@
 Notable architectural/tooling decisions and their rationale. Append new
 entries; do not delete history.
 
+## 2026-08-11 — Notes: one Markdown body, not a block editor
+
+The owner asked for a blog "fully customizable like Blogger". A block-based
+editor is the literal answer and the wrong one: it needs a schema, an editor
+and a renderer *per block type*, and every one of those is a place where the
+CMS and the site can disagree about what a post is. One Markdown body is a
+single field that can be typed into, pasted into, and moved somewhere else the
+day this project is replaced.
+
+### The renderer builds React elements, never HTML
+
+Every mainstream Markdown library either emits an HTML string — which means
+`dangerouslySetInnerHTML`, which means CMS content can inject markup into the
+page — or ships a sanitiser to undo that, which is a second dependency guarding
+the first. `components/ui/markdown.tsx` constructs elements directly, so there
+is no HTML string anywhere and nothing to sanitise: an element that file does
+not build cannot appear.
+
+Verified rather than asserted: a note whose body contained
+`<script>alert(1)</script>` rendered it as literal text, and the article
+contained **zero** script elements.
+
+Two details that are easy to get wrong and were:
+
+- **One regex pass for inline formatting**, not a chain of `.replace()` calls.
+  A chain lets a later pass turn a URL inside a code span into a link, because
+  it cannot see that an earlier pass already claimed that text.
+- **Link URLs are restricted** to http, https, mailto and site-relative paths.
+  A stored `javascript:` href would be script execution by content — exactly
+  the hole avoiding `dangerouslySetInnerHTML` was meant to close.
+
+### The slug follows the title until it is touched
+
+Typing a title fills the URL; editing the URL stops that permanently for the
+session. Always deriving it would silently change the address of a published
+post when its headline is reworded, breaking every link to it.
+
+### Tags are a JSON array in one column
+
+Never joined on and never filtered by — they render as chips. A join table
+would be three files of machinery for a row of decoration. Decoded
+defensively: malformed tags yield an empty list rather than failing the page.
+
+## 2026-08-11 — Images are optimised in the browser, at upload
+
+Lighthouse on mobile scored performance **0.69**, with LCP at 4.5 s against a
+2.5 s target. The cause was image bytes nothing could use: the hero portrait
+was a 344 KB PNG at 768×768 displayed at 465 px, and two social icons were
+**1280×1280 and 800×800 PNGs displayed at 18 px** — 246 KB for two marks the
+size of a full stop. About 700 KB of the page.
+
+That is not carelessness. "Upload a logo" gives no hint that the file will be
+drawn at 18 px, and no editor should have to know. So the tool does the
+arithmetic instead of the person: `optimiseImage` downscales to 1600 px and
+re-encodes as WebP before the upload leaves the browser.
+
+**Why the browser.** The Worker cannot do it — resizing needs a codec, and the
+options are Cloudflare Images (paid, needs a zone this project does not have)
+or a WASM codec in the bundle (megabytes, and more CPU per request than the
+free tier allows). The browser already ships a decoder and a WebP encoder.
+
+**It keeps the smaller of the two.** Re-encoding can lose — a flat-colour logo
+is often smaller as a PNG — so the output is compared with the input and the
+original wins ties. A function that always returned its own output would
+sometimes make the problem worse while reporting success. Failure returns the
+original: an optimisation that fails must not break uploading.
+
+The saving is shown to the editor rather than done silently. Someone who picks
+a 344 KB file and reads "336 KB → 41 KB" learns something about their own
+asset.
+
+## 2026-08-11 — Easter eggs that cannot break anything
+
+A console note for anyone who opens DevTools, and the Konami code.
+
+Both are constrained by one rule: **no content is hidden behind them, and
+neither may degrade the page for someone who cannot see them.** So the key
+listener never calls `preventDefault` — arrow keys must keep scrolling for a
+keyboard user — and it ignores typing entirely, or the sequence could fire
+while someone fills in the contact form, where "b" and "a" are common letters.
+
+The reward is a CSS class and a hue rotation, wrapped in
+`prefers-reduced-motion: no-preference` rather than checked in JavaScript. A
+visitor who asked for less motion still gets the class and the console line;
+they get a still page, which is what they asked for. No layout property is
+touched, so the celebration cannot shift text or affect CLS.
+
+A wrong key restarts the sequence — except when that key is itself the first
+one, which starts a fresh attempt. Otherwise "↑↑↑↓↓…" never matches, and that
+is what an impatient person actually types.
+
 ## 2026-08-10 — The share image was already in the CMS and nothing read it
 
 The owner asked to choose the link-preview picture from the admin. The admin

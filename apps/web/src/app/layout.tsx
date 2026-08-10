@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { accentCustomProperties } from "@portfolio/ui";
 
 import { Analytics } from "@/components/analytics";
+import { EasterEggs } from "@/components/easter-eggs";
 import { getSiteContent } from "@/lib/content/site-content";
 import { absoluteMediaUrl, getSiteOrigin } from "@/lib/site-origin";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
@@ -201,6 +202,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         {/* Renders no markup at all — it is an effect that posts one beacon
             per route. Mounted here so it survives every page. */}
         <Analytics />
+        {/* Renders nothing. A console note and the Konami code — see the
+            component; neither hides content nor blocks a key. */}
+        <EasterEggs />
       </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

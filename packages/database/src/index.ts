@@ -76,6 +76,10 @@ export type {
   RankedCount,
 } from "./repositories/analytics.ts";
 export type {
+  NoteRepository,
+  NoteListOptions,
+} from "./repositories/notes.ts";
+export type {
   CertificationRepository,
   EducationRepository,
   RobotLineRepository,

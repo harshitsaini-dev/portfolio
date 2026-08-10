@@ -22,15 +22,17 @@
 
 import type { MetadataRoute } from "next";
 
+import { getPublishedNotes } from "@/lib/content/notes";
 import { getPublishedProjectSlugs } from "@/lib/content/project-detail";
 import { getSiteOrigin } from "@/lib/site-origin";
 
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [origin, projects] = await Promise.all([
+  const [origin, projects, notes] = await Promise.all([
     getSiteOrigin(),
     getPublishedProjectSlugs(),
+    getPublishedNotes(),
   ]);
 
   return [
@@ -49,6 +51,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly" as const,
       priority: 0.9,
     },
+    {
+      url: `${origin}/notes`,
+      changeFrequency: "weekly" as const,
+      priority: 0.9,
+    },
+    ...notes.map((note) => ({
+      url: `${origin}/notes/${note.slug}`,
+      // The date the post claims, which is also what the page displays. A
+      // crawler and a reader should not be told two different things.
+      lastModified: new Date(note.date),
+      changeFrequency: "yearly" as const,
+      priority: 0.7,
+    })),
     ...projects.map((project) => ({
       url: `${origin}/projects/${project.slug}`,
       // The row's own timestamp, not the time this file ran. `lastModified`

@@ -22,6 +22,8 @@
  * the actual bytes. Same for the size hint below.
  */
 
+import { formatBytes, optimiseImage } from "@/lib/media/optimise";
+
 import Link from "next/link";
 import { useActionState, useEffect, useId, useRef, useState } from "react";
 
@@ -46,6 +48,15 @@ export function MediaUploadForm({ action }: { action: UploadAction }) {
   const [state, formAction, isPending] = useActionState(action, idleState);
   const [fileName, setFileName] = useState<string | null>(null);
   const [isImage, setIsImage] = useState(true);
+  /**
+   * What the optimiser did, if anything.
+   *
+   * Shown rather than done silently: an editor who picked a 344 KB file and
+   * sees "336 KB → 41 KB" learns something about their own asset, and an
+   * editor who sees nothing knows the file went up as-is.
+   */
+  const [optimisation, setOptimisation] = useState<string | null>(null);
+  const [isOptimising, setIsOptimising] = useState(false);
   const [altText, setAltText] = useState("");
   const summaryRef = useRef<HTMLDivElement>(null);
 
@@ -115,19 +126,55 @@ export function MediaUploadForm({ action }: { action: UploadAction }) {
             aria-describedby={`${fieldId}-hint`}
             aria-invalid={fieldErrors.file ? true : undefined}
             onChange={(event) => {
-              const file = event.currentTarget.files?.[0] ?? null;
+              const input = event.currentTarget;
+              const file = input.files?.[0] ?? null;
               setFileName(file?.name ?? null);
               setIsImage(file ? file.type.startsWith("image/") : true);
+              setOptimisation(null);
+              if (!file) return;
+
+              setIsOptimising(true);
+              void optimiseImage(file)
+                .then((result) => {
+                  if (!result.changed) return;
+                  /*
+                    Replace what the file input holds, so the unchanged
+                    `<form action={formAction}>` submit picks up the smaller
+                    file. `DataTransfer` is the only way to write `input.files`
+                    — the property is read-only by design, and going around it
+                    with a hidden field would mean two sources of truth for
+                    what is being uploaded.
+                  */
+                  const transfer = new DataTransfer();
+                  transfer.items.add(result.file);
+                  input.files = transfer.files;
+                  setFileName(result.file.name);
+                  setOptimisation(
+                    `Resized and converted to WebP: ${formatBytes(result.originalBytes)} → ${formatBytes(result.bytes)}.`,
+                  );
+                })
+                .finally(() => setIsOptimising(false));
             }}
             className="block w-full rounded-md border border-subtle bg-surface px-3 py-2 text-sm text-fg file:mr-4 file:rounded file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-accent-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
           <p id={`${fieldId}-hint`} className="text-xs text-fg-muted">
             PNG, JPEG or WebP up to 5 MB, or a PDF up to 10 MB. The file&rsquo;s
-            contents are checked on the server, not its name.
+            contents are checked on the server, not its name. Large images are
+            resized to 1600px and converted to WebP here in the browser before
+            uploading &mdash; you don&rsquo;t need to prepare them first.
           </p>
           {fieldErrors.file ? (
             <p role="alert" className="text-sm text-danger">
               {fieldErrors.file.join(" ")}
+            </p>
+          ) : null}
+          {isOptimising ? (
+            <p className="text-xs text-fg-muted">Checking the image size…</p>
+          ) : null}
+          {optimisation ? (
+            // `role="status"` so the saving is announced, not just seen.
+            <p role="status" className="text-xs text-success">
+              {optimisation}
             </p>
           ) : null}
           {fileName ? (

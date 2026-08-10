@@ -194,6 +194,51 @@ export interface TechnologyUpdate {
 // Projects
 // ---------------------------------------------------------------------------
 
+/**
+ * A written note.
+ *
+ * Statuses are `PROJECT_STATUSES` deliberately reused rather than a parallel
+ * list: an editor should learn "draft / published / archived" once, and two
+ * lists that mean the same thing are two lists that can drift.
+ */
+export interface Note extends EntityMeta {
+  readonly slug: string;
+  readonly title: string;
+  readonly summary: string;
+  /** Markdown. Rendered by an explicit parser, never as raw HTML. */
+  readonly body: string;
+  readonly status: ProjectStatus;
+  /** ISO-8601, or null while unpublished. */
+  readonly publishedAt: string | null;
+  readonly coverMediaId: string | null;
+  readonly tags: readonly string[];
+  readonly position: number;
+}
+
+export interface NoteCreate {
+  readonly slug: string;
+  readonly title: string;
+  readonly summary: string;
+  readonly body: string;
+  readonly status: ProjectStatus;
+  readonly publishedAt: string | null;
+  readonly coverMediaId: string | null;
+  readonly tags: readonly string[];
+  readonly position: number;
+}
+
+export interface NoteUpdate {
+  readonly slug?: string;
+  readonly title?: string;
+  readonly summary?: string;
+  readonly body?: string;
+  readonly status?: ProjectStatus;
+  readonly publishedAt?: string | null;
+  readonly coverMediaId?: string | null;
+  readonly tags?: readonly string[];
+  readonly position?: number;
+}
+
 export const PROJECT_STATUSES = ["draft", "published", "archived"] as const;
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
 

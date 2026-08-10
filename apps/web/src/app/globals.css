@@ -500,3 +500,30 @@ html {
     border-right-color: transparent;
   }
 }
+
+/*
+  The Konami reward.
+
+  A hue rotation over the whole page: loud enough to be unmistakable, over in
+  four seconds, and it moves nothing — no layout property is touched, so it
+  cannot shift text under someone's cursor or affect CLS.
+
+  Wrapped in the reduced-motion query rather than checked in JavaScript. A
+  visitor who asked for less motion still gets the class and still gets the
+  console line; they simply get a still page, which is what they asked for.
+*/
+@media (prefers-reduced-motion: no-preference) {
+  :root.konami body {
+    animation: konami-celebrate 1s ease-in-out 0s 4;
+  }
+
+  @keyframes konami-celebrate {
+    0%,
+    100% {
+      filter: none;
+    }
+    50% {
+      filter: hue-rotate(180deg) saturate(1.6);
+    }
+  }
+}

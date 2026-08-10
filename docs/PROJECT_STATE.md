@@ -6,7 +6,7 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 26 — analytics page, backup in Settings, CMS-chosen share image.**
+**Phase 27 — notes, easter eggs, and image optimisation at upload.**
 
 Everything below Phase 22 remains true; this is what the owner asked for once
 the site was in daily use.
@@ -98,6 +98,62 @@ it). Nothing remote was touched by this slice.
 Deploying before the Access application exists yields a Worker that denies
 everyone — safe but useless. The owner's dashboard steps are in
 `docs/DEPLOYMENT.md`.
+
+## Phase 27 — notes, easter eggs, and image optimisation at upload
+
+### Notes (migration 0012)
+
+A full writing surface in the CMS: **Notes** in the admin, `/notes` and
+`/notes/[slug]` on the site, both in the sitemap. Title, URL, summary, Markdown
+body, status, date, tags and a cover image. Draft and archived both 404 rather
+than confirming the slug exists — the same rule the project pages follow.
+
+The body is rendered by an explicit parser that builds React elements; there is
+no `dangerouslySetInnerHTML` anywhere in the path. Verified in a browser: a
+body containing `<script>alert(1)</script>` rendered as literal text with zero
+script elements in the article.
+
+The slug auto-fills from the title until the URL is edited, then stops — so
+rewording a published headline cannot silently change its address.
+
+### Easter eggs
+
+A styled console note for anyone who opens DevTools, and the Konami code
+(↑↑↓↓←→←→BA) toggling a four-second hue rotation. Neither hides content, the
+key listener never calls `preventDefault`, and it ignores typing. The
+celebration is CSS inside `prefers-reduced-motion: no-preference`.
+
+### Image optimisation at upload
+
+Uploads are downscaled to 1600 px and re-encoded as WebP **in the browser**,
+before they leave the admin, with the saving shown to the editor. The smaller
+of the original and the re-encode wins. See DECISIONS for the measurement that
+prompted it and why the Worker cannot do this.
+
+**This does not shrink images already in R2.** The heavy ones must be
+re-uploaded — see below.
+
+### Checks
+
+`pnpm lint` clean, all packages `tsc --noEmit` clean, `pnpm test` exit 0
+(migrations smoke updated for the new table and index), `pnpm build` both apps.
+Browser-verified: a note created in the admin, published, and read on the
+public site with headings, lists, a quote, a fenced code block and a link all
+rendered — and the injection attempt shown as text.
+
+### Still required from the owner
+
+1. **Migration 0012**, from the repository root:
+   `npx wrangler d1 migrations apply portfolio-cms --remote -c wrangler.d1.jsonc`
+2. **Turn off 3D on mobile** in Settings → 3D scene. It is currently on, which
+   is why an 893 KB Three.js bundle loads on phones and costs ~110 ms of
+   blocking time.
+3. **Re-upload the heavy images** — the portrait, the x-ray portrait and the
+   two social icons. The optimiser only runs on new uploads.
+4. **Re-run Lighthouse in Incognito.** Best Practices scored 0.77 in both
+   supplied reports because of a Chrome extension
+   (`chext_driver.js`, "Unload event listeners are deprecated"), not the site;
+   Lighthouse itself warned that extensions affected the run.
 
 ## Phase 26 — analytics page, backup in Settings, CMS-chosen share image
 

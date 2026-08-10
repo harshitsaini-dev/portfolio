@@ -175,6 +175,8 @@ const EXPECTED_TABLES = [
   "terminal_lines",
   // 0011 — aggregated page-view counts, written by the public site.
   "page_view_daily",
+  // 0012 — written posts.
+  "notes",
   "referrer_daily",
   "timeline_entries",
   "timeline_highlights",
@@ -198,6 +200,7 @@ const EXPECTED_INDEXES = [
   "idx_sections_visible_position",
   "idx_terminal_lines_visible_position",
   "idx_page_view_daily_day",
+  "idx_notes_status_published",
   "idx_referrer_daily_day",
   "idx_site_settings_social_image",
   "idx_skill_categories_visible_position",

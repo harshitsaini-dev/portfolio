@@ -24,5 +24,6 @@ export * from "./timeline.ts";
 export * from "./robot-lines.ts";
 export * from "./terminal-lines.ts";
 export * from "./analytics.ts";
+export * from "./notes.ts";
 export * from "./resumes.ts";
 export * from "./tools.ts";

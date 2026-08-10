@@ -35,6 +35,10 @@ import {
   type AnalyticsRepository,
 } from "./repositories/analytics.ts";
 import {
+  createNoteRepository,
+  type NoteRepository,
+} from "./repositories/notes.ts";
+import {
   createContactMessageRepository,
   type ContactMessageRepository,
 } from "./repositories/contact-messages.ts";
@@ -93,6 +97,8 @@ export interface Repositories {
    * only repository here used in both directions.
    */
   readonly analytics: AnalyticsRepository;
+  /** Written posts. Slug-addressed, status-filtered. */
+  readonly notes: NoteRepository;
   /** Alternative phrasings the hero headline cycles through. */
   readonly headlineAlternates: HeadlineAlternateRepository;
   readonly sections: SectionRepository;
@@ -134,6 +140,7 @@ export function createRepositories(
     robotLines: createRobotLineRepository(db, runtime),
     terminalLines: createTerminalLineRepository(db, runtime),
     analytics: createAnalyticsRepository(db, runtime),
+    notes: createNoteRepository(db, runtime),
     sections: createSectionRepository(db, runtime),
     siteSettings: createSiteSettingsRepository(db, runtime),
     sceneSettings: createSceneSettingsRepository(db, runtime),

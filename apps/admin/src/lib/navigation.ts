@@ -68,6 +68,8 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
       // The console beside the robot. A sibling of the speech bubble, and next
       // to it in the menu because an editor changing one usually looks at both.
       { label: "Terminal lines", href: "/terminal-lines" },
+      // Under Content: a note is writing, the same as everything else here.
+      { label: "Notes", href: "/notes" },
     ],
   },
   {
