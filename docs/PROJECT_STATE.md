@@ -6,7 +6,19 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 22 — DEPLOYED. The public site is live on workers.dev.**
+**Phase 22 — COMPLETE. Both Workers are live on workers.dev.**
+
+The public site and the admin CMS are deployed and verified:
+
+- `https://portfolio-web.harshitsaini.workers.dev` — public, serving CMS
+  content from remote D1/R2.
+- `https://portfolio-admin.harshitsaini.workers.dev` — behind Cloudflare
+  Access (email policy), verified from outside: unauthenticated requests 302
+  to the Access login and never reach the Worker.
+
+The owner is entering content through the deployed admin; uploads, the
+favicon, profile and settings all work in production. Deploys run through
+`deploy.sh <web|admin>` from the WSL clone.
 
 The owner ran the deploy on 2026-08-09:
 `https://portfolio-web.harshitsaini.workers.dev/` serves HTTP 200 from the
@@ -83,6 +95,50 @@ it). Nothing remote was touched by this slice.
 Deploying before the Access application exists yields a Worker that denies
 everyone — safe but useless. The owner's dashboard steps are in
 `docs/DEPLOYMENT.md`.
+
+## Production fixes after the admin went live
+
+Three defects found and fixed in the first hours of real production use, each
+verified against the live site before and after. All deployed.
+
+### Uploads past 1MB died as the generic error page
+
+Every upload goes through a Server Action, and the framework's default
+`bodySizeLimit` of 1MB silently contradicted the project's own upload policy
+(5MB images, 10MB PDFs, `packages/schemas/src/media.ts`). The throw happened
+at the framework layer, before the action's typed error handling could run —
+which is why it surfaced as the error boundary instead of a form message,
+and why it was confusing to diagnose: a 25KB favicon uploaded fine while
+larger logo PNGs failed. `experimental.serverActions.bodySizeLimit` is now
+`"11mb"` — the policy ceiling plus multipart framing. The schemas package
+remains the real policy. Owner-confirmed fixed in production.
+
+### The CMS favicon showed on laptops and not on phones
+
+Fetched the served HTML: only `rel="icon"` was emitted, and mobile browsers
+look for `apple-touch-icon`. The metadata now emits both from the same CMS
+asset. Verified on the deployed page.
+
+### A deploy silently re-enabled Preview URLs
+
+The owner had disabled Preview URLs in the dashboard; the next deploy
+flipped them back on, because wrangler defaults them on when `workers_dev`
+is enabled and the config did not pin them. The preview hostname
+(`*-portfolio-admin...workers.dev`) is not covered by the Access application
+on the production hostname — the admin app itself still fails closed there,
+which is the defence-in-depth working, but it was an unauthenticated surface
+nobody asked for. `"preview_urls": false` is now pinned in both Worker
+configs.
+
+Two deployment facts worth keeping:
+
+- `keep_vars: true` did its job: the deploy's own warning *displays* the
+  dashboard vars as if they would be removed, but the deployed version
+  (checked with `wrangler versions view`) retained `CF_ACCESS_TEAM_DOMAIN`
+  and `CF_ACCESS_AUD`. The warning is alarmist; the setting holds.
+- Deploys run as `wsl.exe -e bash /home/harsh/portfolio/deploy.sh <app>`
+  **from PowerShell** — Git Bash mangles the `/home/...` path (MSYS path
+  conversion) into a Windows path that does not exist.
 
 ## Production hydration report — investigated, no application defect found
 

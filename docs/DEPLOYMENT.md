@@ -1,6 +1,6 @@
 # Deployment
 
-**Status: partially implemented. Nothing has been deployed.**
+**Status: DEPLOYED. Both Workers are live on workers.dev — see PROJECT_STATE.**
 
 The public site now has deployment *configuration* — `@opennextjs/cloudflare`,
 `apps/web/open-next.config.ts`, `apps/web/wrangler.jsonc` (Worker
