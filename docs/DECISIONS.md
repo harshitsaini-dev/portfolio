@@ -3,6 +3,96 @@
 Notable architectural/tooling decisions and their rationale. Append new
 entries; do not delete history.
 
+## 2026-08-10 — Case study fields, and why the stack is not one of them
+
+The owner asked for project pages shaped as problem → solution → stack →
+learnings. Three of those became columns (`0013_project_case_study.sql`); the
+stack did not.
+
+The stack already exists as `project_technologies`, a real relation with its
+own rows and ordering, rendered as badges under "Built with". A `stack` text
+column would have been a second, worse copy of it — free text that can
+disagree with the tags, cannot be filtered on, and gives the site two answers
+to the same question. So the page interleaves: the two prose parts, then the
+existing badge list, then the learnings. That is why `ProjectDetail.caseStudy`
+is three named fields rather than one ordered array — an array would have
+forced the page either to string-match a heading to know where to slot the
+stack in, or to settle for an order that reads worse.
+
+The alternative to all of it was one longer `description`, with the editor
+typing their own headings. That puts the page's structure inside the content,
+where the site cannot reason about it: no way to tell a project with a case
+study from one without, and no way to label the parts consistently across
+projects.
+
+Each part is independent and optional. A project can answer only "what I
+learned" and the other two headings never render — `CaseStudyPart` returns
+`null` on empty rather than leaving a heading with nothing under it.
+
+The regression test that guards the create/update asymmetry now expects **18**
+materialised keys instead of 15. The number is asserted rather than derived
+precisely so that adding a field without thinking about the update shape fails
+there. The empty-patch assertion — update materialises **zero** keys — is the
+half that actually protects data, and it was untouched.
+
+## 2026-08-10 — Terminal mode is a route, not an overlay
+
+"Terminal as an alternate homepage mode with a toggle" is most obviously built
+as a full-screen overlay over the home page. That version has to trap focus,
+make the page behind it inert, restore focus on close, and stay honest about
+all three — and when it is finished, what the visitor is looking at still has
+no address.
+
+`/terminal` gets the same result from the browser. There is nothing behind it
+to trap focus away from, Back does what Back always does, and the mode can be
+linked and shared. The toggle is a link in each direction, which is also the
+one control that works before any JavaScript has run.
+
+`buildTerminalData()` was extracted the moment the second route needed it. Two
+copies of that mapping would be two chances for `whoami` to answer differently
+depending on where it was typed.
+
+## 2026-08-10 — `/whoami` is hidden, not secret
+
+Nothing links to it from the ordinary page: it is found by typing it, by
+running `whoami` in the terminal, or by reading the console message. Everything
+on it is the same public profile the home page already shows, formatted as
+shell output — so finding it early is a small joke and never an information
+leak. Anything genuinely private lives in the admin app behind Cloudflare
+Access, not behind an unguessed URL.
+
+It is `noindex` and absent from the sitemap for the same reason `/terminal` and
+`/resume` are: a search result would both spoil it and compete with the page
+that should win that query. Absent from the sitemap is not concealment — the
+route answers 200 to anyone who asks.
+
+## 2026-08-10 — The empty state's way out comes from the CMS
+
+"Meanwhile, see my GitHub →" is content, so it is not written in the
+component. `EmptyStateElsewhere` picks from the CMS's social profiles,
+preferring a code host because an empty *projects* section is the case it
+exists for and unpublished work usually still has commits behind it. The
+preference is soft: any profile beats a dead end, and a site with no social
+profiles renders no button rather than a link to nowhere.
+
+## 2026-08-10 — Two rendering bugs found by looking, not by testing
+
+**Literal `—` on the notes pages.** The generator script that wrote those
+files emitted unicode escapes into JSX *text*, where they are six literal
+characters rather than an em dash. Every check passed — it is valid JSX and
+valid TypeScript — and it was caught by reading a screenshot. Repaired across
+six files; the JSON-LD `<` escape was left alone, because there it is a
+deliberate JS string escape.
+
+**Tools rows padded on one side.** Each row had `pb-3` and no top padding, so
+labels sat flush against the top of the row and a row with a 24px icon was
+taller than one without. Measured after the fix: every row 48px, each label
+within half a pixel of its row's centre.
+
+Both belong in this file for the same reason: the checks that pass are not the
+same set as the things that are right, and the only way to find that class of
+defect is to open the page.
+
 ## 2026-08-11 — Notes: one Markdown body, not a block editor
 
 The owner asked for a blog "fully customizable like Blogger". A block-based

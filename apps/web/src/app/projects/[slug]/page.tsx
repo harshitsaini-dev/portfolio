@@ -82,6 +82,38 @@ export async function generateMetadata({
   };
 }
 
+/**
+ * One part of the case study.
+ *
+ * Renders nothing when the editor did not write this part — the caller does
+ * not have to guard each of the three, and a heading can never appear with no
+ * text under it.
+ *
+ * `h2`, so the page keeps a single heading level under its `h1` and a screen
+ * reader's heading list reads as the case study's outline.
+ */
+function CaseStudyPart({
+  heading,
+  paragraphs,
+}: {
+  heading: string;
+  paragraphs: readonly string[];
+}) {
+  if (paragraphs.length === 0) return null;
+  return (
+    <section className="mt-12 max-w-2xl">
+      <h2 className={type.minorHeading}>{heading}</h2>
+      <div className={`mt-5 space-y-5 ${type.body}`}>
+        {paragraphs.map((paragraph, index) => (
+          // Paragraph order is fixed and never reordered or filtered, so the
+          // index is a stable key.
+          <p key={index}>{paragraph}</p>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default async function ProjectPage({
   params,
 }: PageProps<"/projects/[slug]">) {
@@ -187,6 +219,27 @@ export default async function ProjectPage({
               </div>
             ) : null}
 
+            {/*
+              The case study, in the order someone evaluating the work asks the
+              questions: what was wrong, what you built, what you built it
+              with, and what it taught you. The stack sits in the middle
+              because it belongs to the answer, not to the epilogue — which is
+              why the three prose parts are rendered here individually rather
+              than mapped in one loop around it.
+
+              Every part is optional and independent: a project can answer only
+              the problem, or only the learnings, and the page skips the rest
+              without leaving an empty heading behind.
+            */}
+            <CaseStudyPart
+              heading="The problem"
+              paragraphs={project.caseStudy.problem}
+            />
+            <CaseStudyPart
+              heading="What I built"
+              paragraphs={project.caseStudy.solution}
+            />
+
             {project.technologies.length > 0 ? (
               <div className="mt-12">
                 <h2 className={type.minorHeading}>Built with</h2>
@@ -198,6 +251,11 @@ export default async function ProjectPage({
                 </div>
               </div>
             ) : null}
+
+            <CaseStudyPart
+              heading="What I learned"
+              paragraphs={project.caseStudy.learnings}
+            />
 
             {project.gallery.length > 0 ? (
               <div className="mt-14">

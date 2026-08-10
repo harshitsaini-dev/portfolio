@@ -35,6 +35,22 @@ export interface ProjectDetail {
   readonly summary: string;
   /** Long-form prose, split into paragraphs. Empty when none was written. */
   readonly description: readonly string[];
+  /**
+   * The case study: what was wrong, what was built, what it taught. Each is
+   * already split into paragraphs, and empty means the editor did not write
+   * that part — the page renders nothing at all for it, not an empty heading.
+   *
+   * Three named fields rather than one ordered array, because the stack sits
+   * *between* the solution and the learnings on the page and it is not prose:
+   * it is the technologies relation, rendered as badges. An array would have
+   * forced the page either to interleave by string-matching a heading or to
+   * put the parts in an order that reads worse.
+   */
+  readonly caseStudy: {
+    readonly problem: readonly string[];
+    readonly solution: readonly string[];
+    readonly learnings: readonly string[];
+  };
   readonly period: string;
   readonly technologies: readonly string[];
   /** The large image at the head of the page. */
@@ -164,6 +180,11 @@ async function readProjectDetail(slug: string): Promise<ProjectDetail | null> {
     title: project.title,
     summary: project.summary,
     description: toParagraphs(project.description),
+    caseStudy: {
+      problem: toParagraphs(project.problem),
+      solution: toParagraphs(project.solution),
+      learnings: toParagraphs(project.learnings),
+    },
     period: toPeriod(project.periodLabel, project.startedOn, project.completedOn),
     technologies: project.technologies.map((technology) => technology.name),
     cover: toImage(

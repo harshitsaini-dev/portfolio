@@ -23,6 +23,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ContentImage } from "@/components/ui/content-image";
+import { EmptyState, EmptyStateElsewhere } from "@/components/ui/empty-state";
 import { ShareButton } from "@/components/ui/share-button";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -79,15 +80,25 @@ export default async function ProjectsIndexPage() {
             </h1>
             <p className="mt-3 max-w-2xl text-fg-muted">
               {projects.length === 0
-                ? // An honest empty state. The alternative — hiding the page —
-                  // would 404 a URL that is linked from the header and the
-                  // sitemap.
-                  "Nothing is published here yet."
+                ? // See the empty state below; this line stays for the count.
+                  ""
                 : `${projects.length} published ${projects.length === 1 ? "project" : "projects"}.`}
             </p>
           </div>
           <ShareButton title={`Projects · ${content.siteName}`} />
         </div>
+
+        {projects.length === 0 ? (
+          <div className="mt-12">
+            <EmptyState
+              title="Nothing published here yet"
+              action={<EmptyStateElsewhere socials={content.socials} />}
+            >
+              Work marked draft or archived in the CMS is deliberately not
+              shown. There is more in the pipeline — check back soon.
+            </EmptyState>
+          </div>
+        ) : null}
 
         {projects.length > 0 ? (
           <ul className="mt-12 grid gap-8 sm:grid-cols-2">

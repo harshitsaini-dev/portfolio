@@ -37,7 +37,8 @@ import { toTechnology } from "./technologies.ts";
 
 const ENTITY = "project";
 
-const PROJECT_COLUMNS = `id, slug, title, summary, description, status,
+const PROJECT_COLUMNS = `id, slug, title, summary, description,
+  problem, solution, learnings, status,
   is_featured, position, period_label, started_on, completed_on,
   cover_media_id, icon_media_id, published_at, created_at, updated_at`;
 
@@ -48,6 +49,9 @@ function toProject(row: Row): Project {
     title: requireString(ENTITY, row, "title"),
     summary: requireString(ENTITY, row, "summary"),
     description: nullableString(ENTITY, row, "description"),
+    problem: nullableString(ENTITY, row, "problem"),
+    solution: nullableString(ENTITY, row, "solution"),
+    learnings: nullableString(ENTITY, row, "learnings"),
     status: requireEnum(ENTITY, row, "status", PROJECT_STATUSES),
     isFeatured: requireBoolean(ENTITY, row, "is_featured"),
     position: requireNumber(ENTITY, row, "position"),
@@ -88,6 +92,9 @@ const PROJECT_PATCH: FieldSpecs<ProjectUpdate> = {
   title: { column: "title", encode: (p) => p.title },
   summary: { column: "summary", encode: (p) => p.summary },
   description: { column: "description", encode: (p) => p.description ?? null },
+  problem: { column: "problem", encode: (p) => p.problem ?? null },
+  solution: { column: "solution", encode: (p) => p.solution ?? null },
+  learnings: { column: "learnings", encode: (p) => p.learnings ?? null },
   status: { column: "status", encode: (p) => p.status },
   isFeatured: {
     column: "is_featured",
@@ -328,11 +335,12 @@ export function createProjectRepository(
         await db
           .prepare(
             `INSERT INTO projects
-               (id, slug, title, summary, description, status, is_featured,
+               (id, slug, title, summary, description, problem, solution,
+                learnings, status, is_featured,
                 position, period_label, started_on, completed_on,
                 cover_media_id, icon_media_id, published_at, created_at,
                 updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .bind(
             id,
@@ -340,6 +348,9 @@ export function createProjectRepository(
             input.title,
             input.summary,
             input.description ?? null,
+            input.problem ?? null,
+            input.solution ?? null,
+            input.learnings ?? null,
             input.status ?? "draft",
             boolToInt(input.isFeatured ?? false),
             input.position ?? 0,

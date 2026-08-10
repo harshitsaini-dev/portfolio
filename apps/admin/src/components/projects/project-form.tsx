@@ -52,6 +52,10 @@ export interface ProjectFormValues {
   slug: string;
   summary: string;
   description: string;
+  /** Case study. Any of the three may be blank; the page skips what is. */
+  problem: string;
+  solution: string;
+  learnings: string;
   status: ProjectStatus;
   isFeatured: boolean;
   position: number;
@@ -71,6 +75,9 @@ export const emptyProjectValues: ProjectFormValues = {
   slug: "",
   summary: "",
   description: "",
+  problem: "",
+  solution: "",
+  learnings: "",
   status: "draft",
   isFeatured: false,
   position: 0,
@@ -134,6 +141,9 @@ export function ProjectForm({
     slug: values.slug,
     summary: values.summary,
     description: values.description,
+    problem: values.problem,
+    solution: values.solution,
+    learnings: values.learnings,
     status: values.status,
     isFeatured: values.isFeatured,
     position: Number.isFinite(values.position) ? values.position : 0,
@@ -244,6 +254,53 @@ export function ProjectForm({
           value={values.description}
           errors={fieldErrors.description}
           onChange={(value) => update("description", value)}
+        />
+      </section>
+
+      {/*
+        Its own section, and named for what a reader gets rather than for the
+        columns it writes. The order is the order the page renders — problem,
+        then solution, then what it taught — so the form reads as the story it
+        is asking for instead of three unrelated boxes.
+      */}
+      <section aria-labelledby={`${fieldId}-case-study`} className="flex flex-col gap-5">
+        <h2 id={`${fieldId}-case-study`} className="text-sm font-semibold uppercase tracking-wider text-fg">
+          Case study
+        </h2>
+        <p className="-mt-2 text-sm text-fg-muted">
+          Optional. Anything left blank is skipped on the project page, so a
+          project can answer one of these and none of the others. The stack is
+          not here — it comes from the technologies you tag below.
+        </p>
+        <TextAreaField
+          id={`${fieldId}-problem`}
+          name="problem"
+          label="Problem"
+          rows={4}
+          hint="What was wrong, or what needed to exist."
+          value={values.problem}
+          errors={fieldErrors.problem}
+          onChange={(value) => update("problem", value)}
+        />
+        <TextAreaField
+          id={`${fieldId}-solution`}
+          name="solution"
+          label="Solution"
+          rows={4}
+          hint="What you built, and the decisions worth knowing about."
+          value={values.solution}
+          errors={fieldErrors.solution}
+          onChange={(value) => update("solution", value)}
+        />
+        <TextAreaField
+          id={`${fieldId}-learnings`}
+          name="learnings"
+          label="Learnings"
+          rows={4}
+          hint="What you know now that you did not before."
+          value={values.learnings}
+          errors={fieldErrors.learnings}
+          onChange={(value) => update("learnings", value)}
         />
       </section>
 

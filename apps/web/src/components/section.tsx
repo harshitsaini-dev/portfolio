@@ -107,7 +107,7 @@ export function Section({
           above it is decorative and can afford that; this cannot. It keeps the
           one-shot scramble it has always had.
         */}
-        <h2 id={headingId} className={`reveal mt-3 ${type.heading}`}>
+        <h2 id={headingId} className={`reveal mt-3 ${type.heading} weight-hover weight-scroll`}>
           <ScrambleText text={title} />
         </h2>
         {lead ? (

@@ -1,17 +1,20 @@
 import Link from "next/link";
 
+import { EmptyState, EmptyStateElsewhere } from "@/components/ui/empty-state";
 import { ProjectsCarousel } from "@/components/projects-carousel";
 import { Section } from "@/components/section";
-import { type } from "@/components/ui/typography";
-import type { Project } from "@/data/types";
+import type { Project, SocialProfile } from "@/data/types";
 import type { SectionCopy } from "@/lib/content/sections";
 
 export function ProjectsSection({
   projects,
   copy,
+  socials,
 }: {
   projects: readonly Project[];
   copy: SectionCopy;
+  /** Only used when the section is empty, to offer somewhere else to look. */
+  socials: readonly SocialProfile[];
 }) {
   return (
     <Section
@@ -23,10 +26,13 @@ export function ProjectsSection({
       icon={copy.icon}
     >
       {projects.length === 0 ? (
-        <p className={type.bodySm}>
-          No published projects yet. Projects marked draft or archived in the
-          CMS are deliberately not shown here.
-        </p>
+        <EmptyState
+          title="Nothing published here yet"
+          action={<EmptyStateElsewhere socials={socials} />}
+        >
+          Work marked draft or archived in the CMS is deliberately not shown.
+          There is more in the pipeline — check back soon.
+        </EmptyState>
       ) : null}
 
       {/* The carousel renders the same cards in the same list. It arranges

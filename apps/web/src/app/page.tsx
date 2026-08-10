@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import Link from "next/link";
 
 import { AboutSection } from "@/components/about-section";
 import { ContactSection } from "@/components/contact-section";
@@ -11,6 +12,7 @@ import { SiteHeader } from "@/components/site-header";
 import { PersonSchema } from "@/components/seo/person-schema";
 import { getSiteOrigin } from "@/lib/site-origin";
 import { PlaygroundSection } from "@/components/playground-section";
+import { CommandTerminal } from "@/components/ui/command-terminal";
 import { RobotSpeech } from "@/components/three/robot-speech";
 import { RobotTerminal } from "@/components/three/robot-terminal";
 import { HeroSceneMount } from "@/components/three/hero-scene-mount";
@@ -19,6 +21,7 @@ import { Preloader } from "@/components/ui/preloader";
 import { SmoothScroll } from "@/components/ui/smooth-scroll";
 import { SkillsSection } from "@/components/skills-section";
 import { getSiteContent } from "@/lib/content/site-content";
+import { buildTerminalData } from "@/lib/content/terminal-data";
 
 /**
  * The public portfolio, rendered from the CMS.
@@ -45,6 +48,15 @@ export default async function Home() {
   // Set by the middleware, and required for the structured data below to
   // survive the Content-Security-Policy.
   const nonce = requestHeaders.get("x-nonce") ?? undefined;
+
+  /**
+   * Everything the terminal can print, taken from the CMS.
+   *
+   * Built by a shared function rather than inline, because `/terminal` renders
+   * the same component and the two must answer identically — two copies of the
+   * mapping would be two chances to disagree about what is true.
+   */
+  const terminalData = buildTerminalData(content);
 
   return (
     <>
@@ -134,6 +146,7 @@ export default async function Home() {
                   key={copy.key}
                   copy={copy}
                   projects={content.projects}
+                  socials={content.socials}
                 />
               );
             case "experience":
@@ -163,7 +176,30 @@ export default async function Home() {
                 />
               );
             case "playground":
-              return <PlaygroundSection key={copy.key} copy={copy} />;
+              return (
+                <div key={copy.key}>
+                  <PlaygroundSection copy={copy} />
+                  {/*
+                    The terminal lives with the playground because that is what
+                    it is: something to poke at. Every command it answers shows
+                    what is already on the page, so a visitor who never types
+                    into it misses nothing.
+                  */}
+                  <div className="mx-auto mt-10 w-full max-w-5xl px-5 sm:px-8">
+                    <CommandTerminal
+                      data={terminalData}
+                      footer={
+                        <Link
+                          href="/terminal"
+                          className="text-accent underline underline-offset-4 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                        >
+                          Open terminal mode →
+                        </Link>
+                      }
+                    />
+                  </div>
+                </div>
+              );
             case "contact":
               return (
                 <ContactSection key={copy.key} copy={copy} contact={content.contact} />

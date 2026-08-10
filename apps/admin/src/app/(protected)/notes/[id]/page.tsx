@@ -10,14 +10,14 @@ import { DeleteNoteForm } from "@/components/notes/delete-note-form";
 import { NoteForm } from "@/components/notes/note-form";
 
 /**
- * Static and generic \u2014 deliberately not `generateMetadata`.
+ * Static and generic — deliberately not `generateMetadata`.
  *
  * A metadata function here would have to read the row to show its title, and
  * route metadata is evaluated independently of the component, so
  * `withAdminPage` could not protect it.
  */
 export const metadata: Metadata = {
-  title: "Edit note \u00b7 Portfolio Admin",
+  title: "Edit note · Portfolio Admin",
 };
 
 export default withAdminPage<{ params: Promise<{ id: string }> }>(
@@ -44,7 +44,7 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
             /
           </span>
           <span className="text-fg">
-            {note.title.length > 40 ? `${note.title.slice(0, 40)}\u2026` : note.title}
+            {note.title.length > 40 ? `${note.title.slice(0, 40)}…` : note.title}
           </span>
         </nav>
 
@@ -92,7 +92,7 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
           </h2>
           <p className="mt-2 text-sm text-fg-muted">
             Permanently removes this note and everything written in it. This
-            cannot be undone \u2014 to take it off the site while keeping the words,
+            cannot be undone — to take it off the site while keeping the words,
             set its status to Archived above instead.
           </p>
           <DeleteNoteForm noteId={note.id} noteTitle={note.title} />

@@ -6,9 +6,9 @@ import { withAdminPage } from "@/lib/auth/protected-page";
 import { getMediaOptions } from "@/lib/media/options";
 import { emptyNoteValues, NoteForm } from "@/components/notes/note-form";
 
-/** Static and generic \u2014 see the list route for why metadata never reads data. */
+/** Static and generic — see the list route for why metadata never reads data. */
 export const metadata: Metadata = {
-  title: "New note \u00b7 Portfolio Admin",
+  title: "New note · Portfolio Admin",
 };
 
 export default withAdminPage(async () => {

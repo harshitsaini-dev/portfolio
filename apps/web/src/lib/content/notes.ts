@@ -1,7 +1,7 @@
 /**
  * Published notes, for the public site.
  *
- * The status filter lives here, next to the read, rather than in each route \u2014
+ * The status filter lives here, next to the read, rather than in each route —
  * the same rule the project pages follow, and for the same reason: a caller
  * that forgot it would publish a draft.
  */

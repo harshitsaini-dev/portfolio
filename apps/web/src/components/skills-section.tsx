@@ -113,8 +113,14 @@ export function SkillsSection({
             <div
               key={tool.id}
               /* A row has no border to light up, so it takes the tinted
-                  variant instead. */
-              className="glow-row -mx-2 flex items-center justify-between gap-4 rounded-md border-b border-subtle px-2 pb-3"
+                  variant instead.
+
+                  Padded on both sides of the text and given a minimum height,
+                  so the label sits centred between the rules rather than
+                  hugging the top — and so a row with a 24px icon is the same
+                  height as one without, which is what made neighbouring rows
+                  look misaligned when only the bottom was padded. */
+              className="glow-row -mx-2 flex min-h-12 items-center justify-between gap-4 rounded-md border-b border-subtle px-2 py-2"
             >
               <dt className="glow-title flex items-center gap-3 text-sm font-medium text-fg">
                 {tool.image ? (

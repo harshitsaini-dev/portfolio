@@ -308,6 +308,16 @@ export interface Project extends EntityMeta {
   readonly title: string;
   readonly summary: string;
   readonly description: string | null;
+  /**
+   * Case-study prose: what was wrong, what was built, what was learned.
+   *
+   * Separate from `description` so the page can label and order them, and so
+   * an unanswered one renders as nothing rather than an empty heading. The
+   * stack is not here — it is the `technologies` relation.
+   */
+  readonly problem: string | null;
+  readonly solution: string | null;
+  readonly learnings: string | null;
   readonly status: ProjectStatus;
   readonly isFeatured: boolean;
   readonly position: number;
@@ -331,6 +341,9 @@ export interface ProjectCreate {
   readonly title: string;
   readonly summary: string;
   readonly description?: string | null;
+  readonly problem?: string | null;
+  readonly solution?: string | null;
+  readonly learnings?: string | null;
   readonly status?: ProjectStatus;
   readonly isFeatured?: boolean;
   readonly position?: number;
@@ -347,6 +360,9 @@ export interface ProjectUpdate {
   readonly title?: string;
   readonly summary?: string;
   readonly description?: string | null;
+  readonly problem?: string | null;
+  readonly solution?: string | null;
+  readonly learnings?: string | null;
   readonly status?: ProjectStatus;
   readonly isFeatured?: boolean;
   readonly position?: number;

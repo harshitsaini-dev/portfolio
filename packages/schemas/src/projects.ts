@@ -137,6 +137,11 @@ export const projectCreateSchema = z
     slug: projectSlugSchema,
     summary: summaryValue,
     description: nullableText(8000).default(null),
+    // Case study. Each is a paragraph or three, not an essay — the cap is
+    // generous enough not to be felt and small enough to bound a row.
+    problem: nullableText(4000).default(null),
+    solution: nullableText(4000).default(null),
+    learnings: nullableText(4000).default(null),
     status: statusValue.default("draft"),
     isFeatured: z.boolean().default(false),
     position: positionValue.default(0),
@@ -196,6 +201,9 @@ export const projectUpdateSchema = z
     slug: projectSlugSchema.optional(),
     summary: summaryValue.optional(),
     description: nullableText(8000).optional(),
+    problem: nullableText(4000).optional(),
+    solution: nullableText(4000).optional(),
+    learnings: nullableText(4000).optional(),
     status: statusValue.optional(),
     isFeatured: z.boolean().optional(),
     position: positionValue.optional(),

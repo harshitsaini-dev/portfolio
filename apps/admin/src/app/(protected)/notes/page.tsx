@@ -12,10 +12,10 @@ import { getAdminRepositories } from "@/lib/db/binding";
  * not a distinction to encode in a hue nobody has been told the meaning of.
  */
 export const metadata: Metadata = {
-  title: "Notes \u00b7 Portfolio Admin",
+  title: "Notes · Portfolio Admin",
 };
 
-/** `2026-08-10` \u2192 `10 Aug 2026`. Fixed locale so it reads the same anywhere. */
+/** `2026-08-10` → `10 Aug 2026`. Fixed locale so it reads the same anywhere. */
 function formatDate(value: string): string {
   const date = new Date(`${value.slice(0, 10)}T00:00:00Z`);
   return Number.isNaN(date.getTime())
@@ -58,7 +58,7 @@ export default withAdminPage(async () => {
 
       {notes.length === 0 ? (
         <p className="mt-10 rounded-lg border border-subtle bg-surface p-6 text-sm text-fg-muted">
-          A note is a short post \u2014 what you learned this week, why you chose a
+          A note is a short post — what you learned this week, why you chose a
           tool, how something broke. It shows the thinking behind the work,
           which the project pages cannot.
         </p>
@@ -74,7 +74,7 @@ export default withAdminPage(async () => {
                   <span className="font-medium text-fg">{note.title}</span>
                   <span className="text-xs text-fg-muted">
                     {note.status === "published" ? "Published" : note.status === "draft" ? "Draft" : "Archived"}
-                    {note.publishedAt ? ` \u00b7 ${formatDate(note.publishedAt)}` : ""}
+                    {note.publishedAt ? ` · ${formatDate(note.publishedAt)}` : ""}
                   </span>
                 </div>
                 <span className="text-sm text-fg-muted">{note.summary}</span>

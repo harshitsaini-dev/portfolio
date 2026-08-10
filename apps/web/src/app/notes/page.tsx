@@ -9,6 +9,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { EmptyState, EmptyStateElsewhere } from "@/components/ui/empty-state";
 import { ShareButton } from "@/components/ui/share-button";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -18,7 +19,7 @@ import { absoluteMediaUrl, getSiteOrigin } from "@/lib/site-origin";
 
 export const dynamic = "force-dynamic";
 
-/** `2026-08-10` \u2192 `10 August 2026`. */
+/** `2026-08-10` → `10 August 2026`. */
 export function formatNoteDate(value: string): string {
   const date = new Date(`${value}T00:00:00Z`);
   return Number.isNaN(date.getTime())
@@ -33,7 +34,7 @@ export function formatNoteDate(value: string): string {
 
 export async function generateMetadata(): Promise<Metadata> {
   const [content, origin] = await Promise.all([getSiteContent(), getSiteOrigin()]);
-  const title = `Notes \u00b7 ${content.siteName}`;
+  const title = `Notes · ${content.siteName}`;
   const description = `Short posts by ${content.profile.name} on building things for the web.`;
   const shareImage = content.shareImage ?? content.profile.image;
 
@@ -74,17 +75,23 @@ export default async function NotesIndexPage() {
               Notes
             </h1>
             <p className="mt-3 max-w-2xl text-fg-muted">
-              Short posts about building things \u2014 what broke, what I chose, and
+              Short posts about building things — what broke, what I chose, and
               why.
             </p>
           </div>
-          <ShareButton title={`Notes \u00b7 ${content.siteName}`} />
+          <ShareButton title={`Notes · ${content.siteName}`} />
         </div>
 
         {notes.length === 0 ? (
-          <p className="mt-12 rounded-lg border border-subtle bg-surface p-6 text-fg-muted">
-            Nothing published here yet.
-          </p>
+          <div className="mt-12">
+            <EmptyState
+              title="Nothing written here yet"
+              action={<EmptyStateElsewhere socials={content.socials} />}
+            >
+              Short posts about building things — what broke, what I chose, and
+              why. The first one is on its way.
+            </EmptyState>
+          </div>
         ) : (
           <ul className="mt-12 flex flex-col divide-y divide-subtle border-y border-subtle">
             {notes.map((note) => (

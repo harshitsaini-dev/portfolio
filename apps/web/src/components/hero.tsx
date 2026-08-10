@@ -1,5 +1,6 @@
 import { PlaceholderAction } from "@/components/placeholder-action";
 import { Container } from "@/components/ui/container";
+import { Magnetic } from "@/components/ui/magnetic";
 import { SocialRow } from "@/components/ui/social-row";
 import { RotatingTypewriter } from "@/components/ui/rotating-typewriter";
 import { Typewriter } from "@/components/ui/typewriter";
@@ -105,13 +106,21 @@ export function Hero({
               <p className={`mt-6 ${type.meta}`}>{profile.location}</p>
             ) : null}
 
+            {/* The two things a visitor is most likely to want. Both are
+                wrapped rather than replaced: the magnet is a transform on a
+                span around each control, so the anchor keeps its own hit area,
+                focus ring and behaviour, and the effect disappears entirely on
+                touch and under reduced motion. */}
             <div className="rise rise-5 mt-10 flex flex-wrap items-start gap-3">
-              <PlaceholderAction
-                action={contact.primaryAction}
-                variant="primary"
-                context="hero"
-              />
+              <Magnetic>
+                <PlaceholderAction
+                  action={contact.primaryAction}
+                  variant="primary"
+                  context="hero"
+                />
+              </Magnetic>
               {resume ? (
+                <Magnetic>
                 <a
                   href={resume.href}
                   // The route serves the PDF inline, so this opens rather than
@@ -124,6 +133,7 @@ export function Hero({
                   {resume.label}
                   <span className="sr-only"> (opens in a new tab)</span>
                 </a>
+                </Magnetic>
               ) : null}
             </div>
 

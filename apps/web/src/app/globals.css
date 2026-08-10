@@ -527,3 +527,166 @@ html {
     }
   }
 }
+
+/*
+  The empty state's dot.
+
+  Opacity only — no transform, no layout property — so it cannot shift anything
+  around it. Slow enough to read as "waiting", not as "loading".
+*/
+@media (prefers-reduced-motion: no-preference) {
+  .empty-state-pulse {
+    animation: empty-state-pulse 2.4s ease-in-out infinite;
+  }
+
+  @keyframes empty-state-pulse {
+    0%,
+    100% {
+      opacity: 0.25;
+    }
+    50% {
+      opacity: 0.9;
+    }
+  }
+}
+
+/*
+  The terminal's block caret.
+
+  Sized in `ch` and `em` so it tracks the monospace face rather than a guess in
+  pixels. It is decoration beside a real text input that has a real caret of its
+  own, so it is hidden from assistive technology in the markup — and because it
+  is purely additional, leaving it perfectly still under reduced motion costs
+  nothing.
+*/
+.terminal-caret {
+  width: 1ch;
+  height: 1.1em;
+  vertical-align: text-bottom;
+  background-color: var(--color-accent);
+  opacity: 0.9;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .terminal-caret {
+    animation: terminal-caret 1.1s steps(1, end) infinite;
+  }
+
+  @keyframes terminal-caret {
+    0%,
+    49% {
+      opacity: 0.9;
+    }
+    50%,
+    100% {
+      opacity: 0;
+    }
+  }
+}
+
+/*
+  Variable font weight.
+
+  The display face is variable, so weight is a continuous axis rather than a
+  choice between two cut files. Two things ride it:
+
+  1. **Hover.** A heading thickens slightly when pointed at. `font-variation-
+     settings` is animated rather than `font-weight` because the shorthand
+     snaps between named instances in some engines, which is a jump where the
+     whole point is a slide.
+
+  2. **Scroll.** `animation-timeline: view()` ties the weight to where the
+     heading sits in the viewport, so it gains weight as it arrives and sheds
+     it as it leaves. This is CSS scroll-driven animation: no scroll listener,
+     no rAF, nothing on the main thread. `@supports` keeps it off the engines
+     that would otherwise apply the keyframes on a timer instead of a position.
+
+  Weight is not information here. The text says the same thing at 400 as at
+  700, so an engine that supports none of this loses nothing.
+*/
+@media (prefers-reduced-motion: no-preference) {
+  .weight-hover {
+    transition: font-variation-settings 220ms ease-out;
+    font-variation-settings: "wght" 600;
+  }
+
+  .weight-hover:hover,
+  .weight-hover:focus-within {
+    font-variation-settings: "wght" 760;
+  }
+
+  @supports (animation-timeline: view()) {
+    .weight-scroll {
+      animation: weight-on-scroll linear both;
+      animation-timeline: view();
+      /* Runs across the middle of the pass: the heading is at its heaviest
+         when it is where someone is actually reading, not at the edges. */
+      animation-range: entry 20% cover 60%;
+    }
+
+    @keyframes weight-on-scroll {
+      from {
+        font-variation-settings: "wght" 420;
+      }
+      to {
+        font-variation-settings: "wght" 720;
+      }
+    }
+  }
+}
+
+/*
+  Print.
+
+  Describes a medium, not a component, which is why it lives here rather than
+  as classes on the résumé page.
+
+  Colour is flattened to black on white: a dark theme printed as-is is a page
+  of ink, and most people printing a résumé are handing it to someone.
+
+  Link destinations are printed after the text, because a URL that cannot be
+  clicked is a URL that has to be readable. Skipped for in-page anchors and for
+  links whose text is already the address.
+*/
+@media print {
+  :root,
+  :root[data-theme="dark"],
+  :root[data-theme="light"] {
+    --color-bg: #fff;
+    --color-surface: #fff;
+    --color-surface-muted: #fff;
+    --color-fg: #000;
+    --color-fg-muted: #333;
+    --color-accent: #000;
+    --color-subtle: #bbb;
+    --color-strong: #666;
+  }
+
+  header[class*="sticky"],
+  footer,
+  nav[aria-label="Breadcrumb"] {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+    font-size: 11pt;
+  }
+
+  a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.85em;
+    word-break: break-all;
+  }
+
+  /* Never split a job or a qualification across a page boundary. */
+  article {
+    break-inside: avoid;
+  }
+
+  /* Backgrounds and shadows cost toner and say nothing on paper. */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+}

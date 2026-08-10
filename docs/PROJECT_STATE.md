@@ -6,6 +6,83 @@ something passed without running it.
 
 ## Current phase
 
+**Phase 28 — case-study project pages, terminal mode, and the hidden
+routes.** The second half of the owner's seven-item list, plus two rendering
+defects found by looking at the pages.
+
+### What shipped
+
+- **Case study on projects.** Migration `0013_project_case_study.sql` adds
+  `problem`, `solution` and `learnings` to `projects` — nullable, no default,
+  so every existing project keeps working and shows nothing new until someone
+  writes it. Wired through types → repository → schemas → admin form → public
+  page. The page renders problem → what I built → **Built with** (the existing
+  technologies relation) → what I learned; the stack is deliberately not a
+  column. See DECISIONS.md.
+- **`/terminal`** — the full-page terminal, a route rather than an overlay,
+  with a link each way. `buildTerminalData()` is shared with the home page's
+  inline terminal so the two cannot disagree.
+- **`/whoami`** — the hidden easter-egg route. `noindex`, absent from the
+  sitemap, discoverable from the terminal's `whoami` output and the console
+  message.
+- **Blinking block caret** in the terminal, shown only while the input has
+  focus (`peer-focus`), `aria-hidden`, and perfectly still under reduced
+  motion.
+- **Magnetic on the real CTAs** — Email and Download CV in the hero, alongside
+  Share. Measured pull 4.37px against the 6px cap.
+- **Empty-state CTA** — `EmptyStateElsewhere`, built from the CMS's social
+  profiles, on all three empty states.
+
+### Two defects fixed
+
+- **Literal `—` rendered on the notes pages** — unicode escapes written
+  into JSX text by a generator script. Six files repaired; the intentional
+  JSON-LD `<` was left alone. Verified in a browser: zero literal escapes
+  in the rendered text.
+- **Tools rows were padded only at the bottom**, so labels hugged the top and
+  icon rows were taller than icon-less ones. Now `min-h-12` with symmetric
+  padding: every row measures 48px and each label sits within 0.4px of its
+  row's centre.
+
+### Verification actually performed
+
+- `pnpm lint` — clean, both apps, zero warnings.
+- `pnpm -r typecheck` — clean across all six packages/apps.
+- `pnpm test` — full suite green. `projects-tests.mjs` updated: create now
+  materialises **18** keys (15 + the three case-study fields), and three new
+  assertions cover their defaults. The empty-update-materialises-zero-keys
+  assertion is unchanged and still passes.
+- `pnpm build` — both apps compiled.
+- Migration `0013` applied to **local** D1 only.
+- **Browser, against local dev:**
+  - Case study end-to-end: filled the three fields in the admin, saved, and
+    confirmed the public page renders `The problem | What I built | Built with
+    | What I learned`, two paragraphs each. A project with none of them
+    written renders none of the three headings.
+  - `/terminal`: log fills the viewport, the page itself does not scroll,
+    `whoami` links to `/whoami`, caret shows on focus and hides on blur, two
+    ways back to the normal site.
+  - `/whoami`: renders profile, skills and socials from the CMS; `noindex`;
+    absent from the sitemap, which still lists 8 URLs and none of
+    `/whoami`, `/terminal`, `/resume`.
+  - Empty state: verified by temporarily forcing the notes list empty, then
+    reverted.
+  - Magnetic: 4.37px pull, within the cap, on all three wrapped controls.
+  - Tools rows measured as described above.
+
+### Manual actions still required from the owner
+
+1. **Apply migration `0013` to remote D1 before deploying.** From the repo
+   root: `npx wrangler d1 migrations apply portfolio-cms --remote -c
+   wrangler.d1.jsonc`. Deploying first would 500 the whole site — every
+   project read now selects the three new columns. This has happened twice
+   before; see the notes above.
+2. Re-upload the heavy images (portrait, x-ray, two social icons) — the
+   upload optimiser only runs on new uploads.
+3. Disable the mobile 3D scene in Settings → 3D scene.
+4. Re-run Lighthouse in Incognito.
+
+
 **Phase 27 — notes, easter eggs, and image optimisation at upload.**
 
 Everything below Phase 22 remains true; this is what the owner asked for once

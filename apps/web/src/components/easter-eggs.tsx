@@ -57,7 +57,7 @@ export function EasterEggs() {
       "background:#0b0c0f;color:#7dd3fc;font-size:14px;padding:6px 4px;border-radius:4px",
     );
     console.log(
-      "This whole site is driven by a CMS I built: Next.js on Cloudflare Workers, D1, R2, behind Cloudflare Access.\nIf you got this far, we should probably talk. Try the Konami code while you're here. ↑↑↓↓←→←→BA",
+      "This whole site is driven by a CMS I built: Next.js on Cloudflare Workers, D1, R2, behind Cloudflare Access.\nIf you got this far, we should probably talk.\n\nWhile you're here: /whoami, /terminal, and the Konami code. ↑↑↓↓←→←→BA",
     );
   }, []);
 

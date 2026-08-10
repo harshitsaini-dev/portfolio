@@ -408,10 +408,20 @@ try {
     0,
   );
   equal("create still defaults media to []", createDefaults.data?.media.length, 0);
+  equal("create still defaults problem to null", createDefaults.data?.problem, null);
+  equal("create still defaults solution to null", createDefaults.data?.solution, null);
+  equal(
+    "create still defaults learnings to null",
+    createDefaults.data?.learnings,
+    null,
+  );
+  // 18 = the 15 this guarded before the case-study columns, plus problem,
+  // solution and learnings. The number is asserted rather than derived so that
+  // a field added to create without a thought about update fails here.
   equal(
     "create still materialises every field, defaults included",
     Object.keys(createDefaults.data ?? {}).length,
-    15,
+    18,
   );
   equal(
     "a media item caption still defaults to null inside an item",

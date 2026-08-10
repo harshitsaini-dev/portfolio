@@ -1,7 +1,7 @@
 /**
  * One note.
  *
- * The body is Markdown, rendered by `Markdown` \u2014 an explicit parser that
+ * The body is Markdown, rendered by `Markdown` — an explicit parser that
  * builds React elements. There is no HTML string anywhere in this path, so a
  * post cannot inject markup into the page whatever an editor types.
  */
@@ -75,7 +75,7 @@ export default async function NotePage({ params }: NotePageProps) {
     getSiteContent(),
   ]);
 
-  // Missing, draft and archived are all 404 \u2014 see `getNoteDetail`. A page
+  // Missing, draft and archived are all 404 — see `getNoteDetail`. A page
   // saying "not published" would confirm the slug exists.
   if (!note) notFound();
 

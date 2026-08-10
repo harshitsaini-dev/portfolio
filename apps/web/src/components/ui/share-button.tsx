@@ -28,6 +28,8 @@
  * reverts so the button does not read as permanently "Copied".
  */
 
+import { Magnetic } from "@/components/ui/magnetic";
+
 import { useEffect, useRef, useState } from "react";
 
 type Status = "idle" | "shared" | "copied" | "failed";
@@ -100,6 +102,9 @@ export function ShareButton({
 
   return (
     <span className="inline-flex items-center gap-3">
+      {/* Wrapped, not replaced: the button keeps its own hit area and focus
+          ring, and the pull is purely visual. */}
+      <Magnetic>
       <button
         type="button"
         onClick={() => void share()}
@@ -123,6 +128,7 @@ export function ShareButton({
         </svg>
         {label}
       </button>
+      </Magnetic>
 
       {/*
         Always present, filled only when there is something to say. A live
