@@ -5,6 +5,12 @@ import { getSiteContent } from "@/lib/content/site-content";
 /**
  * A stable URL for the icon the CMS currently holds.
  *
+ * Served at `/site-icon`, NOT `/favicon`. The obvious name collides with
+ * Next's `favicon.ico` metadata file convention: a route at that segment
+ * built and deployed without complaint and then answered 404 in production —
+ * measured against the deployed Worker, while the media asset it should have
+ * redirected to returned 200 on its own URL.
+ *
  * The favicon itself lives at `/media/[id]`, and that id changes whenever the
  * editor uploads a new one. Anything that wants to *reference* the icon rather
  * than re-read it — the admin app's own tab icon, in the first instance —

@@ -52,8 +52,8 @@ export const metadata: Metadata = {
   */
   icons: process.env.NEXT_PUBLIC_SITE_ORIGIN
     ? {
-        icon: [{ url: `${process.env.NEXT_PUBLIC_SITE_ORIGIN}/favicon` }],
-        apple: [{ url: `${process.env.NEXT_PUBLIC_SITE_ORIGIN}/favicon` }],
+        icon: [{ url: `${process.env.NEXT_PUBLIC_SITE_ORIGIN}/site-icon` }],
+        apple: [{ url: `${process.env.NEXT_PUBLIC_SITE_ORIGIN}/site-icon` }],
       }
     : undefined,
 };

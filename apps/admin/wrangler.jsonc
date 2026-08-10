@@ -70,7 +70,7 @@
   //
   // NEXT_PUBLIC_SITE_ORIGIN is the public site's origin, used for exactly one
   // thing: the admin's tab icon, which points at the public site's stable
-  // `/favicon` URL so both tabs show whatever the CMS currently holds. It is
+  // `/site-icon` URL so both tabs show whatever the CMS currently holds. It is
   // committed because it is public by definition — it is the address of the
   // site this CMS edits. Update it when the site moves to a custom domain.
   "vars": {
