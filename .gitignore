@@ -63,3 +63,7 @@ apps/*/CLAUDE.md
 
 # Misc
 *.local
+
+# Database exports taken before a remote migration. Real content, sometimes
+# personal — kept locally as a safety net, never committed.
+/backup-prod-*.sql
