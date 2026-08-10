@@ -331,7 +331,23 @@ export async function getSiteContent(): Promise<SiteContent> {
     repos.robotLines.list({ visibleOnly: true }),
     // Visible only, same rule: an unticked line is one the editor has taken
     // out of the script without deleting it.
-    repos.terminalLines.list({ visibleOnly: true }),
+    //
+    // The only read here allowed to fail without taking the page with it, and
+    // it earned that the hard way: deploying this feature before migration
+    // 0010 had been applied to the production database turned the whole
+    // homepage into a 500, because a decorative console in the corner could
+    // not find its table. A schema change and a deploy cannot land in the same
+    // instant, and the panel is decoration — every word of real content is
+    // elsewhere — so the gap degrades to an empty console instead of no site.
+    //
+    // Narrow on purpose: it wraps exactly one query, and the failure is
+    // logged rather than swallowed. It is not a licence to make the other
+    // reads optional. If the profile or the projects cannot be read, the page
+    // genuinely has nothing to show and should say so loudly.
+    repos.terminalLines.list({ visibleOnly: true }).catch((error: unknown) => {
+      console.error("terminal lines unavailable, rendering an empty console", error);
+      return [];
+    }),
     // Visible only, for the same reason: an unticked alternate is one the
     // editor has taken out of the rotation without deleting it.
     repos.headlineAlternates.list({ visibleOnly: true }),
