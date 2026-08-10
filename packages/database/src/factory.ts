@@ -19,6 +19,7 @@ import {
   createSocialLinkRepository,
   createHeadlineAlternateRepository,
   createRobotLineRepository,
+  createTerminalLineRepository,
   createToolRepository,
   type CertificationRepository,
   type EducationRepository,
@@ -26,6 +27,7 @@ import {
   type SocialLinkRepository,
   type HeadlineAlternateRepository,
   type RobotLineRepository,
+  type TerminalLineRepository,
   type ToolRepository,
 } from "./repositories/content.ts";
 import {
@@ -80,6 +82,8 @@ export interface Repositories {
   readonly tools: ToolRepository;
   /** The sentences the hero's robot says. */
   readonly robotLines: RobotLineRepository;
+  /** The lines the hero's console prints. */
+  readonly terminalLines: TerminalLineRepository;
   /** Alternative phrasings the hero headline cycles through. */
   readonly headlineAlternates: HeadlineAlternateRepository;
   readonly sections: SectionRepository;
@@ -119,6 +123,7 @@ export function createRepositories(
     tools: createToolRepository(db, runtime),
     headlineAlternates: createHeadlineAlternateRepository(db, runtime),
     robotLines: createRobotLineRepository(db, runtime),
+    terminalLines: createTerminalLineRepository(db, runtime),
     sections: createSectionRepository(db, runtime),
     siteSettings: createSiteSettingsRepository(db, runtime),
     sceneSettings: createSceneSettingsRepository(db, runtime),

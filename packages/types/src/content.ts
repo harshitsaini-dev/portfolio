@@ -561,6 +561,40 @@ export interface RobotLineCreate {
 export type RobotLineUpdate = Partial<RobotLineCreate>;
 
 // ---------------------------------------------------------------------------
+// Terminal lines
+// ---------------------------------------------------------------------------
+
+/**
+ * A terminal line's tone, which decides its colour.
+ *
+ * `system` is the machine narrating itself; `speech` is the machine talking
+ * about the person. Closed, because the component maps each to a colour token
+ * and a third value would be a row nothing knows how to paint.
+ */
+export const TERMINAL_LINE_TONES = ["system", "speech"] as const;
+export type TerminalLineTone = (typeof TERMINAL_LINE_TONES)[number];
+
+/** One line printed by the console beside the hero robot. */
+export interface TerminalLine extends EntityMeta {
+  readonly text: string;
+  readonly tone: TerminalLineTone;
+  /** The short right-aligned word (`ok`) shown when the line is a step. */
+  readonly status: string | null;
+  readonly position: number;
+  readonly isVisible: boolean;
+}
+
+export interface TerminalLineCreate {
+  readonly text: string;
+  readonly tone?: TerminalLineTone;
+  readonly status?: string | null;
+  readonly position?: number;
+  readonly isVisible?: boolean;
+}
+
+export type TerminalLineUpdate = Partial<TerminalLineCreate>;
+
+// ---------------------------------------------------------------------------
 // Rotating labels (Phase 23)
 // ---------------------------------------------------------------------------
 //

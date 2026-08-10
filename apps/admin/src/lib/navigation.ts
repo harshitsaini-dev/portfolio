@@ -65,6 +65,9 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
       // is a setting, but the sentences themselves are copy, and copy is
       // edited where the rest of the copy is.
       { label: "Robot lines", href: "/robot-lines" },
+      // The console beside the robot. A sibling of the speech bubble, and next
+      // to it in the menu because an editor changing one usually looks at both.
+      { label: "Terminal lines", href: "/terminal-lines" },
     ],
   },
   {

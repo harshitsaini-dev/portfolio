@@ -61,7 +61,7 @@ export default async function Home() {
       */}
       {content.scene.isEnabled ? (
         <>
-          <RobotTerminal />
+          <RobotTerminal lines={content.terminalLines} />
           {/* The figure's own voice, as opposed to its log. Gated twice:
               on the scene, because the bubble is positioned from the figure's
               projected coordinates and has nothing to pin to without it, and

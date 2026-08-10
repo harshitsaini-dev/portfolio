@@ -310,6 +310,7 @@ export async function getSiteContent(): Promise<SiteContent> {
     categoryRows,
     toolRows,
     robotLineRows,
+    terminalLineRows,
     headlineAlternateRows,
     sectionAlternates,
     mediaRows,
@@ -328,6 +329,9 @@ export async function getSiteContent(): Promise<SiteContent> {
     repos.tools.list({ visibleOnly: true }),
     // Visible only: an unticked line means the robot should not say it.
     repos.robotLines.list({ visibleOnly: true }),
+    // Visible only, same rule: an unticked line is one the editor has taken
+    // out of the script without deleting it.
+    repos.terminalLines.list({ visibleOnly: true }),
     // Visible only, for the same reason: an unticked alternate is one the
     // editor has taken out of the rotation without deleting it.
     repos.headlineAlternates.list({ visibleOnly: true }),
@@ -452,6 +456,14 @@ export async function getSiteContent(): Promise<SiteContent> {
     // their text, and passing whole records would hand a decorative
     // component ids and timestamps it has no business knowing.
     robotLines: robotLineRows.map((row) => row.text),
+    // Passed as structured lines, not formatted strings: the console colours
+    // the prompt, the body and the status separately, which a single string
+    // cannot express.
+    terminalLines: terminalLineRows.map((row) => ({
+      text: row.text,
+      tone: row.tone,
+      status: row.status,
+    })),
     contact: {
       heading: "Get in touch",
       body: profileRow?.availability

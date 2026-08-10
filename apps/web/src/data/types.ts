@@ -258,6 +258,19 @@ export interface SiteContent {
    * clock in India and cannot be stored.
    */
   readonly robotLines: readonly string[];
+  /**
+   * The console's script, in order.
+   *
+   * Structured rather than pre-formatted: the terminal colours the prompt,
+   * the body and the status from separate tokens, so a single string could
+   * not carry it. Empty means the console prints nothing, which is a valid
+   * state an editor can choose.
+   */
+  readonly terminalLines: readonly {
+    readonly text: string;
+    readonly tone: "system" | "speech";
+    readonly status: string | null;
+  }[];
   readonly contact: ContactCallToAction;
   readonly footerNote: string;
 }

@@ -27,23 +27,25 @@ import { useEffect, useRef, useState } from "react";
 import { usePrefersReducedMotion } from "@/lib/hooks/use-prefers-reduced-motion";
 
 /**
- * What the robot says, cycled forever.
+ * The script is content, not code.
  *
- * Two rules shaped this copy.
+ * These lines used to be a `const LINES` array here. The owner asked to edit
+ * them from the CMS, which is also what this project's rule already required:
+ * editorial copy does not live in a React file. They now arrive as a prop from
+ * `terminal_lines` — see migration 0010, which seeds the original script so
+ * migrating changed nothing.
  *
- * **Nothing names the infrastructure.** An earlier draft narrated
- * "connecting to D1", "mounting media from R2". It looked authentic and it
- * was a mistake: telling every visitor which database and which object store
- * sit behind the site hands an attacker the first half of their homework,
- * and it is decoration, not documentation. The stack belongs in the
- * repository, not on the front page.
+ * Two rules still shape what belongs in that table, and they are worth keeping
+ * where an editor's copy is rendered:
  *
- * **Nothing claims a measurement it does not have.** These are static
- * strings. Printing invented counts or timings in the shape of telemetry
- * would be a lie somewhere nobody would think to check.
+ * **Nothing names the infrastructure.** An earlier draft narrated "connecting
+ * to D1", "mounting media from R2". It looked authentic and it was a mistake:
+ * telling every visitor which database and which object store sit behind the
+ * site hands an attacker the first half of their homework.
  *
- * What is left is the machine talking about the work and the person, which
- * is what a portfolio is for.
+ * **Nothing claims a measurement it does not have.** These are static strings.
+ * Printing invented counts or timings in the shape of telemetry would be a lie
+ * somewhere nobody would think to check.
  */
 /**
  * A line's tone, which decides its colour.
@@ -60,21 +62,9 @@ interface TerminalLine {
   readonly text: string;
   readonly tone: LineTone;
   /** Printed right-aligned in the success colour when present. */
-  readonly status?: string;
+  readonly status?: string | null;
 }
 
-const LINES: readonly TerminalLine[] = [
-  { text: "booting portfolio…", tone: "system" },
-  { text: "loading projects…", tone: "system", status: "ok" },
-  { text: "loading experience…", tone: "system", status: "ok" },
-  { text: "rendering the good parts", tone: "system" },
-  { text: "he builds things that load fast", tone: "speech" },
-  { text: "and still work with a keyboard", tone: "speech" },
-  { text: "everything here is editable", tone: "speech" },
-  { text: "scroll — I'll come with you", tone: "speech" },
-  { text: "I respect reduced motion", tone: "speech" },
-  { text: "idle. waiting for input…", tone: "system" },
-];
 
 /**
  * Two levels, not a rainbow.
@@ -94,7 +84,7 @@ const LINE_INTERVAL_MS = 2200;
 /** How many lines the window shows at once. */
 const WINDOW_SIZE = 5;
 
-export function RobotTerminal() {
+export function RobotTerminal({ lines }: { lines: readonly TerminalLine[] }) {
   const reducedMotion = usePrefersReducedMotion();
   // A visitor who asked for less motion gets every line at once rather than a
   // sequence that keeps moving. Decided during render from the hook rather
@@ -137,14 +127,26 @@ export function RobotTerminal() {
    * the same string reappears and keying by content would make React reuse
    * the wrong node.
    */
-  const visible = reducedMotion
-    ? LINES.slice(0, WINDOW_SIZE).map((line, i) => ({ key: i, line }))
-    : Array.from({ length: Math.min(tick + 1, WINDOW_SIZE) }, (_, offset) => {
-        const index = tick - (Math.min(tick + 1, WINDOW_SIZE) - 1) + offset;
-        // The index is always in range because it is taken modulo the array
-        // length; the assertion tells `noUncheckedIndexedAccess` that.
-        return { key: index, line: LINES[index % LINES.length] as TerminalLine };
-      });
+  const visible =
+    lines.length === 0
+      ? // An editor can empty the script. Nothing to print is a valid state,
+        // and the panel below renders as an empty console rather than
+        // dividing by zero in the modulo.
+        []
+      : reducedMotion
+        ? lines.slice(0, WINDOW_SIZE).map((line, i) => ({ key: i, line }))
+        : Array.from(
+            { length: Math.min(tick + 1, WINDOW_SIZE) },
+            (_, offset) => {
+              const index = tick - (Math.min(tick + 1, WINDOW_SIZE) - 1) + offset;
+              // Always in range because it is taken modulo the array length;
+              // the assertion tells `noUncheckedIndexedAccess` that.
+              return {
+                key: index,
+                line: lines[index % lines.length] as TerminalLine,
+              };
+            },
+          );
 
   return (
     <div

@@ -30,6 +30,10 @@ import type {
   RobotLine,
   RobotLineCreate,
   RobotLineUpdate,
+  TerminalLine,
+  TerminalLineCreate,
+  TerminalLineTone,
+  TerminalLineUpdate,
   Tool,
   ToolCreate,
   ToolUpdate,
@@ -616,6 +620,70 @@ export function createHeadlineAlternateRepository(
       }
     },
   };
+}
+
+export type TerminalLineRepository = OrderedRepository<
+  TerminalLine,
+  TerminalLineCreate,
+  TerminalLineUpdate
+>;
+
+/**
+ * The lines the hero's console prints.
+ *
+ * `robot_lines` with two extra columns, and they are the reason this is its
+ * own repository rather than a second call to the same one: `tone` decides the
+ * line's colour and `status` is the right-aligned word that makes a line read
+ * as a completed step. Both are ordinary columns; the CHECK on `tone` lives in
+ * the schema, where a closed set belongs.
+ */
+export function createTerminalLineRepository(
+  db: D1Like,
+  runtime: RepositoryRuntime,
+): TerminalLineRepository {
+  const entity = "terminal line";
+  return createOrderedRepository<
+    TerminalLine,
+    TerminalLineCreate,
+    TerminalLineUpdate
+  >(db, runtime, {
+    entity,
+    table: "terminal_lines",
+    columns: "id, text, tone, status, position, is_visible, created_at, updated_at",
+    decode: (row): TerminalLine => ({
+      id: requireString(entity, row, "id"),
+      text: requireString(entity, row, "text"),
+      // Narrowed on read rather than trusted: the column is CHECK-constrained,
+      // so anything else would mean the constraint was bypassed, and painting
+      // an unknown tone as `system` beats throwing on a row that renders fine.
+      tone: (requireString(entity, row, "tone") === "speech"
+        ? "speech"
+        : "system") as TerminalLineTone,
+      status: nullableString(entity, row, "status"),
+      position: requireNumber(entity, row, "position"),
+      isVisible: requireBoolean(entity, row, "is_visible"),
+      createdAt: requireString(entity, row, "created_at"),
+      updatedAt: requireString(entity, row, "updated_at"),
+    }),
+    insertColumns: ["text", "tone", "status", "position", "is_visible"],
+    insertValues: (input) => [
+      input.text,
+      input.tone ?? "system",
+      input.status ?? null,
+      input.position ?? 0,
+      boolToInt(input.isVisible ?? true),
+    ],
+    patch: {
+      text: { column: "text", encode: (p) => p.text },
+      tone: { column: "tone", encode: (p) => p.tone ?? "system" },
+      status: { column: "status", encode: (p) => p.status ?? null },
+      position: { column: "position", encode: (p) => p.position },
+      isVisible: {
+        column: "is_visible",
+        encode: (p) => boolToInt(p.isVisible ?? true),
+      },
+    },
+  });
 }
 
 export type RobotLineRepository = OrderedRepository<

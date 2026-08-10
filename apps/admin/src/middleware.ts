@@ -31,7 +31,16 @@ export function middleware(request: NextRequest) {
 
   // Read at runtime: the value is a Worker variable, and this policy has to
   // name the origin the tab icon comes from.
-  const siteOrigin = process.env.SITE_ORIGIN;
+  //
+  // The dev fallback matches `layout.tsx` exactly, and has to: the layout
+  // points the icon at localhost:3000 during `next dev`, and a policy that
+  // only listed the production origin blocked it there — measured, as three
+  // CSP violations in the local admin's console. Two places deriving the same
+  // origin differently is how that happens, so they derive it the same way.
+  const siteOrigin =
+    process.env.SITE_ORIGIN ??
+    (isDevelopment ? "http://localhost:3000" : undefined);
+
 
   const policy = [
     "default-src 'self'",
