@@ -6,6 +6,73 @@ something passed without running it.
 
 ## Current phase
 
+**Phase 29 — notes and terminal as sections, and a header that fits.**
+
+### How section ordering actually works
+
+Worth stating plainly, because it is the owner's main lever and it has a trap
+in it. `resolveSections` merges CMS rows over the defaults in code:
+
+- A section with **a row** takes that row's `position`, title and visibility.
+- A section with **no row** sorts *after* every row, keeping its declared
+  order among the others (`SECTION_KEYS.length + index`).
+
+So creating one row with `position: 0` moves that section to the top, and
+everything without a row falls in behind it. To control the whole order the
+owner has to create a row for each section they care about. Verified end to
+end: a `terminal` row at position 0 moved the section from seventh to second
+on the live page, and the navigation followed.
+
+Renderable keys: `about`, `projects`, `experience`, `education`, `skills`,
+`playground`, `terminal`, `notes`, `contact`. A key matching none of these
+saves fine and renders nothing — `sections.key` has no CHECK and the schemas
+define no enum, deliberately, so a row can exist before its component ships.
+The admin's key hint now lists the keys that render, from a single shared
+constant in `@portfolio/types`.
+
+### Fixed
+
+- **`/notes` had no link anywhere.** Now a home-page section (key `notes`)
+  showing the three most recent posts with a link to the full list.
+- **The terminal was inside the playground's branch**, so the two could not be
+  ordered, renamed or hidden separately. It is its own section now (key
+  `terminal`).
+- **The header wrapped onto two lines.** Measured: nine links are 725px, the
+  container is capped at 1072px, and with the clock's 16.5rem the row needed
+  1149px — unfixable by breakpoint, because the container never grows. The
+  inline row now starts at `lg` rather than `md`, and the clock moved to the
+  footer at the owner's direction.
+- **The clock could show the wrong minute.** A 15-second interval does not
+  know where the minute boundary is, so the display lagged up to 15 seconds
+  behind a phone; it now schedules each read at the boundary, re-reads when
+  the tab becomes visible or regains focus, and adopts the server's time when
+  the visitor's own clock is off by more than a minute.
+- **The robot's speech bubble was clipped at the right edge.** Its clamp used
+  `100vw`, which includes the scrollbar; a fixed element's percentages resolve
+  against the initial containing block, which does not, so the bound is `100%`.
+- A footer page menu was added and then removed at the owner's request.
+- `formatNoteDate` moved out of the notes *page* module, which the detail
+  route had been importing from as though a page were a library.
+
+### Verification actually performed
+
+`pnpm lint` clean; `pnpm -r typecheck` clean; `pnpm test` green after updating
+two section-order expectations for the new keys; `pnpm build` both apps;
+Playwright **43 passed, 3 skipped**. In a browser: header measured at 900,
+1024, 1280, 1536, 1920 and 2560 — one line at every width, no sideways scroll,
+layout centred (699px left gap against 709px right at 2560). The speech bubble
+was driven hard against the right edge and stayed inside the viewport.
+
+Deployed at `1e76b04`: web `97d5015f-1b5d-4c66-b9f3-b1ec95e96f71`, admin
+`76d0b28b-1bb6-4bb8-91d3-13617809c166`. Confirmed on the live site: header one
+line, clock in the footer, both new sections present.
+
+Because production has rows for the original seven sections and none for the
+new two, `terminal` and `notes` currently render **last** on the live page.
+That is the documented behaviour, not a bug — the owner moves them by creating
+rows for them.
+
+
 **Phase 28 — case-study project pages, terminal mode, and the hidden
 routes.** The second half of the owner's seven-item list, plus two rendering
 defects found by looking at the pages.
