@@ -36,6 +36,7 @@ function toSiteSettings(row: Row): SiteSettings {
     ),
     accentColor: nullableString(SITE_ENTITY, row, "accent_color"),
     socialImageId: nullableString(SITE_ENTITY, row, "social_image_id"),
+    footerNote: nullableString(SITE_ENTITY, row, "footer_note"),
     faviconMediaId: nullableString(SITE_ENTITY, row, "favicon_media_id"),
     isContactEnabled: requireBoolean(SITE_ENTITY, row, "is_contact_enabled"),
     updatedAt: requireString(SITE_ENTITY, row, "updated_at"),
@@ -83,7 +84,7 @@ export function createSiteSettingsRepository(
           .prepare(
             `SELECT site_name, site_description, default_theme, accent_color,
                     social_image_id, favicon_media_id, is_contact_enabled,
-                    updated_at
+                    footer_note, updated_at
              FROM site_settings WHERE id = ?`,
           )
           .bind(SINGLETON_ID)
@@ -102,8 +103,8 @@ export function createSiteSettingsRepository(
             `INSERT INTO site_settings
                (id, site_name, site_description, default_theme, accent_color,
                 social_image_id, favicon_media_id, is_contact_enabled,
-                updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                footer_note, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(id) DO UPDATE SET
                site_name = excluded.site_name,
                site_description = excluded.site_description,
@@ -112,6 +113,7 @@ export function createSiteSettingsRepository(
                social_image_id = excluded.social_image_id,
                favicon_media_id = excluded.favicon_media_id,
                is_contact_enabled = excluded.is_contact_enabled,
+               footer_note = excluded.footer_note,
                updated_at = excluded.updated_at`,
           )
           .bind(
@@ -123,6 +125,7 @@ export function createSiteSettingsRepository(
             input.socialImageId ?? null,
             input.faviconMediaId ?? null,
             boolToInt(input.isContactEnabled ?? true),
+            input.footerNote ?? null,
             now,
           )
           .run();

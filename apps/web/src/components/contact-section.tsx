@@ -20,6 +20,7 @@ export function ContactSection({
       eyebrowAlternates={copy.eyebrowAlternates}
       title={copy.title}
       marker={copy.marker}
+      icon={copy.icon}
     >
       {/*
         Two columns from `md` up, rather than one narrow column stacked on

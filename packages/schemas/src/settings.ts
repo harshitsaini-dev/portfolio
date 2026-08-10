@@ -32,6 +32,15 @@ import { SCENE_QUALITY_PRESETS, THEME_PREFERENCES } from "@portfolio/types";
 
 import { mediaReferenceCreate } from "./internal/media-reference.ts";
 
+/** Optional prose: blank input becomes `null` rather than an empty string. */
+const nullableText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max, "Too long")
+    .transform((value) => (value.length === 0 ? null : value))
+    .nullable();
+
 /**
  * The theme the site starts in, before any visitor preference.
  *
@@ -89,6 +98,9 @@ export const siteSettingsSaveSchema = z
      * 16-32px, where a preview card's composition and text are unreadable.
      */
     faviconMediaId: mediaReferenceCreate,
+    // The footer line. Null keeps the composed "Built and maintained by
+    // <name>." sentence, which is what the site showed before this existed.
+    footerNote: nullableText(200).default(null),
     isContactEnabled: z.boolean().default(true),
   })
   .strict();

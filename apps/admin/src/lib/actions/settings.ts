@@ -95,6 +95,7 @@ export async function saveSettingsAction(
       accentColor: input.accentColor,
       socialImageId: input.socialImageId,
       faviconMediaId: input.faviconMediaId,
+      footerNote: input.footerNote,
       isContactEnabled: input.isContactEnabled,
     });
   } catch (error) {

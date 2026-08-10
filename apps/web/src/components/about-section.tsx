@@ -17,6 +17,7 @@ export function AboutSection({
       eyebrowAlternates={copy.eyebrowAlternates}
       title={copy.title}
       marker={copy.marker}
+      icon={copy.icon}
     >
       <div className={`max-w-2xl space-y-5 ${type.body}`}>
         {profile.introduction.length === 0 ? (

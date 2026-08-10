@@ -367,7 +367,14 @@ export async function getSiteContent(): Promise<SiteContent> {
       : row;
   });
 
-  const sections = resolveSections(sectionRowsWithAlternates).filter(
+  // The icon id becomes a real image here: this is the only module holding the
+  // media map, which keeps `resolveSections` a pure function of its rows.
+  const sections = resolveSections(sectionRowsWithAlternates)
+    .map((section) => ({
+      ...section,
+      icon: section.iconMediaId ? toImage(assets, section.iconMediaId) : null,
+    }))
+    .filter(
     (section) => section.key !== "contact" || (settings?.isContactEnabled ?? true),
   );
 
@@ -465,8 +472,14 @@ export async function getSiteContent(): Promise<SiteContent> {
         reason: "Use the form below",
       },
     },
-    footerNote: profileRow?.fullName
-      ? `Built and maintained by ${profileRow.fullName}.`
-      : "Built with Next.js, Cloudflare D1 and R2.",
+    // The editor's line wins. Falling back to a sentence composed from the
+    // profile keeps every site that never opens the field looking exactly as
+    // it did — the composed version was editorial copy living in this file,
+    // which is what the settings column now replaces.
+    footerNote:
+      settings?.footerNote ||
+      (profileRow?.fullName
+        ? `Built and maintained by ${profileRow.fullName}.`
+        : "Built with Next.js, Cloudflare D1 and R2."),
   };
 }

@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { ContentImage } from "@/data/types";
+
 /**
  * Which sections the page can render, and in what order.
  *
@@ -55,6 +57,20 @@ export interface SectionCopy {
    */
   readonly titleAlternates?: readonly string[];
   readonly eyebrowAlternates?: readonly string[];
+  /**
+   * The editor's icon for this section, when one is set.
+   *
+   * Takes the place of `marker`, rather than sitting beside it: two marks
+   * before one heading is noise, and an editor who uploads an icon has said
+   * which one they want.
+   *
+   * `iconMediaId` is what the row holds; `icon` is that id resolved against
+   * the media library. The resolution happens in `site-content.ts`, which is
+   * the only module holding the asset map — this one stays a pure function of
+   * its rows.
+   */
+  readonly iconMediaId?: string | null;
+  readonly icon?: ContentImage | null;
   /** Shown in the page navigation. Shorter than the title. */
   readonly navLabel: string;
   /**
@@ -150,6 +166,8 @@ interface SectionRow {
    */
   readonly titleAlternates?: readonly string[];
   readonly eyebrowAlternates?: readonly string[];
+  /** The editor's chosen icon for this section, if any. */
+  readonly iconMediaId?: string | null;
 }
 
 function isSectionKey(key: string): key is SectionKey {
@@ -196,6 +214,11 @@ export function resolveSections(rows: readonly SectionRow[]): SectionCopy[] {
             // The marker stays with the key rather than the row: it says
             // which section this is, not what the editor called it.
             marker: copy.marker,
+            // Passed through so the section can render it instead of the
+            // built-in emoji. It was collected by the CMS and stored, but
+            // never reached the page — the row carried it and this mapper
+            // dropped it, so every uploaded section icon was invisible.
+            iconMediaId: override.iconMediaId ?? null,
           }
         : copy,
       visible: override ? override.isVisible : true,

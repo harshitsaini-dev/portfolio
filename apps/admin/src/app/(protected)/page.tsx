@@ -117,6 +117,57 @@ export default withAdminPage(async () => {
         </p>
       )}
 
+      {/*
+        The five most recent messages, in full enough to triage without
+        leaving the page — who wrote, when, and the first line. Not the whole
+        body: reading it belongs in the inbox, where marking it read happens.
+      */}
+      {messages.length > 0 ? (
+        <section aria-labelledby="inbox-heading" className="mt-12">
+          <div className="flex items-baseline justify-between gap-4">
+            <h2
+              id="inbox-heading"
+              className="text-sm font-semibold uppercase tracking-wider text-fg"
+            >
+              Recent messages
+            </h2>
+            <Link href="/inbox" className="text-sm text-fg-muted underline underline-offset-4">
+              All {messages.length}
+            </Link>
+          </div>
+          <ul className="mt-4 flex flex-col gap-2">
+            {messages.slice(0, 5).map((message) => (
+              <li key={message.id}>
+                <Link
+                  href={`/inbox/${message.id}`}
+                  className="flex flex-col gap-1 rounded-lg border border-subtle bg-surface p-4 transition-colors duration-150 hover:bg-surface-muted"
+                >
+                  <span className="flex items-center gap-2">
+                    {message.status === "unread" ? (
+                      <>
+                        {/* A dot, plus the word for anyone who cannot see it.
+                            Colour alone is never the signal. */}
+                        <span aria-hidden="true" className="size-2 rounded-full bg-accent" />
+                        <span className="sr-only">Unread.</span>
+                      </>
+                    ) : null}
+                    <span className="text-sm font-medium text-fg">
+                      {message.senderName}
+                    </span>
+                    <span className="text-xs text-fg-muted">
+                      {message.senderEmail}
+                    </span>
+                  </span>
+                  <span className="line-clamp-2 text-sm text-fg-muted">
+                    {message.body}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       <section aria-labelledby="content-heading" className="mt-12">
         <h2
           id="content-heading"

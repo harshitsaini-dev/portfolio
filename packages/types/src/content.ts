@@ -657,6 +657,13 @@ export type ThemePreference = (typeof THEME_PREFERENCES)[number];
 
 export interface SiteSettings {
   /**
+   * The footer line, when the editor has written one.
+   *
+   * Null means the site composes "Built and maintained by <name>." from the
+   * profile, which is what it always did.
+   */
+  readonly footerNote: string | null;
+  /**
    * The browser-tab icon, referencing `media_assets`.
    *
    * Separate from `socialImageId`: a favicon is rendered at 16–32px, where a
@@ -673,6 +680,8 @@ export interface SiteSettings {
 }
 
 export interface SiteSettingsInput {
+  /** Overrides the composed "Built and maintained by …" footer line. */
+  readonly footerNote?: string | null;
   readonly faviconMediaId?: string | null;
   readonly siteName: string;
   readonly siteDescription?: string | null;

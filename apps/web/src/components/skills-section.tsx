@@ -28,6 +28,7 @@ export function SkillsSection({
       eyebrowAlternates={copy.eyebrowAlternates}
       title={copy.title}
       marker={copy.marker}
+      icon={copy.icon}
     >
       {skillCategories.length === 0 ? (
         <p className={type.bodySm}>No skills have been published yet.</p>

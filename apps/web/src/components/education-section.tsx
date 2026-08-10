@@ -30,6 +30,7 @@ export function EducationSection({
       eyebrowAlternates={copy.eyebrowAlternates}
       title={copy.title}
       marker={copy.marker}
+      icon={copy.icon}
     >
       <div className="grid gap-12 lg:grid-cols-2 lg:gap-10">
         <div>

@@ -18,6 +18,7 @@ export function ProjectsSection({
       eyebrowAlternates={copy.eyebrowAlternates}
       title={copy.title}
       marker={copy.marker}
+      icon={copy.icon}
     >
       {projects.length === 0 ? (
         <p className={type.bodySm}>

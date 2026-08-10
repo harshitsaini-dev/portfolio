@@ -18,6 +18,7 @@ export function ExperienceSection({
       eyebrowAlternates={copy.eyebrowAlternates}
       title={copy.title}
       marker={copy.marker}
+      icon={copy.icon}
     >
       {timeline.length === 0 ? (
         <p className={type.bodySm}>No experience has been published yet.</p>

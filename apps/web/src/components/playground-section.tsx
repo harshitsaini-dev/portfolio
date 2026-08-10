@@ -19,6 +19,7 @@ export function PlaygroundSection({ copy }: { copy: SectionCopy }) {
       eyebrowAlternates={copy.eyebrowAlternates}
       title={copy.title}
       marker={copy.marker}
+      icon={copy.icon}
     >
       <ContributionPlayground />
     </Section>

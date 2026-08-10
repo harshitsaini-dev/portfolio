@@ -48,6 +48,7 @@ export interface SettingsFormValues {
   accentColor: string;
   socialImageId: string;
   faviconMediaId: string;
+  footerNote: string;
   isContactEnabled: boolean;
 }
 
@@ -58,6 +59,7 @@ export const emptySettingsValues: SettingsFormValues = {
   accentColor: "",
   socialImageId: "",
   faviconMediaId: "",
+  footerNote: "",
   isContactEnabled: true,
 };
 
@@ -233,6 +235,17 @@ export function SettingsForm({
           hint="One or two sentences, shown by search engines and link previews."
           rows={3}
           onChange={(value) => update("siteDescription", value)}
+        />
+
+        <TextAreaField
+          id={`${fieldId}-footer-note`}
+          name="footerNote"
+          label="Footer line"
+          value={values.footerNote}
+          errors={fieldErrors.footerNote}
+          hint="Shown at the bottom of every page. Leave empty for the default, “Built and maintained by <your name>.”"
+          rows={2}
+          onChange={(value) => update("footerNote", value)}
         />
 
         <MediaPickerField

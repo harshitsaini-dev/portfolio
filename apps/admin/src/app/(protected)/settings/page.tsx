@@ -61,6 +61,7 @@ export default withAdminPage(async () => {
                 accentColor: settings.accentColor ?? "",
                 socialImageId: settings.socialImageId ?? "",
                 faviconMediaId: settings.faviconMediaId ?? "",
+                footerNote: settings.footerNote ?? "",
                 isContactEnabled: settings.isContactEnabled,
               }
             : emptySettingsValues

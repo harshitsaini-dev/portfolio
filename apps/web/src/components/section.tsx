@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 
 import { Container } from "@/components/ui/container";
+import { ContentImage } from "@/components/ui/content-image";
+import type { ContentImage as ContentImageModel } from "@/data/types";
 import { ScrambleText } from "@/components/ui/scramble-text";
 import { RotatingTypewriter } from "@/components/ui/rotating-typewriter";
 import { Typewriter } from "@/components/ui/typewriter";
@@ -27,6 +29,15 @@ interface SectionProps {
    * "Projects" into "rocket Projects".
    */
   marker?: string;
+  /**
+   * The editor's icon for this section, when one is set in the CMS.
+   *
+   * Replaces `marker` rather than joining it: two marks before one heading is
+   * noise, and choosing an icon is the editor saying which one they want.
+   * Decorative either way — the heading beside it already names the section,
+   * so this is `aria-hidden` and carries no alt text.
+   */
+  icon?: ContentImageModel | null;
   title: string;
   /** Optional lead paragraph under the section heading. */
   lead?: string;
@@ -49,6 +60,7 @@ export function Section({
   title,
   lead,
   marker,
+  icon,
   children,
 }: SectionProps) {
   const headingId = `${id}-heading`;
@@ -69,7 +81,11 @@ export function Section({
         {/* The heading block reveals as one unit. The section body is a
             separate reveal so a long list does not animate as a slab. */}
         <p className={`reveal flex items-center gap-2 ${type.eyebrow}`}>
-          {marker ? (
+          {icon ? (
+            <span aria-hidden="true" className="inline-flex">
+              <ContentImage image={icon} size={18} decorative />
+            </span>
+          ) : marker ? (
             <span aria-hidden="true" className="text-base leading-none">
               {marker}
             </span>
