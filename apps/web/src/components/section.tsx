@@ -12,14 +12,13 @@ interface SectionProps {
   /** Short label above the heading. The one place accent colour appears in body sections. */
   eyebrow: string;
   /**
-   * Alternative phrasings the eyebrow and heading rotate through, in order.
+   * Alternative phrasings the eyebrow rotates through, in order.
    *
-   * Neither list repeats the label it belongs to — `eyebrow` and `title` are
-   * the canonical first phrases. Defaulted to empty so every existing call
-   * site keeps its exact behaviour.
+   * The eyebrow only — see the heading below for why it does not rotate. The
+   * list does not repeat `eyebrow` itself, which is the canonical first
+   * phrase. Defaulted to empty, so a section with none behaves as before.
    */
   eyebrowAlternates?: readonly string[];
-  titleAlternates?: readonly string[];
   /**
    * A decorative marker rendered before the eyebrow.
    *
@@ -48,7 +47,6 @@ export function Section({
   eyebrow,
   eyebrowAlternates = [],
   title,
-  titleAlternates = [],
   lead,
   marker,
   children,
@@ -84,17 +82,17 @@ export function Section({
         </p>
         {/* The heading resolves out of random characters as it scrolls in.
             The real string is always in the DOM — see `ScrambleText`. */}
-        {/* With alternates the heading types through them; without, it keeps
-            the scramble it has always had. Two effects rather than one
-            because they answer different questions — scramble is a one-shot
-            arrival, rotation is continuous — and forcing rotation to scramble
-            would re-announce nothing but look like corruption on a loop. */}
+        {/*
+          The heading never rotates.
+
+          It was briefly wired to, and the owner cut it on sight: a section
+          heading is the thing you scan a page by, and one that retypes itself
+          every few seconds turns the page's structure into motion. The eyebrow
+          above it is decorative and can afford that; this cannot. It keeps the
+          one-shot scramble it has always had.
+        */}
         <h2 id={headingId} className={`reveal mt-3 ${type.heading}`}>
-          {titleAlternates.length > 0 ? (
-            <RotatingTypewriter phrases={[title, ...titleAlternates]} />
-          ) : (
-            <ScrambleText text={title} />
-          )}
+          <ScrambleText text={title} />
         </h2>
         {lead ? (
           <p className={`mt-4 max-w-2xl ${type.body}`}>{lead}</p>

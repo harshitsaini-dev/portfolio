@@ -261,18 +261,8 @@ export function SectionForm({
         />
 
         <PhraseListField
-          label="Title alternatives"
-          description="The section heading cycles through these, in order, after the title above. Leave empty to keep one fixed heading."
-          phrases={values.titleAlternates}
-          onChange={(next) => update("titleAlternates", next)}
-          errors={fieldErrors}
-          errorKey="alternates.title"
-          placeholder="My Work"
-        />
-
-        <PhraseListField
           label="Eyebrow alternatives"
-          description="The small label above the heading cycles through these, in order, after the eyebrow above."
+          description="The small label above the heading cycles through these, in order, after the eyebrow above. The heading itself does not rotate — it is what the page is scanned by."
           phrases={values.eyebrowAlternates}
           onChange={(next) => update("eyebrowAlternates", next)}
           errors={fieldErrors}

@@ -26,7 +26,6 @@ export function SkillsSection({
       id={copy.key}
       eyebrow={copy.eyebrow}
       eyebrowAlternates={copy.eyebrowAlternates}
-      titleAlternates={copy.titleAlternates}
       title={copy.title}
       marker={copy.marker}
     >
