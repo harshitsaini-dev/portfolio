@@ -70,6 +70,47 @@ defects found by looking at the pages.
   - Magnetic: 4.37px pull, within the cap, on all three wrapped controls.
   - Tools rows measured as described above.
 
+### Deployed, 2026-08-10
+
+Migration `0013` was applied to remote D1 by the owner **before** the deploy —
+the ordering that two earlier outages established. Verified from here
+(read-only): remote is at `0013`, and a query selecting `problem`, `solution`
+and `learnings` succeeds.
+
+Both Workers redeployed from the WSL clone at commit `216747f`:
+
+- `portfolio-web` — version `9fd26aa7-f642-466b-9ef5-4812ff247e76`
+- `portfolio-admin` — version `04804b48-fb79-401e-accd-40d831c42647`
+
+Checked in production afterwards, not assumed: `/`, `/projects`, `/notes`,
+`/resume`, `/terminal`, `/whoami`, `/sitemap.xml` and `/robots.txt` all 200,
+and the admin still 302s to Cloudflare Access. In a real browser on the live
+site: the empty-state CTA resolves to the owner's actual GitHub URL from the
+CMS, the terminal-mode link measures 44px, the terminal answers a command, and
+the console is clean.
+
+Remote D1 still has no published projects, so the live site shows the empty
+state rather than a case study. The `/projects` read returning 200 with an
+empty list is what proves the new columns exist remotely — the query ran.
+
+### The e2e suite caught an accessibility defect that review missed
+
+CI failed on the first push. `layout.spec.ts` measured "Open terminal mode →"
+at 141x16: a bare text link, so its box was the line it sat on, under the 24px
+WCAG 2.5.8 requires of a control that stands alone rather than sitting in a
+sentence.
+
+Fixed with the `min-h-11 inline-flex` pattern the rest of the site's actions
+already use, on both terminal-mode links, and the `/terminal` footer sentence
+became a real paragraph — the link inside it genuinely is inline prose, and a
+`span` that merely looks like one satisfies the exemption by accident rather
+than by structure. Full Playwright suite re-run locally: **43 passed, 3
+skipped, 0 failed**.
+
+This is the second time this phase that the thing which found the defect was
+not the thing that was supposed to. Worth stating plainly: lint, typecheck and
+build all passed on the broken version, twice.
+
 ### Manual actions still required from the owner
 
 1. **Apply migration `0013` to remote D1 before deploying.** From the repo
