@@ -29,6 +29,10 @@ export function middleware(request: NextRequest) {
 
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
 
+  // Read at runtime: the value is a Worker variable, and this policy has to
+  // name the origin the tab icon comes from.
+  const siteOrigin = process.env.SITE_ORIGIN;
+
   const policy = [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDevelopment ? " 'unsafe-eval'" : ""}`,
@@ -37,7 +41,14 @@ export function middleware(request: NextRequest) {
     "style-src 'self' 'unsafe-inline'",
     // `data:` covers Tailwind's inline SVGs and the client-side preview of an
     // image an editor has selected but not yet uploaded.
-    "img-src 'self' data:",
+    //
+    // The public site's origin is listed because the admin's tab icon is the
+    // CMS favicon, served from there. `img-src` governs favicons too: with
+    // `'self' data:` alone the browser silently refused to load it, which is
+    // why the icon stayed generic long after the link was correct in the
+    // HTML. Narrow on purpose — one origin, images only, and it is the site
+    // this CMS already edits.
+    `img-src 'self' data:${siteOrigin ? ` ${siteOrigin}` : ""}`,
     "font-src 'self'",
     `connect-src 'self'${isDevelopment ? " ws: wss:" : ""}`,
     "object-src 'none'",
