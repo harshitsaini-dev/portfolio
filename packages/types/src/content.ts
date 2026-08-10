@@ -561,6 +561,56 @@ export interface RobotLineCreate {
 export type RobotLineUpdate = Partial<RobotLineCreate>;
 
 // ---------------------------------------------------------------------------
+// Rotating labels (Phase 23)
+// ---------------------------------------------------------------------------
+//
+// Three labels on the public site are typed out rather than printed, and each
+// may cycle through alternatives: the hero headline, and a section's eyebrow
+// and title.
+//
+// The FIRST phrase of every rotation is not modelled here. It stays in
+// `profile.headline`, `sections.title` and `sections.eyebrow` — these are
+// alternates appended after it, so a site with none behaves exactly as it did
+// before the feature existed, and the canonical label a crawler indexes and a
+// screen reader announces never depends on a timer.
+
+/** One alternative phrasing of the hero headline. */
+export interface HeadlineAlternate extends EntityMeta {
+  readonly text: string;
+  readonly position: number;
+  readonly isVisible: boolean;
+}
+
+export interface HeadlineAlternateCreate {
+  readonly text: string;
+  readonly position?: number;
+  readonly isVisible?: boolean;
+}
+
+export type HeadlineAlternateUpdate = Partial<HeadlineAlternateCreate>;
+
+/** Which of a section's two rotating labels an alternate belongs to. */
+export const SECTION_ALTERNATE_FIELDS = ["title", "eyebrow"] as const;
+export type SectionAlternateField = (typeof SECTION_ALTERNATE_FIELDS)[number];
+
+/**
+ * A section's alternates, grouped by the label they belong to.
+ *
+ * Grouped rather than a flat list because every consumer wants one field's
+ * rotation at a time — the public site renders them separately, and the admin
+ * edits them as two lists.
+ */
+export interface SectionAlternates {
+  readonly title: readonly string[];
+  readonly eyebrow: readonly string[];
+}
+
+/** A section together with its rotating-label alternates. */
+export interface SectionWithAlternates extends Section {
+  readonly alternates: SectionAlternates;
+}
+
+// ---------------------------------------------------------------------------
 // Sections
 // ---------------------------------------------------------------------------
 

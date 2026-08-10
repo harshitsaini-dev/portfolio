@@ -64,13 +64,18 @@
     "binding": "ASSETS"
   },
 
-  // Public configuration for Cloudflare Access verification. Values are the
-  // owner's to fill — see the header note. Uncomment and set, or set the same
-  // names as dashboard variables.
-  // "vars": {
-  //   "CF_ACCESS_TEAM_DOMAIN": "<team>.cloudflareaccess.com",
-  //   "CF_ACCESS_AUD": "<the Access application's AUD tag>"
-  // },
+  // Public configuration. The two CF_ACCESS_* values are set as dashboard
+  // variables (they belong to the owner's Access application, not to this
+  // repository) and survive deploys thanks to `keep_vars` above.
+  //
+  // NEXT_PUBLIC_SITE_ORIGIN is the public site's origin, used for exactly one
+  // thing: the admin's tab icon, which points at the public site's stable
+  // `/favicon` URL so both tabs show whatever the CMS currently holds. It is
+  // committed because it is public by definition — it is the address of the
+  // site this CMS edits. Update it when the site moves to a custom domain.
+  "vars": {
+    "NEXT_PUBLIC_SITE_ORIGIN": "https://portfolio-web.harshitsaini.workers.dev"
+  },
 
   // The same database the public site reads. The admin is the writer.
   "d1_databases": [

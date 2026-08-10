@@ -81,6 +81,20 @@ export const profileSaveSchema = z
     xrayMediaId: mediaReferenceCreate,
     fullName: z.string().trim().min(1, "Required").max(120, "Too long"),
     headline: z.string().trim().min(1, "Required").max(160, "Too long"),
+    /**
+     * Alternative phrasings the headline rotates through, in order.
+     *
+     * The headline itself is not repeated here — it is the canonical first
+     * phrase and these follow it, so an empty list means no rotation and the
+     * hero renders exactly as it did before rotation existed.
+     *
+     * Bounded at 8 for the same reason as a section's: a rotation nobody can
+     * follow is a design failure, not a storage one.
+     */
+    headlineAlternates: z
+      .array(z.string().trim().min(1, "Required").max(160, "Too long"))
+      .max(8, "Too many alternates")
+      .default([]),
     tagline: optionalText(200),
     // Multi-paragraph prose, stored as one field — see the schema comment on
     // the `bio` column.

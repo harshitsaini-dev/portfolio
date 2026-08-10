@@ -24,6 +24,7 @@
  */
 
 import Link from "next/link";
+import { PhraseListField } from "@/components/form/phrase-list-field";
 import { useActionState, useEffect, useId, useRef, useState } from "react";
 
 import {
@@ -51,6 +52,8 @@ export interface SectionFormValues {
   eyebrow: string;
   position: number;
   isVisible: boolean;
+  titleAlternates: string[];
+  eyebrowAlternates: string[];
 }
 
 export const emptySectionValues: SectionFormValues = {
@@ -61,6 +64,8 @@ export const emptySectionValues: SectionFormValues = {
   eyebrow: "",
   position: 0,
   isVisible: true,
+  titleAlternates: [],
+  eyebrowAlternates: [],
 };
 
 type SectionAction = (
@@ -124,6 +129,22 @@ export function SectionForm({
   return (
     <form action={formAction} className="mt-8 flex flex-col gap-10">
       <input type="hidden" name="payload" value={payload} />
+      {/*
+        A second hidden field rather than a member of `payload`.
+
+        `sectionCreateSchema` and `sectionUpdateSchema` are `.strict()`, so an
+        unrecognised key makes the whole submission fail validation — and
+        rightly: the section patch describes columns on the `sections` row,
+        and these are rows in another table with their own write rule.
+      */}
+      <input
+        type="hidden"
+        name="alternates"
+        value={JSON.stringify({
+          title: values.titleAlternates,
+          eyebrow: values.eyebrowAlternates,
+        })}
+      />
       {sectionId ? <input type="hidden" name="id" value={sectionId} /> : null}
 
       {/* Error summary. `role="alert"` announces it; tabIndex lets the effect
@@ -237,6 +258,26 @@ export function SectionForm({
           errors={fieldErrors.position}
           hint="Display order on the public site. Lower numbers appear first."
           onChange={(value) => update("position", Number(value))}
+        />
+
+        <PhraseListField
+          label="Title alternatives"
+          description="The section heading cycles through these, in order, after the title above. Leave empty to keep one fixed heading."
+          phrases={values.titleAlternates}
+          onChange={(next) => update("titleAlternates", next)}
+          errors={fieldErrors}
+          errorKey="alternates.title"
+          placeholder="My Work"
+        />
+
+        <PhraseListField
+          label="Eyebrow alternatives"
+          description="The small label above the heading cycles through these, in order, after the eyebrow above."
+          phrases={values.eyebrowAlternates}
+          onChange={(next) => update("eyebrowAlternates", next)}
+          errors={fieldErrors}
+          errorKey="alternates.eyebrow"
+          placeholder="Selected work"
         />
 
         <CheckboxField

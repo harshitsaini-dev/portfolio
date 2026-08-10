@@ -155,6 +155,7 @@ const EXPECTED_TABLES = [
   "certifications",
   "contact_messages",
   "education",
+  "headline_alternates",
   "media_assets",
   "profile",
   "project_links",
@@ -164,6 +165,7 @@ const EXPECTED_TABLES = [
   "resumes",
   "robot_lines",
   "scene_settings",
+  "section_alternates",
   "sections",
   "site_settings",
   "skill_categories",
@@ -177,6 +179,7 @@ const EXPECTED_TABLES = [
 
 const EXPECTED_INDEXES = [
   "idx_certifications_visible_position",
+  "idx_headline_alternates_visible_position",
   "idx_contact_messages_status_created",
   "idx_education_visible_position",
   "idx_project_links_project_position",
@@ -187,6 +190,7 @@ const EXPECTED_INDEXES = [
   "idx_projects_status_position",
   "idx_resumes_media_asset",
   "idx_resumes_single_current",
+  "idx_section_alternates_section_field_position",
   "idx_sections_visible_position",
   "idx_site_settings_social_image",
   "idx_skill_categories_visible_position",

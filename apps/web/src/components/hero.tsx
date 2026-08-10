@@ -1,6 +1,7 @@
 import { PlaceholderAction } from "@/components/placeholder-action";
 import { Container } from "@/components/ui/container";
 import { SocialRow } from "@/components/ui/social-row";
+import { RotatingTypewriter } from "@/components/ui/rotating-typewriter";
 import { Typewriter } from "@/components/ui/typewriter";
 import { XrayPortrait } from "@/components/ui/xray-portrait";
 import { actionVariant } from "@/components/ui/action";
@@ -78,8 +79,18 @@ export function Hero({
                 thing a visitor came to read behind an effect is the wrong
                 trade, and an h1 that arrives letter by letter is worse for
                 anyone scanning. */}
+            {/* One phrase stays the server-rendered CSS typewriter; several
+                become the rotating client one. The branch is here rather than
+                inside a single component so a site that configures no
+                alternates ships no client component for this label at all. */}
             <p className={`rise rise-2 ${type.eyebrow}`}>
-              <Typewriter text={profile.role} />
+              {profile.roleAlternates.length > 0 ? (
+                <RotatingTypewriter
+                  phrases={[profile.role, ...profile.roleAlternates]}
+                />
+              ) : (
+                <Typewriter text={profile.role} />
+              )}
             </p>
 
             <h1 id="hero-heading" className={`rise rise-3 mt-4 ${type.display}`}>

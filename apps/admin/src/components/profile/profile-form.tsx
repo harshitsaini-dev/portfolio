@@ -20,6 +20,7 @@
  * validated payload.
  */
 
+import { PhraseListField } from "@/components/form/phrase-list-field";
 import { useActionState, useEffect, useId, useRef, useState } from "react";
 
 import {
@@ -40,6 +41,7 @@ export interface ProfileFormValues {
   xrayMediaId: string;
   fullName: string;
   headline: string;
+  headlineAlternates: string[];
   tagline: string;
   bio: string;
   location: string;
@@ -52,6 +54,7 @@ export const emptyProfileValues: ProfileFormValues = {
   xrayMediaId: "",
   fullName: "",
   headline: "",
+  headlineAlternates: [],
   tagline: "",
   bio: "",
   location: "",
@@ -160,6 +163,19 @@ export function ProfileForm({
           errors={fieldErrors.headline}
           hint="A short professional title, e.g. “Software Engineer”."
           onChange={(value) => update("headline", value)}
+        />
+
+        {/* The rotation, immediately under the label it extends — an editor
+            should never have to hunt for where "Software Developer → Full
+            Stack Developer" is configured. */}
+        <PhraseListField
+          label="Headline alternatives"
+          description="The headline above cycles through these, in order, typing each one out. Leave empty for a single fixed headline."
+          phrases={values.headlineAlternates}
+          onChange={(next) => update("headlineAlternates", next)}
+          errors={fieldErrors}
+          errorKey="headlineAlternates"
+          placeholder="Full Stack Developer"
         />
 
         <TextField

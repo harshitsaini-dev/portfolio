@@ -28,7 +28,13 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
     const section = await repos.sections.getById(id);
     if (!section) notFound();
 
-    const mediaOptions = await getMediaOptions();
+    // The section's own rotating-label alternates, read after the row is
+    // known to exist — asking for the alternates of a section that is about
+    // to 404 would be a wasted query.
+    const [alternates, mediaOptions] = await Promise.all([
+      repos.sections.getAlternates(section.id),
+      getMediaOptions(),
+    ]);
 
     return (
       <div className="mx-auto w-full max-w-3xl">
@@ -57,6 +63,8 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
             iconMediaId: section.iconMediaId ?? "",
             key: section.key,
             title: section.title,
+            titleAlternates: [...alternates.title],
+            eyebrowAlternates: [...alternates.eyebrow],
             subtitle: section.subtitle ?? "",
             eyebrow: section.eyebrow ?? "",
             position: section.position,

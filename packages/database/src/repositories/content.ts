@@ -16,7 +16,12 @@ import type {
   EducationEntry,
   EducationEntryCreate,
   EducationEntryUpdate,
+  HeadlineAlternate,
+  HeadlineAlternateCreate,
+  HeadlineAlternateUpdate,
   Section,
+  SectionAlternateField,
+  SectionAlternates,
   SectionCreate,
   SectionUpdate,
   SocialLink,
@@ -332,6 +337,28 @@ export interface SectionRepository
   extends OrderedRepository<Section, SectionCreate, SectionUpdate> {
   /** Sections are addressed by their stable machine key in the UI. */
   getByKey(key: string): Promise<Section | null>;
+  /**
+   * Every section's rotating-label alternates, keyed by section id.
+   *
+   * One query for the whole page rather than one per section: the public site
+   * renders every visible section together, and N sections must not mean N
+   * round trips to D1.
+   */
+  listAlternates(): Promise<Map<string, SectionAlternates>>;
+  /** One section's alternates, for the admin's edit form. */
+  getAlternates(sectionId: string): Promise<SectionAlternates>;
+  /**
+   * Replaces one label's alternates wholesale, in a single batch.
+   *
+   * Wholesale because the editor edits the list as a list — reconciling
+   * individual rows would invent identity for strings that have none, and a
+   * partial apply would leave a rotation the editor never wrote.
+   */
+  setAlternates(
+    sectionId: string,
+    field: SectionAlternateField,
+    texts: readonly string[],
+  ): Promise<void>;
 }
 
 export function createSectionRepository(
@@ -396,6 +423,22 @@ export function createSectionRepository(
     },
   });
 
+  /** Rows -> the grouped shape every caller actually wants. */
+  const groupAlternates = (rows: readonly Row[]): SectionAlternates => {
+    const title: string[] = [];
+    const eyebrow: string[] = [];
+    for (const row of rows) {
+      const field = requireString(entity, row, "field");
+      const text = requireString(entity, row, "text");
+      if (field === "title") title.push(text);
+      else if (field === "eyebrow") eyebrow.push(text);
+      // No `else`: the column is CHECK-constrained, so a third value cannot
+      // exist. If a future migration adds one, dropping it here is the safe
+      // failure — a label nobody renders beats a crash.
+    }
+    return { title, eyebrow };
+  };
+
   return {
     ...base,
     async getByKey(key) {
@@ -409,12 +452,171 @@ export function createSectionRepository(
         throw toDatabaseError(entity, "read", cause);
       }
     },
+
+    async listAlternates() {
+      try {
+        const { results } = await db
+          .prepare(
+            `SELECT section_id, field, text
+               FROM section_alternates
+              ORDER BY section_id, field, position`,
+          )
+          .all<Row>();
+        const bySection = new Map<string, Row[]>();
+        for (const row of results ?? []) {
+          const sectionId = requireString(entity, row, "section_id");
+          const list = bySection.get(sectionId);
+          if (list) list.push(row);
+          else bySection.set(sectionId, [row]);
+        }
+        const grouped = new Map<string, SectionAlternates>();
+        for (const [sectionId, rows] of bySection) {
+          grouped.set(sectionId, groupAlternates(rows));
+        }
+        return grouped;
+      } catch (cause) {
+        throw toDatabaseError(entity, "list alternates", cause);
+      }
+    },
+
+    async getAlternates(sectionId) {
+      try {
+        const { results } = await db
+          .prepare(
+            `SELECT field, text
+               FROM section_alternates
+              WHERE section_id = ?
+              ORDER BY field, position`,
+          )
+          .bind(sectionId)
+          .all<Row>();
+        return groupAlternates(results ?? []);
+      } catch (cause) {
+        throw toDatabaseError(entity, "read alternates", cause);
+      }
+    },
+
+    async setAlternates(sectionId, field, texts) {
+      const now = runtime.now();
+      try {
+        await db.batch([
+          db
+            .prepare(
+              `DELETE FROM section_alternates
+                WHERE section_id = ? AND field = ?`,
+            )
+            .bind(sectionId, field),
+          ...texts.map((text, index) =>
+            db
+              .prepare(
+                `INSERT INTO section_alternates
+                   (id, section_id, field, text, position, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?)`,
+              )
+              // Position comes from array order, so the editor's arrangement
+              // is the stored one and no index needs maintaining separately.
+              .bind(runtime.newId(), sectionId, field, text, index, now),
+          ),
+        ]);
+      } catch (cause) {
+        throw toDatabaseError(entity, "set alternates", cause);
+      }
+    },
   };
 }
 
 // ---------------------------------------------------------------------------
 // Robot lines
 // ---------------------------------------------------------------------------
+
+export interface HeadlineAlternateRepository
+  extends OrderedRepository<
+    HeadlineAlternate,
+    HeadlineAlternateCreate,
+    HeadlineAlternateUpdate
+  > {
+  /**
+   * Replaces the whole list in one batch.
+   *
+   * The editor manages these as a list inside the profile form, not as
+   * individually addressable records — the same reasoning as a section's
+   * alternates. The ordered CRUD the base repository provides stays available
+   * for anything that later needs it.
+   */
+  replaceAll(texts: readonly string[]): Promise<void>;
+}
+
+/**
+ * Alternative phrasings of the hero headline.
+ *
+ * The same shape as `robot_lines`, and for the same reason: an ordered list of
+ * editorial strings with no relationship to anything else. Two alternates may
+ * legitimately be identical — the rotation would simply pause on that phrase,
+ * which is the editor's business, not the database's.
+ *
+ * The *first* phrase is not here. It is `profile.headline`, so a profile with
+ * no alternates renders exactly as it did before this table existed.
+ */
+export function createHeadlineAlternateRepository(
+  db: D1Like,
+  runtime: RepositoryRuntime,
+): HeadlineAlternateRepository {
+  const entity = "headline alternate";
+  const base = createOrderedRepository<
+    HeadlineAlternate,
+    HeadlineAlternateCreate,
+    HeadlineAlternateUpdate
+  >(db, runtime, {
+    entity,
+    table: "headline_alternates",
+    columns: "id, text, position, is_visible, created_at, updated_at",
+    decode: (row): HeadlineAlternate => ({
+      id: requireString(entity, row, "id"),
+      text: requireString(entity, row, "text"),
+      position: requireNumber(entity, row, "position"),
+      isVisible: requireBoolean(entity, row, "is_visible"),
+      createdAt: requireString(entity, row, "created_at"),
+      updatedAt: requireString(entity, row, "updated_at"),
+    }),
+    insertColumns: ["text", "position", "is_visible"],
+    insertValues: (input) => [
+      input.text,
+      input.position ?? 0,
+      boolToInt(input.isVisible ?? true),
+    ],
+    patch: {
+      text: { column: "text", encode: (p) => p.text },
+      position: { column: "position", encode: (p) => p.position },
+      isVisible: {
+        column: "is_visible",
+        encode: (p) => boolToInt(p.isVisible ?? true),
+      },
+    },
+  });
+
+  return {
+    ...base,
+    async replaceAll(texts) {
+      const now = runtime.now();
+      try {
+        await db.batch([
+          db.prepare(`DELETE FROM headline_alternates`),
+          ...texts.map((text, index) =>
+            db
+              .prepare(
+                `INSERT INTO headline_alternates
+                   (id, text, position, is_visible, created_at, updated_at)
+                 VALUES (?, ?, ?, 1, ?, ?)`,
+              )
+              .bind(runtime.newId(), text, index, now, now),
+          ),
+        ]);
+      } catch (cause) {
+        throw toDatabaseError(entity, "replace all", cause);
+      }
+    },
+  };
+}
 
 export type RobotLineRepository = OrderedRepository<
   RobotLine,

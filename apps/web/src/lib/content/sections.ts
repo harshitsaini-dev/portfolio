@@ -45,6 +45,16 @@ export interface SectionCopy {
   readonly key: SectionKey;
   readonly eyebrow: string;
   readonly title: string;
+  /**
+   * Alternative phrasings the two typed labels rotate through, in order.
+   *
+   * Neither list repeats the label above it: `eyebrow` and `title` are the
+   * canonical first phrases. Empty is the default and the common case — a
+   * section with no alternates renders exactly as it did before rotation
+   * existed, with no client component involved at all.
+   */
+  readonly titleAlternates?: readonly string[];
+  readonly eyebrowAlternates?: readonly string[];
   /** Shown in the page navigation. Shorter than the title. */
   readonly navLabel: string;
   /**
@@ -132,6 +142,14 @@ interface SectionRow {
   readonly eyebrow: string | null;
   readonly position: number;
   readonly isVisible: boolean;
+  /**
+   * Alternative phrasings for the two labels that type themselves out.
+   *
+   * Neither list repeats the stored label: `title` and `eyebrow` above are the
+   * canonical first phrases, and these follow them.
+   */
+  readonly titleAlternates?: readonly string[];
+  readonly eyebrowAlternates?: readonly string[];
 }
 
 function isSectionKey(key: string): key is SectionKey {
@@ -166,6 +184,15 @@ export function resolveSections(rows: readonly SectionRow[]): SectionCopy[] {
             title: override.title.trim() || copy.title,
             eyebrow: override.eyebrow?.trim() || copy.eyebrow,
             navLabel: override.title.trim() || copy.navLabel,
+            // Alternates ride with the copy. Blank entries are dropped here
+            // rather than in the component: an empty phrase would type
+            // nothing and read as the label vanishing.
+            titleAlternates: (override.titleAlternates ?? [])
+              .map((text) => text.trim())
+              .filter((text) => text.length > 0),
+            eyebrowAlternates: (override.eyebrowAlternates ?? [])
+              .map((text) => text.trim())
+              .filter((text) => text.length > 0),
             // The marker stays with the key rather than the row: it says
             // which section this is, not what the editor called it.
             marker: copy.marker,

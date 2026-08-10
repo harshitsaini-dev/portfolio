@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { Container } from "@/components/ui/container";
 import { ScrambleText } from "@/components/ui/scramble-text";
+import { RotatingTypewriter } from "@/components/ui/rotating-typewriter";
 import { Typewriter } from "@/components/ui/typewriter";
 import { type } from "@/components/ui/typography";
 
@@ -10,6 +11,15 @@ interface SectionProps {
   id: string;
   /** Short label above the heading. The one place accent colour appears in body sections. */
   eyebrow: string;
+  /**
+   * Alternative phrasings the eyebrow and heading rotate through, in order.
+   *
+   * Neither list repeats the label it belongs to — `eyebrow` and `title` are
+   * the canonical first phrases. Defaulted to empty so every existing call
+   * site keeps its exact behaviour.
+   */
+  eyebrowAlternates?: readonly string[];
+  titleAlternates?: readonly string[];
   /**
    * A decorative marker rendered before the eyebrow.
    *
@@ -36,7 +46,9 @@ interface SectionProps {
 export function Section({
   id,
   eyebrow,
+  eyebrowAlternates = [],
   title,
+  titleAlternates = [],
   lead,
   marker,
   children,
@@ -64,12 +76,25 @@ export function Section({
               {marker}
             </span>
           ) : null}
-          <Typewriter text={eyebrow} />
+          {eyebrowAlternates.length > 0 ? (
+            <RotatingTypewriter phrases={[eyebrow, ...eyebrowAlternates]} />
+          ) : (
+            <Typewriter text={eyebrow} />
+          )}
         </p>
         {/* The heading resolves out of random characters as it scrolls in.
             The real string is always in the DOM — see `ScrambleText`. */}
+        {/* With alternates the heading types through them; without, it keeps
+            the scramble it has always had. Two effects rather than one
+            because they answer different questions — scramble is a one-shot
+            arrival, rotation is continuous — and forcing rotation to scramble
+            would re-announce nothing but look like corruption on a loop. */}
         <h2 id={headingId} className={`reveal mt-3 ${type.heading}`}>
-          <ScrambleText text={title} />
+          {titleAlternates.length > 0 ? (
+            <RotatingTypewriter phrases={[title, ...titleAlternates]} />
+          ) : (
+            <ScrambleText text={title} />
+          )}
         </h2>
         {lead ? (
           <p className={`mt-4 max-w-2xl ${type.body}`}>{lead}</p>

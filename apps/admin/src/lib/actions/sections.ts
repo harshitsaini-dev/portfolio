@@ -36,6 +36,7 @@ import { ConflictError, NotFoundError } from "@portfolio/database";
 import {
   sectionCreateSchema,
   sectionIdSchema,
+  sectionAlternatesSchema,
   sectionUpdateSchema,
 } from "@portfolio/schemas";
 
@@ -122,7 +123,8 @@ export async function createSectionAction(
     // Uniqueness of `key` is the database's decision, not something checked
     // then assumed here — a read-then-write check is a race the constraint
     // already wins.
-    await repos.sections.create(parsed.data);
+    const created = await repos.sections.create(parsed.data);
+    await saveAlternates(repos, created.id, formData);
   } catch (error) {
     return toActionResult(error, KEY_TAKEN);
   }
@@ -132,6 +134,39 @@ export async function createSectionAction(
   // calling it inside would be caught by the handler above and reported as a
   // failure. Redirecting on the server also works without JavaScript.
   redirect(`${LIST_PATH}?created=1`);
+}
+
+/**
+ * Replaces a section's rotating-label alternates from the submitted payload.
+ *
+ * Separate from the section's own patch because the two live in different
+ * tables and have different write rules: the section is patched field by
+ * field, the alternates are replaced as whole lists.
+ *
+ * An absent or unparseable `alternates` payload clears nothing and writes
+ * nothing — a form that does not carry the field must not be read as an
+ * editor emptying the rotation. Only a well-formed list is applied.
+ */
+async function saveAlternates(
+  repos: Awaited<ReturnType<typeof getAdminRepositories>>,
+  sectionId: string,
+  formData: FormData,
+): Promise<void> {
+  const raw = formData.get("alternates");
+  if (typeof raw !== "string" || raw.length === 0) return;
+
+  let candidate: unknown;
+  try {
+    candidate = JSON.parse(raw);
+  } catch {
+    return;
+  }
+
+  const parsed = sectionAlternatesSchema.safeParse(candidate);
+  if (!parsed.success) return;
+
+  await repos.sections.setAlternates(sectionId, "title", parsed.data.title);
+  await repos.sections.setAlternates(sectionId, "eyebrow", parsed.data.eyebrow);
 }
 
 export async function updateSectionAction(
@@ -158,6 +193,7 @@ export async function updateSectionAction(
     // no path by which this call could rewrite them. Fields absent from the
     // patch stay absent all the way down.
     const updated = await repos.sections.update(idResult.data, parsed.data);
+    await saveAlternates(repos, updated.id, formData);
     updatedId = updated.id;
   } catch (error) {
     // A key collision cannot arise here — `key` is not updatable — so the
