@@ -17,7 +17,7 @@ export function PrintButton() {
     <button
       type="button"
       onClick={() => window.print()}
-      className="text-sm text-fg-muted underline underline-offset-4 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      className="text-sm text-fg-muted underline underline-offset-4 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
     >
       Print or save as PDF
     </button>

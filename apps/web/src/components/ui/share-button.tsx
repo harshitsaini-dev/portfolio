@@ -108,7 +108,7 @@ export function ShareButton({
       <button
         type="button"
         onClick={() => void share()}
-        className={`inline-flex items-center gap-2 rounded-md border border-subtle px-4 py-2 text-sm font-medium text-fg transition-colors hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${className}`}
+        className={`inline-flex items-center gap-2 rounded-md border border-subtle px-4 py-2 text-sm font-medium text-fg transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${className}`}
       >
         {/* Decorative: the button's own text is the accessible name. */}
         <svg

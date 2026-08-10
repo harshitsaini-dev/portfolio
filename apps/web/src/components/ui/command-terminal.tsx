@@ -237,7 +237,7 @@ export function CommandTerminal({
             ) : line.href ? (
               <Link
                 href={line.href}
-                className="text-accent underline underline-offset-4 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="text-accent underline underline-offset-4 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 {line.hrefLabel}
               </Link>

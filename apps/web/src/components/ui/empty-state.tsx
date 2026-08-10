@@ -109,7 +109,7 @@ export function EmptyStateElsewhere({
       // applies to outbound links apply here.
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-subtle px-4 text-sm font-medium text-fg transition-colors hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-subtle px-4 text-sm font-medium text-fg transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
     >
       Meanwhile, see my {target.label}
       {/* Decorative: the arrow repeats "this goes somewhere", which the link

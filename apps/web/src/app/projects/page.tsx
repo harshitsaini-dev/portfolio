@@ -113,7 +113,7 @@ export default async function ProjectsIndexPage() {
                       place is three stops for a keyboard user and three
                       identical announcements for a screen reader.
                     */
-                    className="flex h-full flex-col focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    className="flex h-full flex-col focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                   >
                     {project.cover ? (
                       <ContentImage

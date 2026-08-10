@@ -87,7 +87,7 @@ export default async function NotesIndexPage() {
               <li key={note.slug}>
                 <Link
                   href={`/notes/${note.slug}`}
-                  className="group flex flex-col gap-2 py-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  className="group flex flex-col gap-2 py-6 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                 >
                   {/* `dateTime` carries the machine-readable value; the text is
                       for people. */}

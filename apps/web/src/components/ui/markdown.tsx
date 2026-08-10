@@ -92,7 +92,7 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
           <Link
             key={key}
             href={href}
-            className="text-accent underline underline-offset-4 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="text-accent underline underline-offset-4 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             {label}
           </Link>

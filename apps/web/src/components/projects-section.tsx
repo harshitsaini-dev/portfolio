@@ -48,7 +48,7 @@ export function ProjectsSection({
         <p className="mt-10">
           <Link
             href="/projects"
-            className="text-sm font-medium text-accent underline underline-offset-4 transition-colors hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="text-sm font-medium text-accent underline underline-offset-4 transition-colors hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             View all projects
           </Link>

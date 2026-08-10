@@ -96,7 +96,7 @@ export default async function WhoamiPage() {
                 href={social.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-accent underline underline-offset-4 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="text-accent underline underline-offset-4 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 {social.url}
                 <span className="sr-only"> (opens in a new tab)</span>
@@ -113,7 +113,7 @@ export default async function WhoamiPage() {
         cd{" "}
         <Link
           href="/"
-          className="text-accent underline underline-offset-4 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="text-accent underline underline-offset-4 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           /
         </Link>
@@ -122,7 +122,7 @@ export default async function WhoamiPage() {
         Nicely found. There is a fuller one at{" "}
         <Link
           href="/terminal"
-          className="text-accent underline underline-offset-4 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="text-accent underline underline-offset-4 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           /terminal
         </Link>

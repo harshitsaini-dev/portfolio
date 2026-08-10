@@ -57,7 +57,7 @@ export default async function TerminalPage() {
         {/* First in the tab order after the heading, deliberately. */}
         <Link
           href="/"
-          className="inline-flex min-h-11 items-center rounded-md text-sm text-fg-muted underline underline-offset-4 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="inline-flex min-h-11 items-center rounded-md text-sm text-fg-muted underline underline-offset-4 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           ← Leave terminal mode
         </Link>
@@ -75,7 +75,7 @@ export default async function TerminalPage() {
               Everything here is also on the{" "}
               <Link
                 href="/"
-                className="underline underline-offset-4 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="underline underline-offset-4 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 normal site
               </Link>
