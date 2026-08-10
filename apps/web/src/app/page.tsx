@@ -191,7 +191,11 @@ export default async function Home() {
                       footer={
                         <Link
                           href="/terminal"
-                          className="text-accent underline underline-offset-4 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                          // `inline-flex min-h-11` rather than a bare text
+                          // link: it stands alone rather than sitting in a
+                          // sentence, so it gets a real target instead of the
+                          // 16px line box it would otherwise be.
+                          className="inline-flex min-h-11 items-center text-accent underline underline-offset-4 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                         >
                           Open terminal mode →
                         </Link>

@@ -57,7 +57,7 @@ export default async function TerminalPage() {
         {/* First in the tab order after the heading, deliberately. */}
         <Link
           href="/"
-          className="rounded-md text-sm text-fg-muted underline underline-offset-4 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="inline-flex min-h-11 items-center rounded-md text-sm text-fg-muted underline underline-offset-4 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           ← Leave terminal mode
         </Link>
@@ -70,7 +70,7 @@ export default async function TerminalPage() {
           data={buildTerminalData(content)}
           fullPage
           footer={
-            <span className="text-fg-muted">
+            <p className="text-fg-muted">
               Type <code className="text-accent">help</code> for the commands.
               Everything here is also on the{" "}
               <Link
@@ -80,7 +80,7 @@ export default async function TerminalPage() {
                 normal site
               </Link>
               .
-            </span>
+            </p>
           }
         />
       </div>
