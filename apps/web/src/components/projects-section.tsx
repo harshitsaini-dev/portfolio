@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { ProjectsCarousel } from "@/components/projects-carousel";
 import { Section } from "@/components/section";
 import { type } from "@/components/ui/typography";
@@ -32,6 +34,20 @@ export function ProjectsSection({
           the viewport is wide enough — otherwise this is the two-column grid
           it has always been. */}
       <ProjectsCarousel projects={projects} />
+
+      {/* The carousel is selective and interactive; this is the way to the
+          page that simply lists everything. Only shown when there is a list
+          worth going to. */}
+      {projects.length > 0 ? (
+        <p className="mt-10">
+          <Link
+            href="/projects"
+            className="text-sm font-medium text-accent underline underline-offset-4 transition-colors hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            View all projects
+          </Link>
+        </p>
+      ) : null}
     </Section>
   );
 }

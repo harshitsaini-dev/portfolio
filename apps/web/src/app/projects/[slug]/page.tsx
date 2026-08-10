@@ -10,6 +10,7 @@ import { ContentImage } from "@/components/ui/content-image";
 import { actionVariant } from "@/components/ui/action";
 import { type } from "@/components/ui/typography";
 import { getProjectDetail } from "@/lib/content/project-detail";
+import { ShareButton } from "@/components/ui/share-button";
 import { absoluteMediaUrl, getSiteOrigin } from "@/lib/site-origin";
 import { getSiteContent } from "@/lib/content/site-content";
 
@@ -112,7 +113,11 @@ export default async function ProjectPage({
           <Container className="py-16 sm:py-20">
             <nav aria-label="Breadcrumb" className="text-sm">
               <Link
-                href="/#projects"
+                // Points at the list page now that one exists. It used to be
+                // `/#projects`, a scroll position on the home page — which is a
+                // worse answer to "up one level" than a page whose subject is
+                // exactly this.
+                href="/projects"
                 // Underlined, because within this row the link is otherwise
                 // told apart from the plain text beside it by colour alone —
                 // measured at 2.54:1 against it, under the 3:1 WCAG 1.4.1
@@ -136,6 +141,10 @@ export default async function ProjectPage({
 
             <h1 className={`mt-3 ${type.display}`}>{project.title}</h1>
             <p className={`mt-6 max-w-2xl ${type.lead}`}>{project.summary}</p>
+
+            <div className="mt-10">
+              <ShareButton title={project.title} label="Share this project" />
+            </div>
 
             {project.links.length > 0 ? (
               <div className="mt-10 flex flex-wrap items-start gap-4">

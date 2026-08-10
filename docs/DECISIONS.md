@@ -3,6 +3,101 @@
 Notable architectural/tooling decisions and their rationale. Append new
 entries; do not delete history.
 
+## 2026-08-10 — A memo cache, not ISR
+
+Content reads are cached per isolate for 60 seconds (`lib/content/cache.ts`).
+
+Next's ISR is the obvious answer and is unavailable: OpenNext's incremental
+cache needs a Cloudflare binding this project does not have, and creating one
+is a human action. The memo needs no binding, no bucket and no configuration.
+
+Before it, every page view ran the full content composition against D1 — about
+a dozen queries per request for content that changes when the owner edits it.
+
+**What it costs, stated rather than hidden:** an edit can take up to a minute
+to appear, and the cache is per isolate, so two visitors can briefly see
+different versions. Acceptable for a portfolio; it would not be for anything
+transactional. Disabled entirely in development, where waiting a minute to see
+your own edit is the wrong trade.
+
+Two details that matter more than they look:
+
+- The **promise** is cached, not the resolved value, so requests arriving
+  during a cold read share it instead of each starting their own.
+- A **failed** read is evicted rather than cached, so the next request retries
+  instead of being told the same lie for a minute.
+
+The whole composition is cached as one entry, not each aggregate separately —
+otherwise a request could see a new project alongside an old section list.
+
+## 2026-08-10 — HSTS without preload
+
+Two years, `includeSubDomains`, and deliberately no `preload`.
+
+Preload submission is a claim about the entire registrable domain, and this app
+is a guest on `workers.dev` — shared with every Worker anyone deploys. That
+claim is not this project's to make. It becomes worth revisiting on a custom
+domain, where the claim would be about a domain the owner owns.
+
+## 2026-08-10 — A projects index, and where sharing belongs
+
+### The index page
+
+The site had project detail pages and no list, so a visitor who opened one had
+nowhere to go but back, and no single page said "this is the work" — the home
+page's carousel is one section among many, and crawlers weight it accordingly.
+
+It is a grid rather than a second carousel. The carousel is selective and
+interactive; this is everything, in order, readable without interaction. Each
+card is **one** link wrapping the whole card: three links to the same place
+would be three stops for a keyboard user and three identical announcements for
+a screen reader.
+
+The detail page's breadcrumb now points here instead of at `/#projects`, a
+scroll position on the home page — a worse answer to "up one level" than a page
+whose subject is exactly this.
+
+### Sharing is two browser APIs, not a widget
+
+`navigator.share` opens the operating system's own share sheet on a phone.
+Nothing this site could build competes with that. Where the API is absent the
+button copies the URL, which is what someone was going to do by hand.
+
+The usual approach — an embedded script per network — is a set of trackers that
+learn which page a visitor is reading. This makes no network requests at all,
+which is also why the CSP needed no change.
+
+It shares the **canonical** URL read at click time, not `location.href`: the
+latter still carries whatever tracking query the visitor arrived with, which
+would then spread with every share.
+
+The confirmation is a live region that reverts, so the change is spoken as well
+as seen and the button does not read as permanently "Copied".
+
+## 2026-08-10 — The content backup is JSON, and excludes two things on purpose
+
+Every word of the portfolio lived in one D1 database with no way to get a copy
+out: the code is in git, the content was backed up nowhere.
+
+It goes through the repositories rather than dumping tables. A `SELECT *` would
+faithfully export columns that no longer mean what they used to and silently
+gain new ones nothing reads; composing from repositories means the file always
+matches the shape the application uses.
+
+**Contact messages are excluded.** They are other people's correspondence,
+including their email addresses, and a file downloaded to a laptop is exactly
+where personal data should not accumulate. **Media bytes are excluded** — they
+would turn a 45KB file into hundreds of megabytes streamed through a Worker;
+the records are kept so a restore knows what is missing and by what id.
+
+A route handler is **not** inside the protected layout, so nothing
+authenticates it for free — this is the single most sensitive URL in the admin,
+and `requireAdminIdentity()` runs before any read. Unauthorized returns **403,
+not the 500** an uncaught throw would produce, and does not echo the rejection
+reason: `AdminUnauthorizedError` knows whether the token was expired, absent or
+wrongly scoped, and telling an unauthenticated caller which would tell them how
+to get closer.
+
 ## 2026-08-10 — Analytics is first-party, and aggregated on write
 
 ### The decision

@@ -41,6 +41,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 1,
     },
+    {
+      // The list page. Listed even when it has no projects: it is linked from
+      // the site and answers 200, and a crawler that finds it by following a
+      // link should find it here too.
+      url: `${origin}/projects`,
+      changeFrequency: "weekly" as const,
+      priority: 0.9,
+    },
     ...projects.map((project) => ({
       url: `${origin}/projects/${project.slug}`,
       // The row's own timestamp, not the time this file ran. `lastModified`

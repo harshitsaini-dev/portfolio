@@ -6,7 +6,7 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 24 — discoverability, resilience and first-party analytics.**
+**Phase 25 — a projects page, sharing, caching, HSTS and a content backup.**
 
 Everything below Phase 22 remains true; this is what the owner asked for once
 the site was in daily use.
@@ -98,6 +98,57 @@ it). Nothing remote was touched by this slice.
 Deploying before the Access application exists yields a Worker that denies
 everyone — safe but useless. The owner's dashboard steps are in
 `docs/DEPLOYMENT.md`.
+
+## Phase 25 — a projects page, sharing, caching, HSTS and a backup
+
+### `/projects`
+
+The site had detail pages and no list. There is now a page that lists every
+published project, linked from the home page's projects section, from the
+detail page's breadcrumb (which pointed at a scroll position before), and from
+the sitemap. Each card is one link, not three.
+
+### Sharing
+
+A share button on `/projects`, on each project page, and in the footer. On a
+phone it opens the OS share sheet; elsewhere it copies the URL and announces
+it. No third-party widget, no network request, no CSP change. It shares the
+canonical URL, so a visitor who arrived with a tracking query does not spread
+it.
+
+### Content reads are cached for a minute
+
+Every page view previously ran the full composition against D1. ISR is not
+available — OpenNext's incremental cache needs a binding whose creation is a
+human action — so this is a per-isolate memo with a 60-second TTL, disabled in
+development. An edit can take up to a minute to appear; see DECISIONS for the
+trade and the two details (shared in-flight promise, evicted on failure) that
+make it safe.
+
+### HSTS
+
+Two years with `includeSubDomains` on both apps, and no `preload` — that would
+be a claim about all of `workers.dev`, which this project is a guest on.
+
+### A content backup
+
+`GET /api/backup` in the admin returns a JSON snapshot of everything in the
+CMS, linked from the dashboard. 45KB in practice. Composed from the
+repositories rather than dumped from tables. Contact messages and media bytes
+are excluded on purpose — see DECISIONS.
+
+It is a route handler, so it is outside the protected layout and authenticates
+itself explicitly. Unauthorized is 403 with no reason echoed, rather than the
+500 an uncaught throw would give.
+
+### Checks
+
+`pnpm lint` clean, all packages `tsc --noEmit` clean, `pnpm test` exit 0,
+`pnpm build` both apps. Browser-verified on localhost: `/projects` renders 4
+cards with one link each and a correct canonical; the share button copied
+`http://localhost:3000/projects` and announced "Link copied" through the live
+region; the backup downloaded as `portfolio-backup-2026-08-10.json` with 17
+content keys, `no-store, private`, and neither messages nor analytics in it.
 
 ## Phase 24 — being found, surviving failure, and counting visits
 

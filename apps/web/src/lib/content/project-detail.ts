@@ -21,6 +21,7 @@ import "server-only";
 import type { MediaAsset, ProjectLink } from "@portfolio/types";
 
 import { getSiteRepositories } from "@/lib/db/binding";
+import { cachedRead } from "@/lib/content/cache";
 import type { ContentImage } from "@/data/types";
 
 export interface ProjectGalleryItem {
@@ -113,6 +114,12 @@ function toLinkLabel(link: ProjectLink): string {
 export async function getPublishedProjectSlugs(): Promise<
   readonly { readonly slug: string; readonly updatedAt: Date }[]
 > {
+  return cachedRead("published-project-slugs", readPublishedProjectSlugs);
+}
+
+async function readPublishedProjectSlugs(): Promise<
+  readonly { readonly slug: string; readonly updatedAt: Date }[]
+> {
   const repos = await getSiteRepositories();
   const projects = await repos.projects.list({ statuses: ["published"] });
   return projects.map((project) => ({
@@ -125,6 +132,13 @@ export async function getPublishedProjectSlugs(): Promise<
 export async function getProjectDetail(
   slug: string,
 ): Promise<ProjectDetail | null> {
+  // Keyed by slug: two projects must not share an entry. `null` for an unknown
+  // slug is cached too, deliberately — a crawler walking made-up URLs would
+  // otherwise reach the database once per guess.
+  return cachedRead(`project:${slug}`, () => readProjectDetail(slug));
+}
+
+async function readProjectDetail(slug: string): Promise<ProjectDetail | null> {
   const repos = await getSiteRepositories();
   const project = await repos.projects.getBySlugWithRelations(slug);
 

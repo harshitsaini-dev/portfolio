@@ -20,6 +20,27 @@ import type { NextConfig } from "next";
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
+  /*
+    Two years, and no `preload`.
+
+    The lifetime is long because a short one defeats the point: HSTS only
+    protects a visitor who has already been here, and the header is what keeps
+    the next visit from starting over plaintext.
+
+    `preload` is deliberately absent. Submitting to the preload list is a
+    claim about the **whole registrable domain**, and this app is a guest on
+    `workers.dev` — a domain shared with every Worker anyone deploys. Making
+    that claim is not this project's to make. It becomes worth revisiting on a
+    custom domain, where the claim would be about a domain the owner owns.
+
+    `includeSubdomains` is harmless here (no subdomains exist below this host)
+    and correct on a custom domain, so it is set once rather than remembered
+    later.
+  */
+  {
+    key: "Strict-Transport-Security",
+    value: "max-age=63072000; includeSubDomains",
+  },
   // `strict-origin-when-cross-origin` rather than the admin's `no-referrer`:
   // outbound links to a visitor's project or profile should still carry the
   // origin, which is normal courtesy on a public site and reveals nothing.

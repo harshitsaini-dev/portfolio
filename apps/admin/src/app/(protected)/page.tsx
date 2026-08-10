@@ -138,6 +138,25 @@ export default withAdminPage(async () => {
       )}
 
       {/*
+        A plain link, not a button with a fetch: the browser's own download
+        handling is what saves the file, and reimplementing it in JavaScript
+        would only add ways for it to fail. `download` is a hint — the route
+        sets `Content-Disposition` regardless, so a browser that ignores it
+        still saves rather than renders.
+      */}
+      <p className="mt-8 text-sm text-fg-muted">
+        <a
+          href="/api/backup"
+          download
+          className="font-medium text-fg underline underline-offset-4 hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          Download a content backup
+        </a>{" "}
+        — a JSON snapshot of everything here. Images and messages are not
+        included.
+      </p>
+
+      {/*
         Traffic above the messages: it describes the whole site, while the
         inbox describes a handful of people. The unread banner still comes
         first, because that is the only thing here that needs acting on.

@@ -47,6 +47,7 @@ import type {
 } from "@portfolio/types";
 
 import { getSiteRepositories } from "@/lib/db/binding";
+import { cachedRead } from "@/lib/content/cache";
 import { resolveSections, type SectionCopy } from "@/lib/content/sections";
 import type {
   Certification,
@@ -299,6 +300,14 @@ function toTool(row: ToolRow, assets: ReadonlyMap<string, MediaAsset>): Tool {
  * resolves through the same already-created binding.
  */
 export async function getSiteContent(): Promise<SiteContent> {
+  // Cached per isolate for a minute — see `cache.ts` for what that costs. The
+  // whole composition is cached rather than the individual reads, because the
+  // page wants a coherent snapshot: caching each aggregate separately would
+  // let a request see a new project alongside an old section list.
+  return cachedRead("site-content", readSiteContent);
+}
+
+async function readSiteContent(): Promise<SiteContent> {
   const repos = await getSiteRepositories();
 
   const [

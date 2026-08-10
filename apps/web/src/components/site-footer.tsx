@@ -1,3 +1,4 @@
+import { ShareButton } from "@/components/ui/share-button";
 import { Container } from "@/components/ui/container";
 import { SocialRow } from "@/components/ui/social-row";
 import { type } from "@/components/ui/typography";
@@ -31,6 +32,11 @@ export function SiteFooter({ siteName, note, socials }: SiteFooterProps) {
         {socials.length > 0 ? (
           <SocialRow socials={socials} label="Profiles elsewhere, in the footer" />
         ) : null}
+
+        {/* Sharing the site belongs at the end, where someone who has read
+            it decides what to do next — not at the top, where nobody has seen
+            anything to share yet. */}
+        <ShareButton title={siteName} label="Share this site" className="self-start" />
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className={`max-w-2xl ${type.fine}`}>{note}</p>
