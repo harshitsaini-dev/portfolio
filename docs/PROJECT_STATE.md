@@ -6,7 +6,7 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 25 — a projects page, sharing, caching, HSTS and a content backup.**
+**Phase 26 — analytics page, backup in Settings, CMS-chosen share image.**
 
 Everything below Phase 22 remains true; this is what the owner asked for once
 the site was in daily use.
@@ -98,6 +98,42 @@ it). Nothing remote was touched by this slice.
 Deploying before the Access application exists yields a Worker that denies
 everyone — safe but useless. The owner's dashboard steps are in
 `docs/DEPLOYMENT.md`.
+
+## Phase 26 — analytics page, backup in Settings, CMS-chosen share image
+
+### The share image was already there
+
+The admin's **Link preview image** picker existed, saved to
+`site_settings.social_image_id`, and the public site never read it. Wiring it
+up was one line plus a fallback to the portrait — no migration. Third instance
+of "a CMS field that saves is not a CMS field that works"; see DECISIONS.
+
+Verified end to end: choosing an image in Settings changed the site's
+`og:image` and `og:image:alt`, and clearing it restored the portrait.
+
+### Analytics has its own page
+
+`/analytics` in the admin, under Operations. 7/30/90-day windows as links,
+25-row tables for pages and referrers with a percentage share column, and a
+day-by-day table under the chart. The dashboard keeps its summary card.
+`?days=100000` falls back to 30 rather than building a vast table — verified.
+
+### Backup moved to Settings, and grew
+
+Off the dashboard, into a Settings section. Now includes **contact messages**
+(owner's instruction — the reasoning for the original exclusion is preserved in
+the route's header) and a `downloadUrl` per media record. 46KB in practice.
+
+### One origin resolver in the admin
+
+`getPublicSiteOrigin()` replaces three separate derivations, two of which had
+already disagreed and caused the local favicon's CSP violations.
+
+### Checks
+
+`pnpm lint` clean, both apps `tsc --noEmit` clean, `pnpm test` exit 0,
+`pnpm build` both apps. Browser-verified: the analytics page and its range
+guard, the backup's contents and its new home, and the share-image round trip.
 
 ## Phase 25 — a projects page, sharing, caching, HSTS and a backup
 

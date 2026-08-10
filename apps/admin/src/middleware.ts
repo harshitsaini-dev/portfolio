@@ -1,3 +1,5 @@
+import { getPublicSiteOrigin } from "@/lib/site-origin";
+
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
@@ -37,9 +39,7 @@ export function middleware(request: NextRequest) {
   // only listed the production origin blocked it there — measured, as three
   // CSP violations in the local admin's console. Two places deriving the same
   // origin differently is how that happens, so they derive it the same way.
-  const siteOrigin =
-    process.env.SITE_ORIGIN ??
-    (isDevelopment ? "http://localhost:3000" : undefined);
+  const siteOrigin = getPublicSiteOrigin();
 
 
   const policy = [

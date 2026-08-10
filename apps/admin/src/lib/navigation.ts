@@ -79,6 +79,9 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
       { label: "Resumes", href: "/resumes" },
       { label: "Settings", href: "/settings" },
       { label: "Inbox", href: "/inbox" },
+      // Under Operations rather than Content: it describes how the site is
+      // doing, not what it says.
+      { label: "Analytics", href: "/analytics" },
     ],
   },
 ];

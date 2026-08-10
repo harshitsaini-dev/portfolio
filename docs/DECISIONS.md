@@ -3,6 +3,86 @@
 Notable architectural/tooling decisions and their rationale. Append new
 entries; do not delete history.
 
+## 2026-08-10 — The share image was already in the CMS and nothing read it
+
+The owner asked to choose the link-preview picture from the admin. The admin
+already had a **"Link preview image"** picker, wired to
+`site_settings.social_image_id`, saving correctly — and the public site never
+read the column.
+
+So no migration and no new field: the fix was one line of wiring plus a
+fallback. This is the third instance of the same defect, after the section
+icons that were stored and never rendered, and the shape is worth naming: **a
+CMS field that saves is not a CMS field that works.** The admin gives no signal
+either way, because saving is all it does.
+
+The portrait remains the fallback, which is what keeps the setting optional
+rather than a chore — but a card is 1.91:1 and a portrait is not, so the field
+exists precisely so the crop does not have to be a compromise. The hint in the
+form now says what shape to upload, which the old one did not.
+
+## 2026-08-10 — One resolver for the public site's origin
+
+`getPublicSiteOrigin()` replaces three separate derivations in the admin: the
+layout's tab icon, the middleware's `img-src`, and the backup route's media
+links.
+
+Two of those had already disagreed — the layout fell back to `localhost:3000`
+in development and the middleware did not, so local development blocked its own
+favicon with three CSP violations. The third was about to repeat the mistake in
+a different direction: the backup route read the variable raw and wrote null
+links locally.
+
+It returns `undefined` rather than a guess when unset, and each caller decides
+what that means: the CSP omits a host, the backup writes null, the layout omits
+the icon. A fabricated origin would produce URLs that look right and 404.
+
+Unlike the public site — which derives its origin from the request, because the
+request is the answer — the admin genuinely needs configuration: it is a
+different Worker on a different host, and nothing in a request to the admin
+says where the site is.
+
+## 2026-08-10 — Backup moved to Settings, and now carries the messages
+
+Both on the owner's instruction.
+
+**Placement.** The dashboard is for what needs attention today; a backup is a
+deliberate, occasional errand. A permanent link there is one more thing to read
+past every morning.
+
+**Contact messages are now included.** The first version excluded them, on the
+reasoning that a backup of the owner's own content has no business carrying
+other people's email addresses, and that a file on a laptop is where personal
+data should not accumulate. The owner asked for them, which settles it — it is
+their inbox, and a backup that loses every enquiry is not the backup they
+wanted. The reasoning stays in the route's header, because it is still why the
+download is treated as sensitive and served `no-store, private`.
+
+**Media bytes are still not inlined.** Base64 is a third larger than the file
+it encodes, and a portfolio's images would turn a 46KB download into hundreds
+of megabytes assembled in a Worker's memory — a request that runs out of memory
+rather than completing. Each record instead carries a `downloadUrl`, so the
+manifest is enough to fetch every file. A streamed ZIP is the real answer if
+this proves insufficient.
+
+## 2026-08-10 — A dedicated analytics page
+
+The dashboard card answers "is anything happening". The page answers what
+follows: which work people open, where they arrive from, whether last week beat
+the one before. So it offers 7/30/90-day windows and 25 rows rather than five.
+
+**Ranges are links, not state.** `?days=7` can be bookmarked, opened in a
+second tab and compared, and works before any JavaScript loads.
+
+**The range is validated against the offered set, not clamped.** `?days=100000`
+would otherwise build a hundred-thousand-row table from one URL — verified to
+fall back to 30.
+
+**The chart is decoration and says so.** The same numbers sit underneath in a
+real table with header cells, which is the only version a screen reader can
+read, and the version anyone gets when they want to know what a bar actually
+was rather than roughly how tall it is.
+
 ## 2026-08-10 — A memo cache, not ISR
 
 Content reads are cached per isolate for 60 seconds (`lib/content/cache.ts`).

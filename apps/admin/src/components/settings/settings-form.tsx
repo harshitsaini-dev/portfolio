@@ -254,7 +254,7 @@ export function SettingsForm({
           value={values.socialImageId}
           options={mediaOptions}
           errors={fieldErrors.socialImageId}
-          hint="Shown when the site is shared on social media."
+          hint="Shown when a link to the site is shared. Use a wide image — around 1200×630 — because the card crops to that shape. Leave empty to use your profile photo, which will be cropped."
           onChange={(value) => update("socialImageId", value)}
         />
 

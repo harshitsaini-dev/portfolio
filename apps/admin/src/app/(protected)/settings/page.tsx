@@ -98,6 +98,55 @@ export default withAdminPage(async () => {
           }
         />
       </section>
+
+      {/*
+        Backup last, below the things that change the site.
+
+        It belongs in Settings rather than on the dashboard, on the owner's
+        instruction and for a reason that holds: the dashboard is for what
+        needs attention today, and a backup is a deliberate, occasional
+        errand. A permanent link there is one more thing to read past every
+        morning.
+      */}
+      <section
+        aria-labelledby="backup-heading"
+        className="rounded-lg border border-subtle bg-surface p-6"
+      >
+        <h2
+          id="backup-heading"
+          className="text-3xl font-semibold tracking-tight text-fg"
+        >
+          Backup
+        </h2>
+        <p className="mt-3 max-w-2xl text-sm text-fg-muted">
+          A JSON snapshot of everything in this CMS: profile, projects,
+          experience, education, skills, media records and contact messages.
+          Image files are not inside the file — each media entry carries a link
+          to its original instead, because inlining the images would make the
+          download hundreds of megabytes.
+        </p>
+
+        {/*
+          A plain link, not a button with a fetch: the browser's own download
+          handling saves the file, and reimplementing that in JavaScript adds
+          only new ways for it to fail. `download` is a hint — the route sets
+          `Content-Disposition` regardless.
+        */}
+        <p className="mt-5">
+          <a
+            href="/api/backup"
+            download
+            className="inline-flex items-center rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            Download backup (JSON)
+          </a>
+        </p>
+
+        <p className="mt-4 max-w-2xl text-xs text-fg-muted">
+          The file contains the messages people have sent you, including their
+          email addresses. Keep it somewhere you would keep the inbox itself.
+        </p>
+      </section>
     </div>
   );
 });

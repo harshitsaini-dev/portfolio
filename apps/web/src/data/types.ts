@@ -271,6 +271,15 @@ export interface SiteContent {
     readonly tone: "system" | "speech";
     readonly status: string | null;
   }[];
+  /**
+   * The picture used on link preview cards, chosen in the CMS.
+   *
+   * Null falls back to the profile portrait — see the root layout. Separate
+   * from `profile.image` because the two have different jobs: the portrait is
+   * the person, and this is what a wide 1.91:1 card should crop to without
+   * cutting a face in half.
+   */
+  readonly shareImage: ContentImage | null;
   readonly contact: ContactCallToAction;
   readonly footerNote: string;
 }

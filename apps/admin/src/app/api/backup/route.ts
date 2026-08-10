@@ -27,25 +27,42 @@
  * first, before any read — this endpoint returns the entire contents of the
  * CMS, which makes it the single most sensitive URL in the app.
  *
- * ## What is deliberately excluded
+ * ## Contact messages are included, on the owner's instruction
  *
- * **Media bytes.** The images live in R2 and would turn a small JSON file into
- * hundreds of megabytes streamed through a Worker. The media *records* are
- * included, so a restore knows what is missing and by what id.
+ * They were excluded in the first version of this route, on the reasoning that
+ * a backup of the owner's own content has no business carrying other people's
+ * email addresses, and that a file on a laptop is where personal data should
+ * not accumulate. The owner asked for them, which settles it: it is their
+ * inbox, and a backup that loses every enquiry is not the backup they wanted.
  *
- * **Contact messages.** They are other people's correspondence, including
- * their email addresses. A backup of the owner's own content has no business
- * carrying them, and a file downloaded to a laptop is exactly where personal
- * data should not accumulate. They stay in the inbox.
+ * The reasoning is recorded rather than deleted, because it is still the
+ * reason this file should be treated as sensitive wherever it is stored. The
+ * response is `no-store, private` and the route is the most access-controlled
+ * URL in the app.
  *
- * **Analytics.** Aggregate counts that would be misleading if restored into a
- * different day's data, and which nobody would miss.
+ * ## Media: every record, and a URL for every file
+ *
+ * The image *bytes* are still not inlined. Base64 in JSON is a third larger
+ * than the file it encodes, and a portfolio's images would turn a 50KB
+ * download into hundreds of megabytes assembled in a Worker's memory — a
+ * request that would run out of memory rather than complete.
+ *
+ * Instead each media record carries a `downloadUrl` pointing at the public
+ * site's `/media/[id]`, so the manifest is enough to fetch every file. A real
+ * archive of the bytes is a different feature — a streamed ZIP — and worth
+ * building only if this proves not to be enough.
+ *
+ * ## What is still excluded
+ *
+ * **Analytics.** Aggregate day counts that would be misleading if restored
+ * into a different day's data, and which nobody would miss.
  */
 
 import { NextResponse } from "next/server";
 
 import { AdminUnauthorizedError, requireAdminIdentity } from "@/lib/auth/guard";
 import { getAdminRepositories } from "@/lib/db/binding";
+import { getPublicSiteOrigin } from "@/lib/site-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -96,6 +113,7 @@ export async function GET(): Promise<Response> {
     headlineAlternates,
     media,
     resumes,
+    contactMessages,
   ] = await Promise.all([
     repos.profile.get(),
     repos.siteSettings.get(),
@@ -114,7 +132,20 @@ export async function GET(): Promise<Response> {
     repos.headlineAlternates.list(),
     repos.media.list(),
     repos.resumes.list(),
+    repos.contactMessages.list(),
   ]);
+
+  // Where the bytes actually are. Built from the public site's origin because
+  // that is the app that serves `/media/[id]`; the admin does not.
+  const siteOrigin = getPublicSiteOrigin();
+  const mediaWithUrls = media.map((asset) => ({
+    ...asset,
+    // Null rather than a guessed origin when it is not configured. A URL that
+    // looks right and 404s is worse than an honestly absent one.
+    downloadUrl: siteOrigin
+      ? `${siteOrigin}/media/${encodeURIComponent(asset.id)}`
+      : null,
+  }));
 
   const backup = {
     formatVersion: BACKUP_FORMAT_VERSION,
@@ -137,9 +168,12 @@ export async function GET(): Promise<Response> {
       robotLines,
       terminalLines,
       headlineAlternates,
-      // Records only — the bytes stay in R2. See the header.
-      media,
+      // Records plus a `downloadUrl` each; the bytes stay in R2. See header.
+      media: mediaWithUrls,
       resumes,
+      // Included on the owner's instruction — see the header, and treat the
+      // resulting file accordingly.
+      contactMessages,
     },
   };
 

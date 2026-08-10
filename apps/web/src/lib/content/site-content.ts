@@ -439,6 +439,11 @@ async function readSiteContent(): Promise<SiteContent> {
         };
       })(),
     },
+    // The CMS has had a "Link preview image" picker all along and nothing
+    // read it — the same class of defect as the section icons that were
+    // stored and never rendered. Resolved from the already-loaded asset map,
+    // so it costs no extra query, and null for a deleted asset.
+    shareImage: toImage(assets, settings?.socialImageId ?? null),
     // Absent settings mean the CMS has never been opened, and a portfolio
     // with no way to make contact is the wrong default.
     isContactEnabled: settings?.isContactEnabled ?? true,

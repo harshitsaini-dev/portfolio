@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+
+import { getPublicSiteOrigin } from "@/lib/site-origin";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -58,11 +60,9 @@ export async function generateMetadata(): Promise<Metadata> {
     runtime read is both correct and enough.
   */
     icons: (() => {
-      const origin =
-        process.env.SITE_ORIGIN ??
-        // A working default for `next dev`, where the public site is the
-        // sibling process on port 3000 and no variable is configured.
-        (process.env.NODE_ENV === "production" ? null : "http://localhost:3000");
+      // One shared resolver — see `lib/site-origin.ts` for why this is not
+      // inlined here any more.
+      const origin = getPublicSiteOrigin();
       if (!origin) return undefined;
       return {
         icon: [{ url: `${origin}/site-icon` }],

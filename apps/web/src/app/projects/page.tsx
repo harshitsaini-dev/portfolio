@@ -37,7 +37,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const description = `Work by ${content.profile.name} — ${content.projects.length} published ${
     content.projects.length === 1 ? "project" : "projects"
   }.`;
-  const shareImage = content.projects[0]?.cover ?? content.profile.image;
+  const shareImage =
+    content.projects[0]?.cover ?? content.shareImage ?? content.profile.image;
 
   return {
     metadataBase: new URL(origin),

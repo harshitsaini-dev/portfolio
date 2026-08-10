@@ -46,13 +46,15 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata(): Promise<Metadata> {
   const [content, origin] = await Promise.all([getSiteContent(), getSiteOrigin()]);
 
-  // The share card's picture is the owner's portrait. Not a placeholder for a
-  // purpose-built card: a portfolio's link is nearly always shared as "here is
-  // this person", and the face is the most useful 1200px this site has. A
-  // dedicated Open Graph image would be a better card and a worse default,
-  // because it would need an upload nobody has made yet — this works the
-  // moment the profile has a photograph, which it does.
-  const shareImage = content.profile.image;
+  // The image chosen in the CMS under "Link preview image", falling back to
+  // the portrait.
+  //
+  // The fallback is what makes the setting optional rather than a chore: a
+  // link shared before anyone picks anything still carries a face, which is
+  // the right default for a portfolio. But a card is 1.91:1 and a portrait is
+  // not, so the crop is always a compromise — the setting exists so it does
+  // not have to be.
+  const shareImage = content.shareImage ?? content.profile.image;
 
   return {
     // Everything relative below is resolved against this. Without it Next
