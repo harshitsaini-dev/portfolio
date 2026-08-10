@@ -56,8 +56,20 @@ export async function generateMetadata(): Promise<Metadata> {
     //
     // The type comes from the stored row rather than being inferred from the
     // URL, which has no extension to infer from.
+    //
+    // `apple` as well as `icon`, because they reach different browsers. The
+    // owner reported the favicon showing on a laptop and missing on a phone,
+    // and the served HTML confirmed why: only `rel="icon"` was emitted, and
+    // mobile browsers — iOS Safari everywhere, Android for the home screen
+    // and task switcher — look for `apple-touch-icon` and ignore the plain
+    // icon link. Same asset for both: serving the original and letting the
+    // device scale beats maintaining a second upload nobody will remember to
+    // update.
     icons: content.theme.favicon
-      ? { icon: [{ url: content.theme.favicon.href, type: content.theme.favicon.type }] }
+      ? {
+          icon: [{ url: content.theme.favicon.href, type: content.theme.favicon.type }],
+          apple: [{ url: content.theme.favicon.href, type: content.theme.favicon.type }],
+        }
       : undefined,
   };
 }
