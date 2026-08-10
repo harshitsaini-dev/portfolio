@@ -8,7 +8,7 @@
     "start": "next start -p 3000",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "node --conditions=react-server scripts/site-content-tests.mjs && node --conditions=react-server scripts/production-platform-tests.mjs",
+    "test": "node --conditions=react-server scripts/site-content-tests.mjs && node --conditions=react-server scripts/production-platform-tests.mjs && node --conditions=react-server scripts/three-warning-tests.mjs",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "opennextjs-cloudflare preview",
     "dev:clean": "node -e \"require('node:fs').rmSync('.next',{recursive:true,force:true})\" && next dev -p 3000"

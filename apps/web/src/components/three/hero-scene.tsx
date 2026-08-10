@@ -29,6 +29,17 @@
 import { Canvas } from "@react-three/fiber";
 
 import { Robot } from "./robot";
+import { silenceKnownThreeWarning } from "./silence-known-three-warning";
+
+/*
+  Installed at module scope, which runs before the first `<Canvas>` mounts and
+  therefore before fiber constructs the `THREE.Clock` that warns. An effect
+  would be too late — the store is built during render.
+
+  This module is only ever imported by the lazy scene mount, so a visitor who
+  never gets a 3D scene never loads it either.
+*/
+silenceKnownThreeWarning();
 
 export interface SceneQuality {
   /** Upper bound on device pixel ratio. Higher costs fill rate, not detail. */
