@@ -163,7 +163,8 @@ Migrations **0009 and 0010 have not been applied to the production database.**
 Until they are, the footer note cannot be saved and the terminal renders empty:
 
 ```
-cd apps/admin
+# from the repository root, NOT from apps/admin: `wrangler.d1.jsonc` lives at
+# the root, and wrangler resolves `-c` relative to the working directory
 npx wrangler d1 migrations apply portfolio-cms --remote -c wrangler.d1.jsonc
 ```
 

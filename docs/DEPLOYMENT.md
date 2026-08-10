@@ -28,10 +28,19 @@ reporting success and fresh Version IDs.
 A deploy that needs a schema change is two steps in a fixed order:
 
 ```
-cd apps/admin
+# from the repository root — `wrangler.d1.jsonc` lives there, not in an app,
+# and wrangler resolves `-c` relative to the current directory
 npx wrangler d1 migrations apply portfolio-cms --remote -c wrangler.d1.jsonc
 bash ~/portfolio/deploy.sh web      # and admin, if it is affected
 ```
+
+Migrations are a repository-level concern owned by `migrations/`, which is why
+that config sits at the root and neither app owns it. Running the command from
+`apps/admin` fails with a doubled path — reported, and it was this document
+that said to do it.
+
+Check what is outstanding first with `migrations list` in place of
+`migrations apply`.
 
 Reversing them is a self-inflicted outage, and has been one. Deploying the
 `terminal_lines` feature before applying migration 0010 returned **500 for

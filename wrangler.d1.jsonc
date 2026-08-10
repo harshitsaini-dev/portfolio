@@ -32,9 +32,17 @@
   // credential; authentication comes from the developer's own Wrangler
   // OAuth session and is never stored in the repository.
   //
-  // Usage (always local in this phase — see docs/DATABASE.md):
+  // Usage — run these from the REPOSITORY ROOT, where this file is. Wrangler
+  // resolves `-c` relative to the working directory, so running them from an
+  // app directory fails with a doubled path.
+  //
   //   pnpm exec wrangler d1 migrations list  portfolio-cms --local -c wrangler.d1.jsonc
   //   pnpm exec wrangler d1 migrations apply portfolio-cms --local -c wrangler.d1.jsonc
+  //
+  // `--remote` applies to the live database and is an OWNER action, never the
+  // agent's. It has to happen BEFORE deploying code that reads the new schema
+  // — the other order returned 500 to every visitor once. See
+  // docs/DEPLOYMENT.md and docs/DATABASE.md.
   // ---------------------------------------------------------------------
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "portfolio-d1-admin",
