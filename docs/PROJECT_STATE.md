@@ -6,7 +6,10 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 22 — COMPLETE. Both Workers are live on workers.dev.**
+**Phase 23 — post-launch content control. Live.**
+
+Everything below Phase 22 remains true; this is what the owner asked for once
+the site was in daily use.
 
 The public site and the admin CMS are deployed and verified:
 
@@ -95,6 +98,86 @@ it). Nothing remote was touched by this slice.
 Deploying before the Access application exists yields a Worker that denies
 everyone — safe but useless. The owner's dashboard steps are in
 `docs/DEPLOYMENT.md`.
+
+## Phase 23 — rotating labels, section icons, and a real dashboard
+
+Five owner requests, all shipped and verified in production.
+
+### Rotating labels (migration 0008)
+
+The hero headline and each section's eyebrow now cycle through alternatives
+configured in the CMS — "Software Developer → Full Stack Developer →
+Engineer". Two tables: `headline_alternates` (profile-owned, robot-lines
+shaped) and `section_alternates` (row-owned, FK CASCADE, `field` CHECK).
+
+**The canonical phrase is not stored with the alternates.** It stays in
+`profile.headline` / `sections.eyebrow`, so a label with none renders exactly
+as before, ships no client component, and the SSR HTML plus the `sr-only`
+copy stay one stable string. Rotation is a visual layer over a fixed
+accessible name — a heading whose accessible name depended on a timer would
+be one you cannot navigate by. No rotation at all under reduced motion.
+
+**The section heading deliberately does not rotate.** It was wired to at
+first; the owner cut it on sight, and the reason holds — a heading is what a
+page is scanned by, and one retyping itself turns the page's structure into
+motion. The dead "Title alternatives" editor was removed rather than left to
+collect configuration nothing renders.
+
+### Section icons were never rendered
+
+An editor could choose an icon, it was stored on the row, and `SectionCopy`
+dropped `iconMediaId` — so every uploaded section icon was invisible. It now
+renders in place of the built-in emoji marker: two marks before one heading
+is noise, and choosing an icon is the editor saying which one they want.
+
+### The footer line (migration 0009)
+
+`"Built and maintained by <name>."` was composed in `site-content.ts` —
+editorial copy in a TypeScript file, which the data-driven rule exists to
+prevent. It survived because it looked derived rather than written. A
+nullable `footer_note` column overrides it; null keeps the composed sentence.
+
+### The dashboard
+
+Rewritten twice. It described the *system* — "content screens arrive in later
+phases", "schema not yet applied remotely" — which was true when nothing was
+deployed and actively misleading once everything was. It now shows unread
+count, the five most recent messages (sender, address, first lines), content
+counts that link to the screen owning each subject, and which sections are
+hidden. Unread is marked by a dot **and** the word, never colour alone.
+
+### The shared favicon took four fixes, and none were in the icon
+
+The admin's tab icon is the public site's CMS favicon, via a new stable
+`/site-icon` redirect. Getting it to appear needed four separate corrections,
+each of which looked like "nothing changed" because the previous one was
+still masking it:
+
+1. **`deploy.sh` never built.** `opennextjs-cloudflare deploy` uploads
+   whatever is in `.open-next/`; it does not rebuild. Three deploys reported
+   success and fresh Version IDs while serving the previous build — the CSS
+   asset hash in the served HTML was identical across all of them.
+2. **Cloudflare was serving cached HTML/CSS** to the verification fetches, so
+   even a correct deploy read as unchanged. Every production check now uses a
+   cache-busting query.
+3. **`NEXT_PUBLIC_SITE_ORIGIN` is inlined at build time**, and the value is a
+   Worker variable that only exists at runtime — the build substituted
+   `undefined` and no link was emitted. Renamed to `SITE_ORIGIN`, and the
+   admin's static `metadata` export became `generateMetadata()`, because a
+   static metadata object is *also* evaluated at build time.
+4. **CSP governs favicons.** `img-src 'self' data:` silently refused the
+   cross-origin icon. The public origin is now listed — one origin, images
+   only.
+
+The lesson worth keeping: every one of those was in the build or delivery
+layer, not in application code. When a change "does nothing" in production,
+verify the artefact actually shipped before editing the source again.
+
+### Checks
+
+`pnpm lint`, `pnpm typecheck`, `pnpm test` (24 suites), `pnpm build`, both
+`cf:build`s, and browser verification of each feature — configured through the
+admin, persisted, then observed on the public site.
 
 ## Production fixes after the admin went live
 
