@@ -45,6 +45,15 @@
   // `/media/[id]` image sources.
   "workers_dev": true,
 
+  // Preview URLs stay OFF, pinned here because a deploy re-enables them by
+  // default when `workers_dev` is on — measured: the owner disabled them in
+  // the dashboard and the next deploy silently flipped them back on. The
+  // preview hostname (`*-<worker>.workers.dev`) is NOT covered by the Access
+  // application on the production hostname; the admin app itself still fails
+  // closed there, but an unauthenticated surface nobody asked for is not a
+  // surface to keep.
+  "preview_urls": false,
+
   // Dashboard-set plain-text vars survive deploys. Without this, `wrangler
   // deploy` DELETES any var not listed in this file — which is exactly where
   // the owner sets public configuration like CONTACT_NOTIFY_* and
