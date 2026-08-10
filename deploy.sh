@@ -30,4 +30,12 @@ export NVM_DIR="$HOME/.nvm"
 export PATH="$HOME/.local/share/pnpm:$PATH"
 
 cd "$(dirname "$0")"
+
+# BUILD, then deploy. `opennextjs-cloudflare deploy` uploads whatever is
+# already in `.open-next/` — it does NOT rebuild. Deploying without this line
+# silently ships the previous build: three commits in a row appeared to deploy
+# successfully, reported fresh Version IDs, and served stale assets, which cost
+# an hour of debugging a feature that had never actually left the machine. The
+# asset hash in the served HTML was identical across all of them.
+pnpm --filter "@portfolio/$APP" exec opennextjs-cloudflare build
 exec pnpm --filter "@portfolio/$APP" exec opennextjs-cloudflare deploy
