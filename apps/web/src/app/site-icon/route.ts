@@ -1,5 +1,3 @@
-import { redirect } from "next/navigation";
-
 import { getSiteContent } from "@/lib/content/site-content";
 
 /**
@@ -44,5 +42,21 @@ export async function GET(): Promise<Response> {
     return new Response("No favicon configured", { status: 404 });
   }
 
-  redirect(favicon.href);
+  // A plain Response rather than `redirect()` from `next/navigation`.
+  //
+  // `redirect()` signals by throwing NEXT_REDIRECT and relies on the
+  // framework catching it. In a Route Handler on the deployed Worker that
+  // throw is not translated: the route answered 404 in production while
+  // working locally, and renaming the segment changed nothing — measured
+  // twice. Constructing the response directly removes the framework from the
+  // path entirely, which is what every other route handler here already does.
+  return new Response(null, {
+    status: 307,
+    headers: {
+      location: favicon.href,
+      // The redirect must not be cached: the whole point of this URL is that
+      // it keeps working when the editor swaps the image behind it.
+      "cache-control": "no-store",
+    },
+  });
 }
