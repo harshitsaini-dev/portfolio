@@ -150,7 +150,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * contrast warning the admin shows because of it.
  */
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const { theme } = await getSiteContent();
+  const { theme, consoleEgg, isKonamiEnabled } = await getSiteContent();
 
   // Set by `middleware.ts`. The inline theme script below is the one script on
   // the page Next does not stamp for us, so without this the CSP blocks it and
@@ -204,7 +204,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <Analytics />
         {/* Renders nothing. A console note and the Konami code — see the
             component; neither hides content nor blocks a key. */}
-        <EasterEggs />
+        {/* Content, from the CMS — see the component for why a console
+            message counts as content. */}
+        <EasterEggs console={consoleEgg} isKonamiEnabled={isKonamiEnabled} />
       </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

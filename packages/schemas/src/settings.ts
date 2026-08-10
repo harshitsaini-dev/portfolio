@@ -101,6 +101,16 @@ export const siteSettingsSaveSchema = z
     // The footer line. Null keeps the composed "Built and maintained by
     // <name>." sentence, which is what the site showed before this existed.
     footerNote: nullableText(200).default(null),
+    // The console easter egg. Null keeps the message the site has always
+    // printed, so an owner who never opens these fields sees no change.
+    //
+    // The body is capped generously rather than tightly: it is read in a
+    // devtools panel, where a paragraph is fine and where the only real limit
+    // is the reader's patience.
+    consoleHeadline: nullableText(120).default(null),
+    consoleBody: nullableText(1000).default(null),
+    isConsoleEnabled: z.boolean().default(true),
+    isKonamiEnabled: z.boolean().default(true),
     isContactEnabled: z.boolean().default(true),
   })
   .strict();

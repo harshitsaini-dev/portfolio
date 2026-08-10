@@ -48,20 +48,53 @@ const KONAMI = [
 const CELEBRATION_CLASS = "konami";
 const CELEBRATION_MS = 4000;
 
-export function EasterEggs() {
-  useEffect(() => {
-    // Styled so it stands out from the framework's own logging, and split
-    // across two arguments so the message is selectable as plain text.
-    console.log(
-      "%c Hey — dekh rahe ho console? 👀 ",
-      "background:#0b0c0f;color:#7dd3fc;font-size:14px;padding:6px 4px;border-radius:4px",
-    );
-    console.log(
-      "This whole site is driven by a CMS I built: Next.js on Cloudflare Workers, D1, R2, behind Cloudflare Access.\nIf you got this far, we should probably talk.\n\nWhile you're here: /whoami, /terminal, and the Konami code. ↑↑↓↓←→←→BA",
-    );
-  }, []);
+/** Printed when the CMS has nothing written. Not a second source of truth. */
+const DEFAULT_HEADLINE = "Hey — dekh rahe ho console? 👀";
+const DEFAULT_BODY =
+  "This whole site is driven by a CMS I built: Next.js on Cloudflare Workers, D1, R2, behind Cloudflare Access.\nIf you got this far, we should probably talk.\n\nWhile you're here: /whoami, /terminal, and the Konami code. ↑↑↓↓←→←→BA";
+
+export function EasterEggs({
+  console: consoleEgg,
+  isKonamiEnabled = true,
+}: {
+  /**
+   * The message, from the CMS. A null field falls back to the default above;
+   * `isEnabled: false` prints nothing and keeps the words.
+   */
+  console?: {
+    readonly isEnabled: boolean;
+    readonly headline: string | null;
+    readonly body: string | null;
+  };
+  isKonamiEnabled?: boolean;
+}) {
+  const isConsoleEnabled = consoleEgg?.isEnabled ?? true;
+  const headline = consoleEgg?.headline ?? DEFAULT_HEADLINE;
+  const body = consoleEgg?.body ?? DEFAULT_BODY;
 
   useEffect(() => {
+    if (!isConsoleEnabled) return;
+
+    // Styled so it stands out from the framework's own logging, and split
+    // across two arguments so the message is selectable as plain text.
+    //
+    // The headline is interpolated into the format string, which is how `%c`
+    // works — so a headline containing a literal `%c` or `%s` would be read as
+    // a directive. It is the owner's own text printed to their own console,
+    // and escaping it would cost the styling for a risk that is theirs alone.
+    console.log(
+      `%c ${headline} `,
+      "background:#0b0c0f;color:#7dd3fc;font-size:14px;padding:6px 4px;border-radius:4px",
+    );
+    if (body.trim().length > 0) console.log(body);
+  }, [isConsoleEnabled, headline, body]);
+
+  useEffect(() => {
+    // Switched off in the CMS: no listener is attached at all, rather than one
+    // that reads the sequence and declines to celebrate. Nothing to leak, and
+    // nothing running on a page whose owner turned it off.
+    if (!isKonamiEnabled) return;
+
     let progress = 0;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -108,7 +141,7 @@ export function EasterEggs() {
       if (timer) clearTimeout(timer);
       document.documentElement.classList.remove(CELEBRATION_CLASS);
     };
-  }, []);
+  }, [isKonamiEnabled]);
 
   return null;
 }

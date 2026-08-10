@@ -37,6 +37,10 @@ function toSiteSettings(row: Row): SiteSettings {
     accentColor: nullableString(SITE_ENTITY, row, "accent_color"),
     socialImageId: nullableString(SITE_ENTITY, row, "social_image_id"),
     footerNote: nullableString(SITE_ENTITY, row, "footer_note"),
+    consoleHeadline: nullableString(SITE_ENTITY, row, "console_headline"),
+    consoleBody: nullableString(SITE_ENTITY, row, "console_body"),
+    isConsoleEnabled: requireBoolean(SITE_ENTITY, row, "is_console_enabled"),
+    isKonamiEnabled: requireBoolean(SITE_ENTITY, row, "is_konami_enabled"),
     faviconMediaId: nullableString(SITE_ENTITY, row, "favicon_media_id"),
     isContactEnabled: requireBoolean(SITE_ENTITY, row, "is_contact_enabled"),
     updatedAt: requireString(SITE_ENTITY, row, "updated_at"),
@@ -84,7 +88,8 @@ export function createSiteSettingsRepository(
           .prepare(
             `SELECT site_name, site_description, default_theme, accent_color,
                     social_image_id, favicon_media_id, is_contact_enabled,
-                    footer_note, updated_at
+                    footer_note, console_headline, console_body,
+                    is_console_enabled, is_konami_enabled, updated_at
              FROM site_settings WHERE id = ?`,
           )
           .bind(SINGLETON_ID)
@@ -103,8 +108,9 @@ export function createSiteSettingsRepository(
             `INSERT INTO site_settings
                (id, site_name, site_description, default_theme, accent_color,
                 social_image_id, favicon_media_id, is_contact_enabled,
-                footer_note, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                footer_note, console_headline, console_body,
+                is_console_enabled, is_konami_enabled, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(id) DO UPDATE SET
                site_name = excluded.site_name,
                site_description = excluded.site_description,
@@ -114,6 +120,10 @@ export function createSiteSettingsRepository(
                favicon_media_id = excluded.favicon_media_id,
                is_contact_enabled = excluded.is_contact_enabled,
                footer_note = excluded.footer_note,
+               console_headline = excluded.console_headline,
+               console_body = excluded.console_body,
+               is_console_enabled = excluded.is_console_enabled,
+               is_konami_enabled = excluded.is_konami_enabled,
                updated_at = excluded.updated_at`,
           )
           .bind(
@@ -126,6 +136,10 @@ export function createSiteSettingsRepository(
             input.faviconMediaId ?? null,
             boolToInt(input.isContactEnabled ?? true),
             input.footerNote ?? null,
+            input.consoleHeadline ?? null,
+            input.consoleBody ?? null,
+            boolToInt(input.isConsoleEnabled ?? true),
+            boolToInt(input.isKonamiEnabled ?? true),
             now,
           )
           .run();

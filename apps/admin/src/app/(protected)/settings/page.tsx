@@ -62,6 +62,10 @@ export default withAdminPage(async () => {
                 socialImageId: settings.socialImageId ?? "",
                 faviconMediaId: settings.faviconMediaId ?? "",
                 footerNote: settings.footerNote ?? "",
+                consoleHeadline: settings.consoleHeadline ?? "",
+                consoleBody: settings.consoleBody ?? "",
+                isConsoleEnabled: settings.isConsoleEnabled,
+                isKonamiEnabled: settings.isKonamiEnabled,
                 isContactEnabled: settings.isContactEnabled,
               }
             : emptySettingsValues

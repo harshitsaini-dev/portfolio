@@ -282,4 +282,17 @@ export interface SiteContent {
   readonly shareImage: ContentImage | null;
   readonly contact: ContactCallToAction;
   readonly footerNote: string;
+  /**
+   * The console easter egg, as the CMS has it.
+   *
+   * `headline` and `body` are null when nothing has been written, and the
+   * component supplies the wording it always printed. `isEnabled` false means
+   * print nothing — which is a different thing from having no words.
+   */
+  readonly consoleEgg: {
+    readonly isEnabled: boolean;
+    readonly headline: string | null;
+    readonly body: string | null;
+  };
+  readonly isKonamiEnabled: boolean;
 }

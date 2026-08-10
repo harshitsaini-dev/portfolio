@@ -96,6 +96,10 @@ export async function saveSettingsAction(
       socialImageId: input.socialImageId,
       faviconMediaId: input.faviconMediaId,
       footerNote: input.footerNote,
+      consoleHeadline: input.consoleHeadline,
+      consoleBody: input.consoleBody,
+      isConsoleEnabled: input.isConsoleEnabled,
+      isKonamiEnabled: input.isKonamiEnabled,
       isContactEnabled: input.isContactEnabled,
     });
   } catch (error) {

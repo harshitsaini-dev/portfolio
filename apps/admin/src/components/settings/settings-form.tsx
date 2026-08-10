@@ -49,6 +49,10 @@ export interface SettingsFormValues {
   socialImageId: string;
   faviconMediaId: string;
   footerNote: string;
+  consoleHeadline: string;
+  consoleBody: string;
+  isConsoleEnabled: boolean;
+  isKonamiEnabled: boolean;
   isContactEnabled: boolean;
 }
 
@@ -60,6 +64,10 @@ export const emptySettingsValues: SettingsFormValues = {
   socialImageId: "",
   faviconMediaId: "",
   footerNote: "",
+  consoleHeadline: "",
+  consoleBody: "",
+  isConsoleEnabled: true,
+  isKonamiEnabled: true,
   isContactEnabled: true,
 };
 
@@ -324,6 +332,66 @@ export function SettingsForm({
           checked={values.isContactEnabled}
           hint="Hides the contact section on the public site when off."
           onChange={(checked) => update("isContactEnabled", checked)}
+        />
+      </section>
+
+      {/*
+        The easter eggs. Their own section rather than two more checkboxes
+        under "Features", because the two text fields belong beside the switch
+        that decides whether anyone reads them.
+      */}
+      <section
+        aria-labelledby={`${fieldId}-easter-eggs`}
+        className="flex flex-col gap-5"
+      >
+        <h2
+          id={`${fieldId}-easter-eggs`}
+          className="text-sm font-semibold uppercase tracking-wider text-fg"
+        >
+          Easter eggs
+        </h2>
+        <p className="-mt-2 text-sm text-fg-muted">
+          A message printed to the browser console, for the developers who open
+          it. Leave the two fields empty to keep the built-in wording.
+        </p>
+
+        <CheckboxField
+          id={`${fieldId}-console`}
+          name="isConsoleEnabled"
+          label="Print a message to the browser console"
+          checked={values.isConsoleEnabled}
+          hint="Turning this off keeps the words below — it just stops printing them."
+          onChange={(checked) => update("isConsoleEnabled", checked)}
+        />
+
+        <TextField
+          id={`${fieldId}-console-headline`}
+          name="consoleHeadline"
+          label="Console headline"
+          value={values.consoleHeadline}
+          errors={fieldErrors.consoleHeadline}
+          hint="The highlighted first line. Short — it is styled as a banner."
+          onChange={(value) => update("consoleHeadline", value)}
+        />
+
+        <TextAreaField
+          id={`${fieldId}-console-body`}
+          name="consoleBody"
+          label="Console message"
+          value={values.consoleBody}
+          errors={fieldErrors.consoleBody}
+          hint="Printed under the headline. Line breaks are kept exactly as you type them."
+          rows={5}
+          onChange={(value) => update("consoleBody", value)}
+        />
+
+        <CheckboxField
+          id={`${fieldId}-konami`}
+          name="isKonamiEnabled"
+          label="Enable the Konami code"
+          checked={values.isKonamiEnabled}
+          hint="↑↑↓↓←→←→BA briefly tints the page. Ignored while typing, and it never blocks a key."
+          onChange={(checked) => update("isKonamiEnabled", checked)}
         />
       </section>
 

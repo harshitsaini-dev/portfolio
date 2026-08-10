@@ -784,6 +784,23 @@ export type ThemePreference = (typeof THEME_PREFERENCES)[number];
 
 export interface SiteSettings {
   /**
+   * The console easter egg's two lines, and whether it prints at all.
+   *
+   * Null means "not written", and the site falls back to the message it has
+   * always printed — so an owner who never opens these fields sees no change.
+   * `isConsoleEnabled` is separate from the text on purpose: switching it off
+   * should not cost the words.
+   */
+  readonly consoleHeadline: string | null;
+  readonly consoleBody: string | null;
+  readonly isConsoleEnabled: boolean;
+  /**
+   * The Konami code. Its own switch rather than sharing the console's,
+   * because one is a message and the other is a key listener and an
+   * animation — an owner may reasonably want one without the other.
+   */
+  readonly isKonamiEnabled: boolean;
+  /**
    * The footer line, when the editor has written one.
    *
    * Null means the site composes "Built and maintained by <name>." from the
@@ -807,6 +824,10 @@ export interface SiteSettings {
 }
 
 export interface SiteSettingsInput {
+  readonly consoleHeadline?: string | null;
+  readonly consoleBody?: string | null;
+  readonly isConsoleEnabled?: boolean;
+  readonly isKonamiEnabled?: boolean;
   /** Overrides the composed "Built and maintained by …" footer line. */
   readonly footerNote?: string | null;
   readonly faviconMediaId?: string | null;

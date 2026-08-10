@@ -6,6 +6,65 @@ something passed without running it.
 
 ## Current phase
 
+**Phase 30 — the console easter egg becomes CMS content, and one dependency
+warning is silenced.**
+
+### The console message is editable (migration 0014)
+
+It was written in `components/easter-eggs.tsx`: a headline, a paragraph, and a
+line naming the hidden routes. Editorial copy in a TypeScript file, which is
+what the project's "content is data-driven" rule exists to prevent — it
+survived because a console message does not look like content.
+
+`site_settings` gains `console_headline`, `console_body`, `is_console_enabled`
+and `is_konami_enabled`. Settings → Easter eggs edits all four. Nulls fall back
+to the wording the site always printed, so a database nobody touches behaves
+exactly as before. The Konami switch is separate from the console's: one is a
+message, the other a key listener, and an owner may want one without the
+other. Switched off, the listener is never attached at all.
+
+Verified end to end in a browser: new text saved in the admin, the public
+console printed exactly it, newlines intact; unchecking the box stopped the
+message and kept the words; re-checking restored it.
+
+### The three deprecation warning
+
+three r183 deprecated `Clock`; `@react-three/fiber` constructs one in its own
+store on every `<Canvas>`. Both packages were at their latest published
+versions, so there was no upgrade to take and no code here to change.
+`silence-known-three-warning.ts` uses three's own `setConsoleFunction` to drop
+that one exact message and forward everything else untouched.
+
+That distinction is the justification, so it is a test rather than a claim:
+`three-warning-tests.mjs` drives three's real `warn` and `error` and asserts
+the Clock message is dropped while an unrelated warning, an error and a
+near-miss deprecation all still print, at their own levels, with three's prefix
+intact — and that installing twice does not chain handlers. Eight assertions in
+`pnpm test`.
+
+Production console after deploying: **0 errors, 0 warnings**, with the canvas
+confirmed live so the filter was genuinely exercised. Delete the file when
+fiber stops using `Clock`.
+
+### Not defects
+
+- **"preloaded but not used" warnings** appear on `localhost` only — Turbopack
+  dev preloads fonts and chunks that the page then does not use within the
+  window. Production serves none of them; measured on the deployed site.
+- **Tailwind "canonical class" hints** (`h-[26rem]` → `h-104`) are a style
+  preference the owner chose not to take; both compile to the same CSS.
+- The **`focus-visible:outline` + `outline-2` pair** was real and is fixed —
+  19 elements across 14 files. Measured before and after: `solid / 1.6px /
+  accent`, identical, and 14 tab stops in production all show a ring.
+
+### Owner action before the next deploy
+
+Apply migration `0014` to remote D1 **first**, from the repo root:
+`npx wrangler d1 migrations apply portfolio-cms --remote -c wrangler.d1.jsonc`.
+Every settings read now selects four new columns; deploying first would 500 the
+site.
+
+
 **Phase 29 — notes and terminal as sections, and a header that fits.**
 
 ### How section ordering actually works

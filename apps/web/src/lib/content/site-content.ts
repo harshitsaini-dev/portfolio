@@ -518,6 +518,14 @@ async function readSiteContent(): Promise<SiteContent> {
     // profile keeps every site that never opens the field looking exactly as
     // it did — the composed version was editorial copy living in this file,
     // which is what the settings column now replaces.
+    // Null rather than a default here: the component owns the fallback text,
+    // so this layer does not need a second copy of it to keep in step.
+    consoleEgg: {
+      isEnabled: settings?.isConsoleEnabled ?? true,
+      headline: settings?.consoleHeadline ?? null,
+      body: settings?.consoleBody ?? null,
+    },
+    isKonamiEnabled: settings?.isKonamiEnabled ?? true,
     footerNote:
       settings?.footerNote ||
       (profileRow?.fullName
