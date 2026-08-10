@@ -139,6 +139,7 @@ function toLink(
 function toProfile(
   row: ProfileRow | null,
   assets: ReadonlyMap<string, MediaAsset>,
+  headlineAlternates: readonly { readonly text: string }[],
 ): Profile {
   if (!row) {
     // Describes the absence rather than inventing a persona. The admin's
@@ -149,6 +150,7 @@ function toProfile(
       name: "Portfolio",
       xrayImage: null,
       role: "Not set up yet",
+      roleAlternates: [],
       tagline: "This site has no profile yet. Add one from the admin CMS.",
       introduction: [],
       location: "",
@@ -161,6 +163,11 @@ function toProfile(
     xrayImage: toImage(assets, row.xrayMediaId),
     name: row.fullName,
     role: row.headline,
+    // Blank entries are dropped here rather than in the component: an empty
+    // phrase would type nothing and read as the label vanishing.
+    roleAlternates: headlineAlternates
+      .map((alternate) => alternate.text.trim())
+      .filter((text) => text.length > 0),
     tagline: row.tagline ?? "",
     introduction: toParagraphs(row.bio),
     location: row.location ?? "",
@@ -303,6 +310,8 @@ export async function getSiteContent(): Promise<SiteContent> {
     categoryRows,
     toolRows,
     robotLineRows,
+    headlineAlternateRows,
+    sectionAlternates,
     mediaRows,
     sectionRows,
     socialRows,
@@ -319,6 +328,11 @@ export async function getSiteContent(): Promise<SiteContent> {
     repos.tools.list({ visibleOnly: true }),
     // Visible only: an unticked line means the robot should not say it.
     repos.robotLines.list({ visibleOnly: true }),
+    // Visible only, for the same reason: an unticked alternate is one the
+    // editor has taken out of the rotation without deleting it.
+    repos.headlineAlternates.list({ visibleOnly: true }),
+    // Every section's alternates in one query rather than one per section.
+    repos.sections.listAlternates(),
     repos.media.list(),
     // Deliberately NOT `visibleOnly`. Sections are the one read here that
     // wants the hidden rows too: `resolveSections` has to tell "no row, so
@@ -339,7 +353,21 @@ export async function getSiteContent(): Promise<SiteContent> {
   // A disabled contact section is dropped here rather than in the page, so
   // the navigation — which is derived from this same list — cannot keep a
   // link pointing at a section that is not rendered.
-  const sections = resolveSections(sectionRows).filter(
+  // Alternates are attached to the rows rather than resolved separately, so
+  // `resolveSections` keeps its single input and the defaults path stays
+  // untouched — a section with no row has no alternates by construction.
+  const sectionRowsWithAlternates = sectionRows.map((row) => {
+    const alternates = sectionAlternates.get(row.id);
+    return alternates
+      ? {
+          ...row,
+          titleAlternates: alternates.title,
+          eyebrowAlternates: alternates.eyebrow,
+        }
+      : row;
+  });
+
+  const sections = resolveSections(sectionRowsWithAlternates).filter(
     (section) => section.key !== "contact" || (settings?.isContactEnabled ?? true),
   );
 
@@ -396,7 +424,7 @@ export async function getSiteContent(): Promise<SiteContent> {
       targetId: section.key,
       label: section.navLabel,
     })),
-    profile: toProfile(profileRow, assets),
+    profile: toProfile(profileRow, assets, headlineAlternateRows),
     projects: projectRows.map((project) =>
       toProject(
         project,

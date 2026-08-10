@@ -16,6 +16,8 @@ export function PlaygroundSection({ copy }: { copy: SectionCopy }) {
     <Section
       id={copy.key}
       eyebrow={copy.eyebrow}
+      eyebrowAlternates={copy.eyebrowAlternates}
+      titleAlternates={copy.titleAlternates}
       title={copy.title}
       marker={copy.marker}
     >

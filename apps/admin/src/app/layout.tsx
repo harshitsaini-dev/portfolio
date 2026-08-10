@@ -32,6 +32,30 @@ export const metadata: Metadata = {
     nocache: true,
     googleBot: { index: false, follow: false },
   },
+  /*
+    The same icon as the public site.
+
+    Not a copy of the file and not a second upload: the URL points at the
+    *public* site's media route, so whatever the editor chooses in Settings is
+    what both tabs show, and changing it changes both at once.
+
+    Cross-origin on purpose. The admin cannot serve this itself — its own
+    `/media/[id]` route is behind Cloudflare Access, so a browser fetching a
+    favicon (no Access cookie on that request in every case) would get the
+    login page instead of an image. The public URL has no such gate, and a
+    favicon is public by nature.
+
+    `NEXT_PUBLIC_SITE_ORIGIN` rather than a hard-coded host: the public site
+    moves to a custom domain eventually, and a literal workers.dev URL here
+    would quietly keep pointing at the old one. Unset means no icon rather
+    than a broken one.
+  */
+  icons: process.env.NEXT_PUBLIC_SITE_ORIGIN
+    ? {
+        icon: [{ url: `${process.env.NEXT_PUBLIC_SITE_ORIGIN}/favicon` }],
+        apple: [{ url: `${process.env.NEXT_PUBLIC_SITE_ORIGIN}/favicon` }],
+      }
+    : undefined,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

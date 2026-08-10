@@ -447,3 +447,56 @@ html {
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
+
+/*
+  The rotating label.
+
+  Three stacked children: an invisible sizer holding the width of the longest
+  phrase, the animated text, and the screen-reader copy. The sizer is what
+  stops a shorter phrase collapsing the line and shoving whatever follows it
+  sideways several times a minute — measured against the alternative, which
+  looked like the page twitching.
+
+  The caret is a border rather than a pseudo-element with content, so it needs
+  no character to attach to and cannot be selected or read.
+*/
+.rotating-typewriter {
+  position: relative;
+  display: inline-grid;
+}
+
+.rotating-typewriter-sizer,
+.rotating-typewriter-text {
+  grid-area: 1 / 1;
+  white-space: pre;
+}
+
+.rotating-typewriter-sizer {
+  visibility: hidden;
+}
+
+.rotating-typewriter-text {
+  border-right: 1px solid currentColor;
+  animation: caret-blink 1s steps(1, end) infinite;
+}
+
+@keyframes caret-blink {
+  0%,
+  49% {
+    border-right-color: currentColor;
+  }
+  50%,
+  100% {
+    border-right-color: transparent;
+  }
+}
+
+/* A caret that blinks forever is continuous motion. Reduced motion keeps the
+   text — which is not rotating either, see the component — and drops the
+   blink. */
+@media (prefers-reduced-motion: reduce) {
+  .rotating-typewriter-text {
+    animation: none;
+    border-right-color: transparent;
+  }
+}

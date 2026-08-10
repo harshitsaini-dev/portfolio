@@ -132,6 +132,34 @@ export const sectionUpdateSchema = z
   })
   .strict();
 
+/**
+ * Alternative phrasings for one rotating label.
+ *
+ * A list of plain strings, validated by the same bounds as the label they
+ * follow — an alternate that could not be stored in `title` has no business
+ * rotating in its place. Blank entries are rejected rather than trimmed away
+ * silently, so an editor who leaves a row empty is told, not ignored.
+ *
+ * The canonical phrase is NOT a member: it stays in the section row. These
+ * are the alternates appended after it.
+ *
+ * Bounded at 8. Not a database limit — a rotation nobody can follow is a
+ * design failure, and by the ninth phrase a visitor has stopped reading.
+ */
+const alternateList = (max: number) =>
+  z
+    .array(z.string().trim().min(1, "Required").max(max, "Too long"))
+    .max(8, "Too many alternates");
+
+export const sectionAlternatesSchema = z
+  .object({
+    title: alternateList(120).default([]),
+    eyebrow: alternateList(80).default([]),
+  })
+  .strict();
+
+export type SectionAlternatesInput = z.infer<typeof sectionAlternatesSchema>;
+
 export type SectionCreateInput = z.infer<typeof sectionCreateSchema>;
 export type SectionUpdateInput = z.infer<typeof sectionUpdateSchema>;
 

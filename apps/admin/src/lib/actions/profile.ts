@@ -115,6 +115,14 @@ export async function saveProfileAction(
       avatarMediaId: input.avatarMediaId,
       xrayMediaId: input.xrayMediaId,
     });
+    // The rotation list is replaced wholesale, after the profile itself.
+    //
+    // Deliberately a second write rather than part of the upsert: the
+    // alternates live in their own table, and the profile is the meaningful
+    // save. If this line fails the editor is told, and the headline they
+    // typed is already stored — the reverse order could leave a rotation
+    // referring to a headline that was never written.
+    await repos.headlineAlternates.replaceAll(input.headlineAlternates);
   } catch (error) {
     if (error instanceof NotFoundError) {
       return notFoundError("The profile could not be found.");

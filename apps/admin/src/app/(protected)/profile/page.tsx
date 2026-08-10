@@ -37,7 +37,12 @@ export const metadata: Metadata = {
 export default withAdminPage(async () => {
   const mediaOptions = await getMediaOptions();
   const repos = await getAdminRepositories();
-  const profile = await repos.profile.get();
+  // Both reads in parallel: the form edits them together, so fetching them
+  // in sequence would add a round trip for no reason.
+  const [profile, headlineAlternates] = await Promise.all([
+    repos.profile.get(),
+    repos.headlineAlternates.list(),
+  ]);
   const isConfigured = profile !== null;
 
   return (
@@ -77,6 +82,7 @@ export default withAdminPage(async () => {
             ? {
                 fullName: profile.fullName,
                 headline: profile.headline,
+                headlineAlternates: headlineAlternates.map((a) => a.text),
                 tagline: profile.tagline ?? "",
                 bio: profile.bio ?? "",
                 location: profile.location ?? "",

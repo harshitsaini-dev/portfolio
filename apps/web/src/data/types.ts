@@ -77,6 +77,14 @@ export interface Profile {
   readonly xrayImage: ContentImage | null;
   readonly name: string;
   readonly role: string;
+  /**
+   * Alternative phrasings of `role`, in order, for the rotating label.
+   *
+   * `role` is NOT repeated here — it is the canonical first phrase, and these
+   * follow it. Empty means no rotation, which is the default and renders
+   * exactly as it did before rotation existed.
+   */
+  readonly roleAlternates: readonly string[];
   readonly tagline: string;
   readonly introduction: readonly string[];
   readonly location: string;
