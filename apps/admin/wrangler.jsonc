@@ -68,13 +68,13 @@
   // variables (they belong to the owner's Access application, not to this
   // repository) and survive deploys thanks to `keep_vars` above.
   //
-  // NEXT_PUBLIC_SITE_ORIGIN is the public site's origin, used for exactly one
+  // SITE_ORIGIN is the public site's origin, used for exactly one
   // thing: the admin's tab icon, which points at the public site's stable
   // `/site-icon` URL so both tabs show whatever the CMS currently holds. It is
   // committed because it is public by definition — it is the address of the
   // site this CMS edits. Update it when the site moves to a custom domain.
   "vars": {
-    "NEXT_PUBLIC_SITE_ORIGIN": "https://portfolio-web.harshitsaini.workers.dev"
+    "SITE_ORIGIN": "https://portfolio-web.harshitsaini.workers.dev"
   },
 
   // The same database the public site reads. The admin is the writer.

@@ -36,26 +36,33 @@ export const metadata: Metadata = {
     The same icon as the public site.
 
     Not a copy of the file and not a second upload: the URL points at the
-    *public* site's media route, so whatever the editor chooses in Settings is
-    what both tabs show, and changing it changes both at once.
+    public site's stable `/site-icon`, so whatever the editor chooses in
+    Settings is what both tabs show, and changing it changes both at once.
 
     Cross-origin on purpose. The admin cannot serve this itself — its own
     `/media/[id]` route is behind Cloudflare Access, so a browser fetching a
-    favicon (no Access cookie on that request in every case) would get the
-    login page instead of an image. The public URL has no such gate, and a
-    favicon is public by nature.
+    favicon would get the login page instead of an image. The public URL has
+    no such gate, and a favicon is public by nature.
 
-    `NEXT_PUBLIC_SITE_ORIGIN` rather than a hard-coded host: the public site
-    moves to a custom domain eventually, and a literal workers.dev URL here
-    would quietly keep pointing at the old one. Unset means no icon rather
-    than a broken one.
+    `SITE_ORIGIN`, deliberately NOT `NEXT_PUBLIC_SITE_ORIGIN`. The first
+    version used the public prefix and the icon never appeared: Next inlines
+    `NEXT_PUBLIC_*` at BUILD time, and this value is a Worker variable that
+    only exists at RUNTIME, so the build substituted `undefined` and the link
+    was never emitted. Metadata is rendered on the server, so an ordinary
+    runtime read is both correct and enough.
   */
-  icons: process.env.NEXT_PUBLIC_SITE_ORIGIN
-    ? {
-        icon: [{ url: `${process.env.NEXT_PUBLIC_SITE_ORIGIN}/site-icon` }],
-        apple: [{ url: `${process.env.NEXT_PUBLIC_SITE_ORIGIN}/site-icon` }],
-      }
-    : undefined,
+  icons: (() => {
+    const origin =
+      process.env.SITE_ORIGIN ??
+      // A working default for `next dev`, where the public site is the
+      // sibling process on port 3000 and no variable is configured.
+      (process.env.NODE_ENV === "production" ? null : "http://localhost:3000");
+    if (!origin) return undefined;
+    return {
+      icon: [{ url: `${origin}/site-icon` }],
+      apple: [{ url: `${origin}/site-icon` }],
+    };
+  })(),
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
