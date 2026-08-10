@@ -58,6 +58,26 @@ const nextConfig: NextConfig = {
    */
   serverExternalPackages: ["wrangler"],
 
+  /**
+   * Server Action request bodies up to 11MB.
+   *
+   * The framework default is 1MB, and every upload goes through a Server
+   * Action — so the default silently contradicted this project's own upload
+   * policy, which promises 5MB images and 10MB PDFs
+   * (`packages/schemas/src/media.ts`). Any file past 1MB threw at the
+   * framework layer, before the action's typed error handling could run,
+   * and surfaced as the generic error page instead of a form message.
+   *
+   * 11MB = the 10MB policy ceiling plus multipart framing. The policy in
+   * the schemas package stays the real limit; this is transport clearance,
+   * not a second policy.
+   */
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "11mb",
+    },
+  },
+
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
