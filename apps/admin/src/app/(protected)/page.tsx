@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { withAdminPage } from "@/lib/auth/protected-page";
 import { getAdminRepositories } from "@/lib/db/binding";
+import { TrafficCard } from "@/components/dashboard/traffic-card";
 
 export const metadata: Metadata = {
   title: "Dashboard · Portfolio Admin",
@@ -27,6 +28,14 @@ export const metadata: Metadata = {
  * second, worse projects screen that has to be kept in step with the real
  * one; a count links to the screen that owns the subject.
  */
+/**
+ * The traffic window, in days.
+ *
+ * A month is long enough for a weekly rhythm to be visible and short enough
+ * that one good day does not flatten the rest of the chart.
+ */
+const TRAFFIC_DAYS = 30;
+
 export default withAdminPage(async () => {
   // Nothing in this callback runs until authorization has succeeded — the
   // wrapper awaits the guard before invoking it.
@@ -49,6 +58,7 @@ export default withAdminPage(async () => {
     media,
     sections,
     robotLines,
+    traffic,
   ] = await Promise.all([
     repos.contactMessages.list(),
     repos.projects.list(),
@@ -61,6 +71,16 @@ export default withAdminPage(async () => {
     repos.media.list(),
     repos.sections.list(),
     repos.robotLines.list(),
+    // The only read here allowed to fail without taking the dashboard with
+    // it. Analytics is the newest table, so it is the one most likely to be
+    // missing between a deploy and its migration — and a dashboard that will
+    // not load is a worse outcome than a dashboard without a chart. Same
+    // narrow shape as the public site's terminal-lines read, for the same
+    // reason and after the same outage.
+    repos.analytics.summary({ days: TRAFFIC_DAYS }).catch((error: unknown) => {
+      console.error("traffic summary unavailable", error);
+      return null;
+    }),
   ]);
 
   const unread = messages.filter((message) => message.status === "unread");
@@ -116,6 +136,15 @@ export default withAdminPage(async () => {
           No unread messages. Everything below is live on the site.
         </p>
       )}
+
+      {/*
+        Traffic above the messages: it describes the whole site, while the
+        inbox describes a handful of people. The unread banner still comes
+        first, because that is the only thing here that needs acting on.
+      */}
+      <div className="mt-10">
+        <TrafficCard summary={traffic} days={TRAFFIC_DAYS} />
+      </div>
 
       {/*
         The five most recent messages, in full enough to triage without

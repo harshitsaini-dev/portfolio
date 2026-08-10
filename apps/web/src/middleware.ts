@@ -51,6 +51,9 @@ export function middleware(request: NextRequest) {
     "font-src 'self'",
     // Three.js and drei load some helpers as blob workers.
     "worker-src 'self' blob:",
+    // Stays `'self'`. The analytics beacon posts to this site's own
+    // `/api/track`, deliberately — see `components/analytics.tsx`. No third
+    // party is contacted, so no third party needs naming here.
     `connect-src 'self'${isDevelopment ? " ws: wss:" : ""}`,
     "object-src 'none'",
     "base-uri 'self'",

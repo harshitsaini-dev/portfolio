@@ -101,6 +101,26 @@ function toLinkLabel(link: ProjectLink): string {
   return link.label.trim() || KIND_LABELS[link.kind] || "Open link";
 }
 
+/**
+ * Every published project's slug and last-changed time, for the sitemap.
+ *
+ * Deliberately not `getProjectDetail` in a loop: the sitemap needs two fields
+ * per project and that function reads every project's media to build a page.
+ * The status filter is applied by the repository, so this cannot disagree with
+ * what the project page will serve — a sitemap advertising a draft would
+ * publish a URL that answers 404.
+ */
+export async function getPublishedProjectSlugs(): Promise<
+  readonly { readonly slug: string; readonly updatedAt: Date }[]
+> {
+  const repos = await getSiteRepositories();
+  const projects = await repos.projects.list({ statuses: ["published"] });
+  return projects.map((project) => ({
+    slug: project.slug,
+    updatedAt: new Date(project.updatedAt),
+  }));
+}
+
 /** Returns `null` for a slug that is missing, draft or archived. */
 export async function getProjectDetail(
   slug: string,

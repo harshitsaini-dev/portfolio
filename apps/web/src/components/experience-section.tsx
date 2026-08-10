@@ -1,6 +1,7 @@
 import { Section } from "@/components/section";
 import type { SectionCopy } from "@/lib/content/sections";
 import { ContentImage } from "@/components/ui/content-image";
+import { EntityMonogram } from "@/components/ui/entity-monogram";
 import { type } from "@/components/ui/typography";
 import type { TimelineEntry } from "@/data/types";
 
@@ -45,7 +46,9 @@ export function ExperienceSection({
                   {/* Decorative: the organisation name is the same text. */}
                   {entry.image ? (
                     <ContentImage image={entry.image} size={20} decorative />
-                  ) : null}
+                  ) : (
+                    <EntityMonogram name={entry.organization} size={20} />
+                  )}
                   {entry.organization}
                 </p>
                 <p className={`mt-3 max-w-2xl ${type.bodySm}`}>{entry.summary}</p>

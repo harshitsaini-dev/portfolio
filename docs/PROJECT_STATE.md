@@ -6,7 +6,7 @@ something passed without running it.
 
 ## Current phase
 
-**Phase 23 — post-launch content control. Live.**
+**Phase 24 — discoverability, resilience and first-party analytics.**
 
 Everything below Phase 22 remains true; this is what the owner asked for once
 the site was in daily use.
@@ -98,6 +98,78 @@ it). Nothing remote was touched by this slice.
 Deploying before the Access application exists yields a Worker that denies
 everyone — safe but useless. The owner's dashboard steps are in
 `docs/DEPLOYMENT.md`.
+
+## Phase 24 — being found, surviving failure, and counting visits
+
+Five things the live site was missing, shipped together because they are one
+layer: what other machines see when they look at this site, and what a visitor
+sees when it breaks.
+
+### Share cards and canonical URLs
+
+`layout.tsx` emitted a title and a description and nothing else, so the link
+produced no preview anywhere it was pasted — the single most-used path to this
+site. It now emits Open Graph and Twitter card metadata with the owner's
+portrait; project pages use their cover, falling back to the first gallery
+image. Origins are derived from the request rather than configured — see
+DECISIONS.
+
+### `sitemap.xml`, `robots.txt`, and a `Person` in JSON-LD
+
+Both generated from the database, so publishing a project adds it to the
+sitemap with no deploy. The structured data states that the name in the heading
+is a person, with their role, location and accounts, all from the CMS — nothing
+in that file is written in the file.
+
+### `error.tsx`, `global-error.tsx` and `not-found.tsx`
+
+The outage on 2026-08-09 showed visitors Next's unstyled default: black text on
+white, in a site that is otherwise dark. It read as a broken machine rather
+than a busy one. `global-error.tsx` is the one that would have caught it —
+`error.tsx` renders inside the root layout, and the layout was the thing that
+threw.
+
+### First-party analytics (migration 0011)
+
+Counts live in this site's own D1 and appear on the CMS dashboard, because the
+owner rejected a third-party beacon: **"cloudflare pr nhi"**. Aggregated into
+day buckets on write, with no IP, user agent, cookie or identifier — so no
+consent banner is required and no visit can be correlated with another. The
+dashboard shows a 30-day chart, top pages and top referrers.
+
+The public write endpoint is this app's only anonymous input, and is validated
+accordingly. Verified in the browser: a beacon carrying
+`https://www.google.com/search?q=secret` stored `www.google.com` and dropped the
+query; `//evil.example/pwned` was rejected and never appeared.
+
+### Monogram fallback for missing logos
+
+Entries without a logo rendered nothing, so names started at two different
+positions down the same column. A monogram now holds the space. This does not
+replace the outstanding logo uploads — it makes their absence look deliberate.
+
+### Checks
+
+`pnpm lint` clean, all packages `tsc --noEmit` clean, `pnpm test` exit 0
+(migrations smoke 70/70 after registering the two new tables, action-auth
+709/709), `pnpm build` both apps. Browser-verified on localhost: OG and Twitter
+tags present, canonical correct, JSON-LD parsed with no CSP violation, sitemap
+listing 5 URLs, `robots.txt` correct, 404 branded and `noindex`, monograms
+rendering, and the beacon writing through to the dashboard's card.
+
+### Still required from the owner
+
+**Migration 0011 has not been applied to the production database.** Until it
+is, no views are recorded and the dashboard's traffic card says so rather than
+showing a zero it does not have. From the repository root:
+
+```
+npx wrangler d1 migrations apply portfolio-cms --remote -c wrangler.d1.jsonc
+```
+
+Both sides of this one degrade gracefully — deliberately, after the 0010
+outage — so deploying before the migration is safe here. It still costs every
+visit that happens in between.
 
 ## The terminal's script is content (migration 0010)
 

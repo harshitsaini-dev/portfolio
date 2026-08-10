@@ -4,7 +4,9 @@ import { headers } from "next/headers";
 
 import { accentCustomProperties } from "@portfolio/ui";
 
+import { Analytics } from "@/components/analytics";
 import { getSiteContent } from "@/lib/content/site-content";
+import { absoluteMediaUrl, getSiteOrigin } from "@/lib/site-origin";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
@@ -42,10 +44,55 @@ export const dynamic = "force-dynamic";
  * it — does not apply to a site with no guard to bypass.
  */
 export async function generateMetadata(): Promise<Metadata> {
-  const content = await getSiteContent();
+  const [content, origin] = await Promise.all([getSiteContent(), getSiteOrigin()]);
+
+  // The share card's picture is the owner's portrait. Not a placeholder for a
+  // purpose-built card: a portfolio's link is nearly always shared as "here is
+  // this person", and the face is the most useful 1200px this site has. A
+  // dedicated Open Graph image would be a better card and a worse default,
+  // because it would need an upload nobody has made yet — this works the
+  // moment the profile has a photograph, which it does.
+  const shareImage = content.profile.image;
+
   return {
+    // Everything relative below is resolved against this. Without it Next
+    // emits `og:image` as a path, which no social network can fetch — a
+    // share card that fails silently and only in someone else's app.
+    metadataBase: new URL(origin),
     title: content.siteName,
     description: content.siteDescription ?? undefined,
+    // One canonical URL for the site's front door, so a link shared with a
+    // tracking query does not read as a separate page.
+    alternates: { canonical: "/" },
+    openGraph: {
+      type: "website",
+      url: "/",
+      siteName: content.siteName,
+      title: content.siteName,
+      description: content.siteDescription ?? undefined,
+      images: shareImage
+        ? [
+            {
+              url: absoluteMediaUrl(origin, shareImage.id),
+              width: shareImage.width ?? undefined,
+              height: shareImage.height ?? undefined,
+              // The stored description, not a generated one. It is the same
+              // sentence a screen reader gets, and writing a second one here
+              // would be a second thing to keep true.
+              alt: shareImage.alt,
+            },
+          ]
+        : undefined,
+    },
+    twitter: {
+      // `summary_large_image` rather than `summary`: the small card crops a
+      // portrait to a thumbnail beside the text, which is the least useful
+      // thing a photograph can be.
+      card: shareImage ? "summary_large_image" : "summary",
+      title: content.siteName,
+      description: content.siteDescription ?? undefined,
+      images: shareImage ? [absoluteMediaUrl(origin, shareImage.id)] : undefined,
+    },
     // Declared through Next's metadata rather than a hand-written <link>.
     //
     // This does NOT replace the convention-based `src/app/favicon.ico`:
@@ -149,6 +196,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           is one of two hard-coded strings behind an equality check.
         */}
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        {/* Renders no markup at all — it is an effect that posts one beacon
+            per route. Mounted here so it survives every page. */}
+        <Analytics />
       </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

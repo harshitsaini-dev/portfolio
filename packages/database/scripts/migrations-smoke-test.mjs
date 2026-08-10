@@ -173,6 +173,9 @@ const EXPECTED_TABLES = [
   "social_links",
   "technologies",
   "terminal_lines",
+  // 0011 — aggregated page-view counts, written by the public site.
+  "page_view_daily",
+  "referrer_daily",
   "timeline_entries",
   "timeline_highlights",
   "tools",
@@ -194,6 +197,8 @@ const EXPECTED_INDEXES = [
   "idx_section_alternates_section_field_position",
   "idx_sections_visible_position",
   "idx_terminal_lines_visible_position",
+  "idx_page_view_daily_day",
+  "idx_referrer_daily_day",
   "idx_site_settings_social_image",
   "idx_skill_categories_visible_position",
   "idx_skills_category_position",

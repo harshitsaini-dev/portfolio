@@ -10,6 +10,7 @@ import { ContentImage } from "@/components/ui/content-image";
 import { actionVariant } from "@/components/ui/action";
 import { type } from "@/components/ui/typography";
 import { getProjectDetail } from "@/lib/content/project-detail";
+import { absoluteMediaUrl, getSiteOrigin } from "@/lib/site-origin";
 import { getSiteContent } from "@/lib/content/site-content";
 
 /**
@@ -33,11 +34,50 @@ export async function generateMetadata({
   params,
 }: PageProps<"/projects/[slug]">): Promise<Metadata> {
   const { slug } = await params;
-  const project = await getProjectDetail(slug);
+  const [project, origin] = await Promise.all([
+    getProjectDetail(slug),
+    getSiteOrigin(),
+  ]);
   if (!project) return { title: "Project not found" };
+
+  // The cover if there is one, the first gallery image otherwise. A project
+  // shared without a picture is a wall of text in every preview, and both of
+  // these are images the editor already chose for this project — neither is a
+  // guess, and the gallery's first item is the one the page leads with.
+  const shareImage = project.cover ?? project.gallery[0]?.image ?? null;
+
   return {
+    metadataBase: new URL(origin),
     title: project.title,
     description: project.summary,
+    // Points at the slug, not at whatever URL the visitor arrived on. A
+    // project reached with a campaign query is the same project.
+    alternates: { canonical: `/projects/${project.slug}` },
+    openGraph: {
+      // `article` rather than `website`: this is one piece of work with a
+      // subject, and the distinction is what a reader-mode or a preview card
+      // uses to decide it is showing a thing rather than a site.
+      type: "article",
+      url: `/projects/${project.slug}`,
+      title: project.title,
+      description: project.summary,
+      images: shareImage
+        ? [
+            {
+              url: absoluteMediaUrl(origin, shareImage.id),
+              width: shareImage.width ?? undefined,
+              height: shareImage.height ?? undefined,
+              alt: shareImage.alt,
+            },
+          ]
+        : undefined,
+    },
+    twitter: {
+      card: shareImage ? "summary_large_image" : "summary",
+      title: project.title,
+      description: project.summary,
+      images: shareImage ? [absoluteMediaUrl(origin, shareImage.id)] : undefined,
+    },
   };
 }
 

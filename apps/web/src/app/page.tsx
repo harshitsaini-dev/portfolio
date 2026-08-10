@@ -1,3 +1,5 @@
+import { headers } from "next/headers";
+
 import { AboutSection } from "@/components/about-section";
 import { ContactSection } from "@/components/contact-section";
 import { EducationSection } from "@/components/education-section";
@@ -6,6 +8,8 @@ import { Hero } from "@/components/hero";
 import { ProjectsSection } from "@/components/projects-section";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { PersonSchema } from "@/components/seo/person-schema";
+import { getSiteOrigin } from "@/lib/site-origin";
 import { PlaygroundSection } from "@/components/playground-section";
 import { RobotSpeech } from "@/components/three/robot-speech";
 import { RobotTerminal } from "@/components/three/robot-terminal";
@@ -33,10 +37,22 @@ import { getSiteContent } from "@/lib/content/site-content";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const content = await getSiteContent();
+  const [content, origin, requestHeaders] = await Promise.all([
+    getSiteContent(),
+    getSiteOrigin(),
+    headers(),
+  ]);
+  // Set by the middleware, and required for the structured data below to
+  // survive the Content-Security-Policy.
+  const nonce = requestHeaders.get("x-nonce") ?? undefined;
 
   return (
     <>
+      {/* Describes the person, not the page — see the component. Rendered
+          first because it is metadata: it has no visual output and nothing
+          below depends on where it sits. */}
+      <PersonSchema content={content} origin={origin} nonce={nonce} />
+
       {/* First focusable element on the page, visible only when focused. */}
       <a
         href="#main-content"

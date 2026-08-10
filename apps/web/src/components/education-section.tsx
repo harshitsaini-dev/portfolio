@@ -2,6 +2,7 @@ import { PlaceholderAction } from "@/components/placeholder-action";
 import { Section } from "@/components/section";
 import type { SectionCopy } from "@/lib/content/sections";
 import { ContentImage } from "@/components/ui/content-image";
+import { EntityMonogram } from "@/components/ui/entity-monogram";
 import { Surface } from "@/components/ui/surface";
 import { type } from "@/components/ui/typography";
 import type { Certification, EducationEntry } from "@/data/types";
@@ -63,7 +64,9 @@ export function EducationSection({
                       {/* Decorative: the institution name sits beside it. */}
                       {entry.image ? (
                         <ContentImage image={entry.image} size={20} decorative />
-                      ) : null}
+                      ) : (
+                        <EntityMonogram name={entry.institution} size={20} />
+                      )}
                       {entry.institution}
                     </p>
                     <p className={`mt-2.5 ${type.bodySm}`}>{entry.summary}</p>
@@ -108,7 +111,9 @@ export function EducationSection({
                           size={20}
                           decorative
                         />
-                      ) : null}
+                      ) : (
+                        <EntityMonogram name={certification.issuer} size={20} />
+                      )}
                       {certification.issuer}
                     </p>
                     <div className="mt-4">

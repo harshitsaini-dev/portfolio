@@ -31,6 +31,10 @@ import {
   type ToolRepository,
 } from "./repositories/content.ts";
 import {
+  createAnalyticsRepository,
+  type AnalyticsRepository,
+} from "./repositories/analytics.ts";
+import {
   createContactMessageRepository,
   type ContactMessageRepository,
 } from "./repositories/contact-messages.ts";
@@ -84,6 +88,11 @@ export interface Repositories {
   readonly robotLines: RobotLineRepository;
   /** The lines the hero's console prints. */
   readonly terminalLines: TerminalLineRepository;
+  /**
+   * Page-view counts. Written by the public site, read by the admin — the
+   * only repository here used in both directions.
+   */
+  readonly analytics: AnalyticsRepository;
   /** Alternative phrasings the hero headline cycles through. */
   readonly headlineAlternates: HeadlineAlternateRepository;
   readonly sections: SectionRepository;
@@ -124,6 +133,7 @@ export function createRepositories(
     headlineAlternates: createHeadlineAlternateRepository(db, runtime),
     robotLines: createRobotLineRepository(db, runtime),
     terminalLines: createTerminalLineRepository(db, runtime),
+    analytics: createAnalyticsRepository(db, runtime),
     sections: createSectionRepository(db, runtime),
     siteSettings: createSiteSettingsRepository(db, runtime),
     sceneSettings: createSceneSettingsRepository(db, runtime),

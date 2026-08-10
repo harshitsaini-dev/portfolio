@@ -70,6 +70,12 @@ export type {
 } from "./repositories/settings.ts";
 export type { ContactMessageRepository } from "./repositories/contact-messages.ts";
 export type {
+  AnalyticsRepository,
+  AnalyticsSummary,
+  DailyCount,
+  RankedCount,
+} from "./repositories/analytics.ts";
+export type {
   CertificationRepository,
   EducationRepository,
   RobotLineRepository,
