@@ -2,28 +2,54 @@
 
 **Status: DEPLOYED. Both Workers are live on workers.dev — see PROJECT_STATE.**
 
-The public site now has deployment *configuration* — `@opennextjs/cloudflare`,
-`apps/web/open-next.config.ts`, `apps/web/wrangler.jsonc` (Worker
-`portfolio-web`, `workers_dev`, `DB` and `MEDIA` bindings), and production
-provider registration in `apps/web/src/instrumentation.ts`. The Worker has been
-**built and verified end-to-end in local workerd** (HTTP 200 on `/`, 404 on an
-unknown media id, CSP with nonce). No `deploy` command has been run. The one
-remaining step is the owner running, from the repository root:
+Both Workers are deployed and serving:
+
+- `portfolio-web` — the public site, `workers.dev`, `DB` and `MEDIA` bindings,
+  production provider registration in `apps/web/src/instrumentation.ts`.
+- `portfolio-admin` — the CMS, same bindings, behind Cloudflare Access. It
+  fails closed without Access: every unauthenticated request lands on
+  `/denied`.
+
+Deploy with `deploy.sh`, from the WSL clone:
 
 ```
-pnpm --filter @portfolio/web exec opennextjs-cloudflare deploy
+bash ~/portfolio/deploy.sh web      # or: admin
 ```
 
-Run it from a Linux environment (the WSL clone): the OpenNext bundling step
-needs symlinks that Windows denies without Developer Mode — see
-`docs/PROJECT_STATE.md`.
+Run it from Linux. The OpenNext bundling step needs symlinks that Windows
+denies without Developer Mode — see `docs/PROJECT_STATE.md`. The script
+**builds and then deploys**, which is not decoration: `opennextjs-cloudflare
+deploy` uploads whatever is already in `.open-next/` and does not rebuild, so
+an earlier version of the script shipped three consecutive stale bundles while
+reporting success and fresh Version IDs.
 
-The **admin app is deployment-ready but not deployed**: Worker
-`portfolio-admin`, same bindings, verified in local workerd (see
-PROJECT_STATE). It must go behind Cloudflare Access, and Cloudflare supports
-attaching Access directly to a workers.dev Worker from the dashboard — so no
-custom domain is required for a protected admin. The app fails closed without
-Access: every unauthenticated request lands on `/denied`.
+## Apply migrations BEFORE deploying, never after
+
+A deploy that needs a schema change is two steps in a fixed order:
+
+```
+cd apps/admin
+npx wrangler d1 migrations apply portfolio-cms --remote -c wrangler.d1.jsonc
+bash ~/portfolio/deploy.sh web      # and admin, if it is affected
+```
+
+Reversing them is a self-inflicted outage, and has been one. Deploying the
+`terminal_lines` feature before applying migration 0010 returned **500 for
+every visitor** — a decorative console could not find its table, and the whole
+homepage went with it. The Worker's log said so plainly:
+`DatabaseFailureError: terminal line: list failed`.
+
+Two things came out of that, and both are load-bearing:
+
+- **Order the steps this way round.** Old code against a new schema is a state
+  the database tolerates — an unused table, an unread column. New code against
+  an old schema is a missing table under a live query.
+- **A rollback may not be available.** `wrangler rollback` is blocked in the
+  agent's environment, so the only route back was fixing forward and deploying
+  again. Do not assume an outage can be undone in one command.
+
+Applying a migration to the remote database is an **owner action**. The agent
+does not run `--remote`.
 
 ## Deploying the admin (owner actions, in this order)
 

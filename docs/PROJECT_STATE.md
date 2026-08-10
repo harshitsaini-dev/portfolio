@@ -99,6 +99,77 @@ Deploying before the Access application exists yields a Worker that denies
 everyone — safe but useless. The owner's dashboard steps are in
 `docs/DEPLOYMENT.md`.
 
+## The terminal's script is content (migration 0010)
+
+The console beside the robot printed a fixed script from a `const LINES` array
+in `robot-terminal.tsx` — the same finding as `robot_lines` in 0007 and the
+footer sentence in 0009, and the same fix. It is now `terminal_lines`, editable
+from the CMS at **Terminal lines**, beside **Robot lines**.
+
+Its own table rather than a second use of `robot_lines`, because a terminal
+line carries more than a sentence: a **tone**, which decides its colour
+(`system` for the machine narrating itself, `speech` for it talking about the
+person), and an optional **status** — the short right-aligned word that makes a
+line read as a completed step rather than a remark. `tone` is
+CHECK-constrained and shares its list with the Zod schema through
+`TERMINAL_LINE_TONES`, so the database and the validator cannot drift.
+
+The migration seeds the exact script that was in the component, so applying it
+changed nothing visible and the first edit is the owner's. An empty script is a
+valid state an editor may choose: the component renders an empty console rather
+than dividing by zero in its wrap-around modulo.
+
+The action-auth discovery sweep picked up all four new Server Actions on its
+own — 703 checks to 709, with no edit to that suite. That is the suite working
+as designed: it enumerates actions rather than listing them.
+
+### It caused a production outage, and the cause was ordering
+
+Deployed before migration 0010 had been applied to the remote database, the
+site returned **500 to every visitor**. From the Worker's log:
+`DatabaseFailureError: terminal line: list failed`. A decorative console could
+not find its table and took the entire homepage with it.
+
+Two fixes, because there were two faults:
+
+1. **Ordering.** Migrate first, then deploy — now written into
+   `docs/DEPLOYMENT.md` with the reasoning. Old code against a new schema is a
+   state the database tolerates; new code against an old schema is a missing
+   table under a live query.
+2. **Blast radius.** That one read now degrades to an empty script, logged
+   rather than swallowed. Deliberately narrow — the other reads stay strict,
+   because a page that cannot load the profile or the projects genuinely has
+   nothing to show and should fail where someone notices.
+
+Worth recording: `wrangler rollback` is **blocked in the agent's environment**,
+so the outage could not be undone in one command. The only route back was
+fixing forward and deploying again. Restoring service took a diagnosis, a code
+change, and a full rebuild — plan deploys on the assumption that there is no
+undo button.
+
+Also fixed while verifying: the admin's CSP derived the icon origin
+differently from `layout.tsx`, so local development blocked its own favicon —
+three CSP violations in the console. Both now share one fallback.
+
+### Checks
+
+`pnpm lint`, both apps' `tsc --noEmit`, `pnpm build`, the migrations smoke test
+(66/66), action-auth (709/709), local browser verification of the admin screen
+and the public console, and production verified at HTTP 200 after the fix.
+
+### Still required from the owner
+
+Migrations **0009 and 0010 have not been applied to the production database.**
+Until they are, the footer note cannot be saved and the terminal renders empty:
+
+```
+cd apps/admin
+npx wrangler d1 migrations apply portfolio-cms --remote -c wrangler.d1.jsonc
+```
+
+No redeploy is needed afterwards — the site reads the table on each request, so
+the seeded lines appear as soon as the migration lands.
+
 ## Phase 23 — rotating labels, section icons, and a real dashboard
 
 Five owner requests, all shipped and verified in production.
