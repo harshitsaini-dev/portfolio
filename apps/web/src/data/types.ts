@@ -289,6 +289,17 @@ export interface SiteContent {
    * component supplies the wording it always printed. `isEnabled` false means
    * print nothing — which is a different thing from having no words.
    */
+  /**
+   * A separate accent for each system screen, or null to follow the site's.
+   *
+   * Null is the default: the dead ends should look like the site unless the
+   * owner has decided otherwise.
+   */
+  readonly screenAccents: {
+    readonly offline: string | null;
+    readonly notFound: string | null;
+    readonly error: string | null;
+  };
   readonly consoleEgg: {
     readonly isEnabled: boolean;
     readonly headline: string | null;

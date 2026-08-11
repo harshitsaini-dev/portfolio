@@ -32,6 +32,7 @@ export function EducationSection({
       title={copy.title}
       marker={copy.marker}
       icon={copy.icon}
+      accent={copy.accent}
     >
       <div className="grid gap-12 lg:grid-cols-2 lg:gap-10">
         <div>

@@ -21,6 +21,7 @@ export function ContactSection({
       title={copy.title}
       marker={copy.marker}
       icon={copy.icon}
+      accent={copy.accent}
     >
       {/*
         Two columns from `md` up, rather than one narrow column stacked on

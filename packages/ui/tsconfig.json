@@ -2,6 +2,12 @@
   "extends": "../config/base.json",
   "compilerOptions": {
     "jsx": "react-jsx",
+    // The base config targets ES2022 with no DOM, which is right for a package
+    // of pure logic and wrong for this one: it ships client components, and
+    // `matrix-rain.tsx` talks to a canvas, `getComputedStyle` and
+    // `ResizeObserver` directly. Without these the package does not typecheck
+    // even though both apps compile it perfectly well.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     // Consumed as TypeScript source by both apps' bundlers and never emitted,
     // exactly like `packages/database`. Explicit `.ts`/`.tsx` specifiers are
     // what make that work from any consumer — see the note in `button.tsx`

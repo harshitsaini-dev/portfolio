@@ -20,6 +20,7 @@ export function ExperienceSection({
       title={copy.title}
       marker={copy.marker}
       icon={copy.icon}
+      accent={copy.accent}
     >
       {timeline.length === 0 ? (
         <p className={type.bodySm}>No experience has been published yet.</p>

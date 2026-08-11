@@ -12,6 +12,8 @@ import { type } from "@/components/ui/typography";
 import { getProjectDetail } from "@/lib/content/project-detail";
 import { ShareButton } from "@/components/ui/share-button";
 import { absoluteMediaUrl, getSiteOrigin } from "@/lib/site-origin";
+import { accentCustomProperties } from "@portfolio/ui";
+
 import { getSiteContent } from "@/lib/content/site-content";
 
 /**
@@ -140,7 +142,14 @@ export default async function ProjectPage({
 
       <SiteHeader siteName={content.siteName} navigation={content.navigation} />
 
-      <main id="main-content" tabIndex={-1} className="flex-1">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex-1"
+        /* This project's own accent, scoped to the page body — see the note
+           route for the same reasoning. */
+        style={project.accent ? accentCustomProperties(project.accent) : undefined}
+      >
         <article>
           <Container className="py-16 sm:py-20">
             <nav aria-label="Breadcrumb" className="text-sm">

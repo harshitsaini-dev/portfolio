@@ -415,13 +415,15 @@ try {
     createDefaults.data?.learnings,
     null,
   );
-  // 18 = the 15 this guarded before the case-study columns, plus problem,
-  // solution and learnings. The number is asserted rather than derived so that
-  // a field added to create without a thought about update fails here.
+  equal("create still defaults accent to null", createDefaults.data?.accent, null);
+  // 19 = the 15 this guarded before the case-study columns, plus problem,
+  // solution, learnings, and the per-project accent. The number is asserted
+  // rather than derived so that a field added to create without a thought
+  // about update fails here — which is exactly what it did for the accent.
   equal(
     "create still materialises every field, defaults included",
     Object.keys(createDefaults.data ?? {}).length,
-    18,
+    19,
   );
   equal(
     "a media item caption still defaults to null inside an item",

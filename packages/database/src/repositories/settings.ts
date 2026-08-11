@@ -37,6 +37,12 @@ function toSiteSettings(row: Row): SiteSettings {
     accentColor: nullableString(SITE_ENTITY, row, "accent_color"),
     socialImageId: nullableString(SITE_ENTITY, row, "social_image_id"),
     footerNote: nullableString(SITE_ENTITY, row, "footer_note"),
+    screenAccents: {
+      offline: nullableString(SITE_ENTITY, row, "offline_accent"),
+      notFound: nullableString(SITE_ENTITY, row, "not_found_accent"),
+      error: nullableString(SITE_ENTITY, row, "error_accent"),
+      denied: nullableString(SITE_ENTITY, row, "denied_accent"),
+    },
     consoleHeadline: nullableString(SITE_ENTITY, row, "console_headline"),
     consoleBody: nullableString(SITE_ENTITY, row, "console_body"),
     isConsoleEnabled: requireBoolean(SITE_ENTITY, row, "is_console_enabled"),
@@ -89,7 +95,9 @@ export function createSiteSettingsRepository(
             `SELECT site_name, site_description, default_theme, accent_color,
                     social_image_id, favicon_media_id, is_contact_enabled,
                     footer_note, console_headline, console_body,
-                    is_console_enabled, is_konami_enabled, updated_at
+                    is_console_enabled, is_konami_enabled,
+                    offline_accent, not_found_accent, error_accent,
+                    denied_accent, updated_at
              FROM site_settings WHERE id = ?`,
           )
           .bind(SINGLETON_ID)
@@ -109,8 +117,10 @@ export function createSiteSettingsRepository(
                (id, site_name, site_description, default_theme, accent_color,
                 social_image_id, favicon_media_id, is_contact_enabled,
                 footer_note, console_headline, console_body,
-                is_console_enabled, is_konami_enabled, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                is_console_enabled, is_konami_enabled,
+                offline_accent, not_found_accent, error_accent,
+                denied_accent, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(id) DO UPDATE SET
                site_name = excluded.site_name,
                site_description = excluded.site_description,
@@ -124,6 +134,10 @@ export function createSiteSettingsRepository(
                console_body = excluded.console_body,
                is_console_enabled = excluded.is_console_enabled,
                is_konami_enabled = excluded.is_konami_enabled,
+               offline_accent = excluded.offline_accent,
+               not_found_accent = excluded.not_found_accent,
+               error_accent = excluded.error_accent,
+               denied_accent = excluded.denied_accent,
                updated_at = excluded.updated_at`,
           )
           .bind(
@@ -140,6 +154,10 @@ export function createSiteSettingsRepository(
             input.consoleBody ?? null,
             boolToInt(input.isConsoleEnabled ?? true),
             boolToInt(input.isKonamiEnabled ?? true),
+            input.offlineAccent ?? null,
+            input.notFoundAccent ?? null,
+            input.errorAccent ?? null,
+            input.deniedAccent ?? null,
             now,
           )
           .run();

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { createSectionAction } from "@/lib/actions/sections";
+import { getSiteAccent } from "@/lib/site-accent";
 import { withAdminPage } from "@/lib/auth/protected-page";
 import { getMediaOptions } from "@/lib/media/options";
 import {
@@ -16,6 +17,7 @@ export const metadata: Metadata = {
 
 export default withAdminPage(async () => {
   const mediaOptions = await getMediaOptions();
+  const siteAccent = await getSiteAccent();
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -41,6 +43,7 @@ export default withAdminPage(async () => {
       </p>
 
       <SectionForm
+        siteAccent={siteAccent}
         action={createSectionAction}
         initialValues={emptySectionValues}
         submitLabel="Create section"

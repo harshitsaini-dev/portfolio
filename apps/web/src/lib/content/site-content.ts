@@ -402,6 +402,7 @@ async function readSiteContent(): Promise<SiteContent> {
     .map((section) => ({
       ...section,
       icon: section.iconMediaId ? toImage(assets, section.iconMediaId) : null,
+      accent: section.accent ?? null,
     }))
     .filter(
     (section) => section.key !== "contact" || (settings?.isContactEnabled ?? true),
@@ -520,6 +521,11 @@ async function readSiteContent(): Promise<SiteContent> {
     // which is what the settings column now replaces.
     // Null rather than a default here: the component owns the fallback text,
     // so this layer does not need a second copy of it to keep in step.
+    screenAccents: {
+      offline: settings?.screenAccents.offline ?? null,
+      notFound: settings?.screenAccents.notFound ?? null,
+      error: settings?.screenAccents.error ?? null,
+    },
     consoleEgg: {
       isEnabled: settings?.isConsoleEnabled ?? true,
       headline: settings?.consoleHeadline ?? null,

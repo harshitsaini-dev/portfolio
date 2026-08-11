@@ -3,6 +3,112 @@
 Notable architectural/tooling decisions and their rationale. Append new
 entries; do not delete history.
 
+## 2026-08-12 — Four system screens, shared by both apps
+
+Offline, not found, something broke, access denied. The admin does not get its
+own not-found and its own error screen: it shows these two, with the way out
+pointing at the dashboard. Six screens would be four that drift apart the first
+time one of them is improved, and two apps that are one product should not have
+two ideas of what a dead end looks like.
+
+The shell, the mascots, the rain and all four games live in `packages/ui`
+because the alternative was a second copy of six hundred lines of backdrop in
+an app that has one of these screens.
+
+### They are pinned to dark
+
+The site is dark and the admin is light, and on light the design fell apart —
+a matrix rain of pale glyphs on white is invisible, and a glow on a white page
+is a smudge. These are consoles, and a console is dark. It is a deliberate
+override of a visitor's light preference on four pages, defensible because they
+are not reading surfaces: one sentence, a log, and a toy. The accent still
+comes from the CMS, because that is the one colour on them somebody chose.
+
+### A different figure per screen, not the mascot everywhere
+
+The robot was on all four first. That says the site does not know the
+difference between a dead network, a bad address and a crash. Each screen now
+has a drawing about *its* failure, in one line-art language.
+
+The offline one took four attempts, and the failures are worth naming because
+they are the usual ones: a cable that curled into a closed loop reads as a
+circle rather than as slack; two rounded rectangles of similar size read as a
+matched pair of gadgets rather than a plug and a socket; prongs that nearly
+touch hide the one thing the picture is about; and a spark drawn as two
+chevrons reads as an arrow telling you to insert the plug. Slack is an open
+curve that leaves the frame. Dots cannot point at anything.
+
+### Games with no timer, except one
+
+The offline puzzle and the maze end in a win, not a score: someone waiting for
+a network or looking for a page does not need one more thing counting down at
+them. Whack-a-bug has thirty seconds because the person reading an error page
+is about to press "Try again" anyway. None of them starts on its own — a grid
+that begins moving by itself is motion nobody asked for on a page that already
+went wrong.
+
+## 2026-08-12 — Accents belong to rows, not only to the site (0015, 0016)
+
+A colour is a property of the thing. A project about a green product wants
+green on *its* page and nowhere else, and there is no fixed list of projects to
+enumerate in a settings screen — so the accent lives on the row, beside the
+title, where it survives reordering and renaming.
+
+The system screens are the exception and take theirs from settings, because
+there is a fixed set of them and they are not content.
+
+Each is scoped as a custom property on its own element, using
+`accentCustomProperties` rather than a bare `--accent` override: that helper
+derives the readable foreground and the soft tint from the hue, so a section
+accent cannot leave white text on a yellow button.
+
+### Why the 404 and the error boundary read nothing
+
+The public 404 avoids the query because an unknown URL is the most common thing
+a scanner requests. The public error boundary avoids it because the failure it
+is rendering may *be* the database. Their colours travel instead as custom
+properties published by the layout, which already reads settings once.
+
+The admin's 404 does read, because that Worker sits behind Cloudflare Access —
+a scanner never reaches the application at all.
+
+## 2026-08-12 — A colour picker, and a warning in every one
+
+Every accent was a text box asking for a six-digit hex: it asks an editor to
+know what `#7c3aed` looks like, to type it without a typo, and to know that
+`rgb(...)` and `purple` will be rejected. The control is now the browser's own
+picker. The stored value is unchanged — still a validated hex, still set as a
+custom property rather than interpolated into CSS.
+
+"No colour" needed its own control, because a native colour input cannot be
+empty: it shows `#000000`, which would silently turn "follow the site accent"
+into black. So the empty state lives outside the picker, the swatch shows what
+*would* be inherited, and the real value travels in a hidden field.
+
+Every picker now warns when a colour misses 3:1 against either background. The
+site accent had warned since it was added and the seven new fields did not —
+and an end-to-end test caught the consequence: an accent measuring **2.72:1**
+failed fourteen tab stops. It warns rather than refuses, because 3:1 is a rule
+about legibility and the owner is entitled to be told the cost rather than
+prevented.
+
+## 2026-08-12 — `/preview-screens` ships to production
+
+The error boundary only appears when something throws, so checking a change to
+it meant temporarily breaking a page — which is how a temporary change becomes
+a permanent one. This route links to all four screens, and one of them throws
+on purpose.
+
+It ships to the deployed site rather than being development-only, because the
+deployed site is where these are worth looking at: the real accent from the
+CMS, the real service worker, the real fonts, the real device. It is `noindex`,
+nothing links to it, and everything it links to is a screen a visitor can reach
+on their own.
+
+The honest cost: each visit to `/preview-screens/boom` writes one real error to
+the Worker's log. That is cheaper than deploying a broken page to see the
+screen that renders when a page breaks.
+
 ## 2026-08-10 — Case study fields, and why the stack is not one of them
 
 The owner asked for project pages shaped as problem → solution → stack →

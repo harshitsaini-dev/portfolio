@@ -13,6 +13,9 @@
    `motion.css`, which only the public site imports. */
 @import "@portfolio/ui/skeleton.css";
 
+/* The access-denied screen, shared with the public site's three. */
+@import "@portfolio/ui/system-screen.css";
+
 /* Tailwind only scans this app by default, so utilities used exclusively by
    the shared components would be absent from the generated stylesheet — a
    component that looks unstyled for no visible reason. */

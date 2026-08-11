@@ -24,6 +24,8 @@
  */
 
 import Link from "next/link";
+import { ColourField } from "@/components/form/colour-field";
+
 import { RENDERABLE_SECTION_KEYS } from "@portfolio/types";
 
 import { PhraseListField } from "@/components/form/phrase-list-field";
@@ -49,6 +51,8 @@ export interface SectionFormValues {
   /** The chosen media asset id, or `""` for no icon. */
   iconMediaId: string;
   key: string;
+  /** `""` follows the site accent. */
+  accent: string;
   title: string;
   subtitle: string;
   eyebrow: string;
@@ -61,6 +65,7 @@ export interface SectionFormValues {
 export const emptySectionValues: SectionFormValues = {
   iconMediaId: "",
   key: "",
+  accent: "",
   title: "",
   subtitle: "",
   eyebrow: "",
@@ -76,12 +81,15 @@ type SectionAction = (
 ) => Promise<ActionState<SectionMutationData>>;
 
 export function SectionForm({
+  siteAccent,
   action,
   sectionId,
   initialValues,
   submitLabel,
   mediaOptions,
 }: {
+  /** What this row falls back to: the site accent, for the swatch. */
+  siteAccent: string;
   action: SectionAction;
   sectionId?: string;
   initialValues: SectionFormValues;
@@ -126,6 +134,7 @@ export function SectionForm({
     eyebrow: values.eyebrow,
     position: Number.isFinite(values.position) ? values.position : 0,
     isVisible: values.isVisible,
+    accent: values.accent,
   });
 
   return (
@@ -248,6 +257,21 @@ export function SectionForm({
           errors={fieldErrors.subtitle}
           hint="Optional supporting copy shown beneath the title."
           onChange={(value) => update("subtitle", value)}
+        />
+
+        {/*
+          This row's own accent. Empty follows the site's, which is the
+          default and the right answer for most rows — see
+          `migrations/0016_entity_accents.sql`.
+        */}
+        <ColourField
+          name="accent"
+          label="Accent colour"
+          value={values.accent}
+          fallback={siteAccent}
+          errors={fieldErrors.accent}
+          hint="Used for this one's highlights on the public site. Leave it to follow the site accent."
+          onChange={(value) => update("accent", value)}
         />
       </section>
 

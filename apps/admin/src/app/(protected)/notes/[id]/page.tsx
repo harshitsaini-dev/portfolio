@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { updateNoteAction } from "@/lib/actions/notes";
+import { getSiteAccent } from "@/lib/site-accent";
 import { withAdminPage } from "@/lib/auth/protected-page";
 import { getAdminRepositories } from "@/lib/db/binding";
 import { getMediaOptions } from "@/lib/media/options";
@@ -25,9 +26,10 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
     const { id } = await props.params;
     const repos = await getAdminRepositories();
 
-    const [note, mediaOptions] = await Promise.all([
+    const [note, mediaOptions, siteAccent] = await Promise.all([
       repos.notes.getById(id),
       getMediaOptions(),
+      getSiteAccent(),
     ]);
     if (!note) notFound();
 
@@ -63,6 +65,7 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
         </div>
 
         <NoteForm
+        siteAccent={siteAccent}
           action={updateNoteAction}
           noteId={note.id}
           mediaOptions={mediaOptions}
@@ -76,6 +79,7 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
             publishedAt: note.publishedAt ?? "",
             coverMediaId: note.coverMediaId ?? "",
             tags: note.tags.join(", "),
+            accent: note.accent ?? "",
             position: note.position,
           }}
         />

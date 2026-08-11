@@ -89,6 +89,19 @@ export const siteSettingsSaveSchema = z
     siteDescription: optionalText(300),
     defaultTheme: themePreferenceSchema.default("system"),
     accentColor: accentColorSchema.default(null),
+    /*
+      One accent per system screen, or null to follow the site's.
+
+      They reuse `accentColorSchema` rather than declaring a looser rule: the
+      argument that the admin controls a theme configuration and never
+      arbitrary CSS applies to these exactly as it does to the site accent,
+      and four fields with four grammars would be four chances to get it
+      wrong.
+    */
+    offlineAccent: accentColorSchema.default(null),
+    notFoundAccent: accentColorSchema.default(null),
+    errorAccent: accentColorSchema.default(null),
+    deniedAccent: accentColorSchema.default(null),
     /** The image used for link previews. */
     socialImageId: mediaReferenceCreate,
     /**

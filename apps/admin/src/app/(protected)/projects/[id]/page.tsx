@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { updateProjectAction } from "@/lib/actions/projects";
+import { getSiteAccent } from "@/lib/site-accent";
 import { withAdminPage } from "@/lib/auth/protected-page";
 import { getMediaOptions } from "@/lib/media/options";
 import { getAdminRepositories } from "@/lib/db/binding";
@@ -30,6 +31,7 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
     if (!project) notFound();
 
     const mediaOptions = await getMediaOptions();
+    const siteAccent = await getSiteAccent();
 
     // The repository exposes `getBySlugWithRelations` but not an id
     // equivalent, so relations are composed here from its existing methods
@@ -62,6 +64,7 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
         </h1>
 
         <ProjectForm
+        siteAccent={siteAccent}
           action={updateProjectAction}
           projectId={project.id}
           technologies={allTechnologies}
@@ -72,6 +75,7 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
             slug: project.slug,
             summary: project.summary,
             description: project.description ?? "",
+            accent: project.accent ?? "",
             problem: project.problem ?? "",
             solution: project.solution ?? "",
             learnings: project.learnings ?? "",

@@ -17,6 +17,8 @@
 
 import { z } from "zod";
 
+import { accentColorSchema } from "./settings.ts";
+
 import { PROJECT_LINK_KINDS, PROJECT_STATUSES } from "@portfolio/types";
 
 // The http(s) allowlist this module established in Phase 7, now shared so
@@ -136,6 +138,14 @@ export const projectCreateSchema = z
     title: titleValue,
     slug: projectSlugSchema,
     summary: summaryValue,
+    /*
+      This row's own accent, or null to follow the site's.
+
+      Reuses `accentColorSchema` rather than declaring a looser rule: the
+      argument that the admin controls a theme configuration and never
+      arbitrary CSS applies here exactly as it does to the site accent.
+    */
+    accent: accentColorSchema.default(null),
     description: nullableText(8000).default(null),
     // Case study. Each is a paragraph or three, not an essay — the cap is
     // generous enough not to be felt and small enough to bound a row.
@@ -200,6 +210,7 @@ export const projectUpdateSchema = z
     title: titleValue.optional(),
     slug: projectSlugSchema.optional(),
     summary: summaryValue.optional(),
+    accent: accentColorSchema.optional(),
     description: nullableText(8000).optional(),
     problem: nullableText(4000).optional(),
     solution: nullableText(4000).optional(),

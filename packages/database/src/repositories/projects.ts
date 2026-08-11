@@ -40,7 +40,7 @@ const ENTITY = "project";
 const PROJECT_COLUMNS = `id, slug, title, summary, description,
   problem, solution, learnings, status,
   is_featured, position, period_label, started_on, completed_on,
-  cover_media_id, icon_media_id, published_at, created_at, updated_at`;
+  cover_media_id, icon_media_id, published_at, accent, created_at, updated_at`;
 
 function toProject(row: Row): Project {
   return {
@@ -61,6 +61,7 @@ function toProject(row: Row): Project {
     coverMediaId: nullableString(ENTITY, row, "cover_media_id"),
     iconMediaId: nullableString(ENTITY, row, "icon_media_id"),
     publishedAt: nullableString(ENTITY, row, "published_at"),
+    accent: nullableString(ENTITY, row, "accent"),
     createdAt: requireString(ENTITY, row, "created_at"),
     updatedAt: requireString(ENTITY, row, "updated_at"),
   };
@@ -113,6 +114,7 @@ const PROJECT_PATCH: FieldSpecs<ProjectUpdate> = {
     encode: (p) => p.coverMediaId ?? null,
   },
   publishedAt: { column: "published_at", encode: (p) => p.publishedAt ?? null },
+  accent: { column: "accent", encode: (p) => p.accent ?? null },
 };
 
 /**
@@ -338,9 +340,9 @@ export function createProjectRepository(
                (id, slug, title, summary, description, problem, solution,
                 learnings, status, is_featured,
                 position, period_label, started_on, completed_on,
-                cover_media_id, icon_media_id, published_at, created_at,
-                updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                cover_media_id, icon_media_id, published_at, accent,
+                created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .bind(
             id,
@@ -360,6 +362,7 @@ export function createProjectRepository(
             input.coverMediaId ?? null,
             input.iconMediaId ?? null,
             input.publishedAt ?? null,
+            input.accent ?? null,
             now,
             now,
           )

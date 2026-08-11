@@ -1,0 +1,593 @@
+/*
+  The system screens: offline, not-found, error, and the admin's access denial.
+
+  Shared by both apps rather than living in the public site's stylesheet: the
+  admin has one of these screens and the site has three, and a second copy of
+  the backdrop is how two apps meant to look like one product drift apart.
+
+  Everything here is decoration on a page whose subject is that something went
+  wrong, so all of it sits inside a reduced-motion query and every screen is
+  fully legible without a single frame of it — the glow becomes a plain colour,
+  the rain paints one still frame, the caret stops blinking, nothing moves.
+*/
+
+/*
+  These screens are consoles, and a console is dark.
+
+  The site is dark by default and the admin is light, so before this the same
+  four screens looked like two different products — and on light the whole
+  design fell apart: a matrix rain of pale glyphs on white is invisible, and a
+  glow on a white page is a smudge.
+
+  So the palette is pinned here rather than inherited. It is the project's own
+  dark palette, copied from `tokens.css`, so the screens match the site's dark
+  theme exactly rather than approximating it.
+
+  What is **not** pinned is the accent. That still comes from the CMS, per
+  screen — which is the one colour on these pages an owner chose deliberately,
+  and the one that must keep coming through.
+
+  This is a deliberate override of a visitor's light preference on four pages.
+  It is defensible because these are not reading surfaces: they carry one
+  sentence, a log and a toy, and every pair below is the same contrast the dark
+  theme already ships.
+*/
+.offline-screen {
+  --bg: #0b0c10;
+  --surface: #131419;
+  --surface-muted: #1a1b22;
+  --fg: #f1f2f5;
+  --fg-muted: #a5a7b3;
+  --border-subtle: #24252d;
+  --border-strong: #383a45;
+
+  background: var(--bg);
+  color: var(--fg);
+
+  /* Board colours for the canvas, which reads them with `getComputedStyle`
+     rather than hardcoding hexes — so the game follows the theme, including
+     the high-contrast overrides at the foot of this file. */
+  --snake-grid: color-mix(in oklab, var(--fg-muted) 12%, transparent);
+  --snake-body: var(--accent);
+  /* The food is the foreground colour, not a second hue: against an accent
+     snake on a dark board, another saturated colour competes with it, and the
+     one thing that must always be findable at a glance is the food. */
+  --snake-food: var(--fg);
+}
+
+/*
+  The glow on the word itself.
+
+  `text-shadow` rather than a filter: a filter on text forces it onto its own
+  layer and softens the glyph edges, which on a 48px monospace word is the
+  difference between "glowing" and "blurry".
+*/
+.offline-glow {
+  text-shadow:
+    0 0 0.35em color-mix(in oklab, var(--accent) 55%, transparent),
+    0 0 1.1em color-mix(in oklab, var(--accent) 30%, transparent);
+}
+
+.offline-pill {
+  background: color-mix(in oklab, var(--accent) 12%, transparent);
+  box-shadow: 0 0 1.5em color-mix(in oklab, var(--accent) 22%, transparent);
+}
+
+/*
+  The grid backdrop.
+
+  Two hairline gradients crossed into squares, drifting one cell per cycle so
+  the motion is endless without a seam. It is a background on one empty
+  element: no canvas, no library, nothing to schedule per frame — which matters
+  on a page that exists because the device is already struggling.
+
+  The mask is what stops it looking like graph paper: the lines are strongest
+  in the middle of the screen and dissolve toward every edge, so the panel
+  above them sits in a pool of light rather than on a wallpaper.
+*/
+.offline-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(
+      to right,
+      color-mix(in oklab, var(--accent) 16%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--accent) 16%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 44px 44px;
+  mask-image: radial-gradient(115% 75% at 50% 42%, black 5%, transparent 72%);
+}
+
+/*
+  The glow itself.
+
+  A single radial pool behind the content, sized in viewport units so it scales
+  with the screen rather than with the text. `blur` rather than a softer
+  gradient because a blurred ellipse keeps its shape at every size, where a
+  many-stop gradient bands on cheap panels.
+*/
+.offline-bloom {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  height: 45vmax;
+  width: 45vmax;
+  translate: -50% -50%;
+  pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in oklab, var(--accent) 26%, transparent) 0%,
+    transparent 68%
+  );
+  filter: blur(28px);
+}
+
+/*
+  The scrim.
+
+  A pool of page background between the moving backdrop and the words, so text
+  never sits directly on falling glyphs. It is the accessibility half of the
+  effect: the rain is decoration, and decoration does not get to make body copy
+  hard to read. Radial rather than a panel, so there is no visible box edge —
+  the backdrop simply calms toward the middle.
+*/
+.offline-scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    58% 46% at 50% 45%,
+    color-mix(in oklab, var(--bg) 88%, transparent) 0%,
+    color-mix(in oklab, var(--bg) 62%, transparent) 55%,
+    transparent 100%
+  );
+}
+
+/* The terminal picks up the same light, so it reads as sitting inside the
+   glow rather than pasted on top of it. */
+.offline-terminal {
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--accent) 10%, transparent),
+    0 1.5rem 3rem color-mix(in oklab, var(--accent) 12%, transparent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* One cell per cycle, so the loop is invisible: the grid at 44px offset is
+     the grid at 0. Slow — this is a texture, not an animation to watch. */
+  .offline-grid {
+    animation: offline-grid-drift 9s linear infinite;
+  }
+
+  @keyframes offline-grid-drift {
+    from {
+      background-position:
+        0 0,
+        0 0;
+    }
+    to {
+      background-position:
+        44px 44px,
+        44px 44px;
+    }
+  }
+
+  .offline-bloom {
+    animation: offline-bloom-breathe 7s ease-in-out infinite;
+  }
+
+  /* Opacity and scale only. Neither moves anything else on the page, and
+     nothing here approaches the flash rate WCAG 2.3.1 guards against. */
+  @keyframes offline-bloom-breathe {
+    0%,
+    100% {
+      opacity: 0.75;
+      scale: 1;
+    }
+    50% {
+      opacity: 1;
+      scale: 1.08;
+    }
+  }
+
+  .offline-glow {
+    animation: offline-flicker 4s ease-in-out infinite;
+  }
+
+  /* Not a strobe. Opacity moves between 0.82 and 1 over four seconds — enough
+     to read as an unstable signal, nowhere near the 3Hz flash threshold that
+     WCAG 2.3.1 exists to keep pages under. */
+  @keyframes offline-flicker {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    45% {
+      opacity: 0.82;
+    }
+    55% {
+      opacity: 1;
+    }
+  }
+
+  .offline-pill-dot {
+    animation: offline-pulse 1.8s ease-in-out infinite;
+  }
+
+  @keyframes offline-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.25;
+    }
+  }
+
+  .offline-caret {
+    animation: terminal-caret 1.1s steps(1, end) infinite;
+  }
+}
+
+/*
+  The matrix rain's palette.
+
+  Read by the canvas rather than hardcoded, so the glyphs follow the accent and
+  the trail fades toward whatever the page background actually is — in the
+  light theme that is a pale wash, not a black one, and a hardcoded
+  `rgba(0,0,0,0.08)` would have grimed the page grey.
+
+  The fade alpha is what sets the trail length: higher clears faster.
+*/
+.matrix-rain {
+  --matrix-ink: color-mix(in oklab, var(--accent) 90%, transparent);
+  --matrix-head: color-mix(in oklab, var(--fg) 85%, var(--accent));
+  /*
+    The fade alpha is the trail length, and the first value was 88% — which
+    wiped the canvas almost clean on every frame, so only the newest glyph
+    survived and the effect was invisible at a distance. 18% leaves a tail of
+    roughly a dozen characters, which is what reads as rain.
+  */
+  --matrix-fade: color-mix(in oklab, var(--bg) 14%, transparent);
+  /*
+    Loud enough to be the thing you notice, quiet enough to read over.
+
+    At 0.9 the glyphs cut visibly through the thin grey paragraphs — the text
+    stayed on top, but bright shapes crossing a 14px line make it hard work.
+    The scrim below does most of that job; this is the other half.
+  */
+  opacity: 0.6;
+  /*
+    A far gentler vignette than the grid's.
+
+    The first version reused the grid's mask, which reaches full transparency
+    at 78% and took most of the rain with it — measured as "barely visible".
+    The rain is the backdrop people actually notice, so it keeps its density
+    almost to the edges and only softens where the content sits.
+  */
+  mask-image: radial-gradient(140% 110% at 50% 40%, black 45%, transparent 100%);
+}
+
+/*
+  The 2D robot.
+
+  `currentColor` throughout the SVG, set here once, so the figure inherits the
+  accent and follows the theme with it. Every animation below is inside the
+  reduced-motion query; without them the drawing is identical, just still.
+*/
+.offline-robot {
+  color: var(--accent);
+  filter: drop-shadow(0 0 1.2rem color-mix(in oklab, var(--accent) 30%, transparent));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* The whole figure bobs. `translate` rather than `top`, so it composites
+     and cannot reflow the column it sits in. */
+  .offline-robot-body {
+    animation: offline-robot-float 3.6s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  @keyframes offline-robot-float {
+    0%,
+    100% {
+      translate: 0 0;
+    }
+    50% {
+      translate: 0 -5px;
+    }
+  }
+
+  /* The eyes blink by squashing, not by disappearing: scaling the height of
+     two rounded bars reads as a blink where an opacity flick reads as a
+     glitch. The long pause between blinks is most of the cycle. */
+  .offline-robot-eyes {
+    animation: offline-robot-blink 5.5s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  @keyframes offline-robot-blink {
+    0%,
+    92%,
+    100% {
+      scale: 1 1;
+    }
+    95% {
+      scale: 1 0.12;
+    }
+  }
+
+  /* The raised arm waves, hinged at the shoulder rather than the middle. */
+  .offline-robot-arm {
+    animation: offline-robot-wave 2.4s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: 0% 100%;
+  }
+
+  @keyframes offline-robot-wave {
+    0%,
+    100% {
+      rotate: 0deg;
+    }
+    50% {
+      rotate: -14deg;
+    }
+  }
+
+  /* The antenna tip, and the signal arcs it is failing to send. The arcs
+     travel outward and fade, which is the whole joke: it keeps trying. */
+  .offline-robot-tip {
+    animation: offline-robot-tip 1.6s ease-in-out infinite;
+  }
+
+  @keyframes offline-robot-tip {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.3;
+    }
+  }
+
+  .offline-robot-signal {
+    animation: offline-robot-signal 2.4s ease-out infinite;
+    transform-box: fill-box;
+    transform-origin: center bottom;
+  }
+
+  @keyframes offline-robot-signal {
+    0% {
+      opacity: 0;
+      scale: 0.7;
+    }
+    35% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      scale: 1.15;
+    }
+  }
+}
+
+/*
+  The mascots.
+
+  One figure per dead end, in one drawing language. The animations differ
+  because the failures do: a compass that will not settle, a gear that judders,
+  a lock that refuses. All of them are inside the reduced-motion query — the
+  drawings are complete and legible without a single frame of movement.
+*/
+@media (prefers-reduced-motion: no-preference) {
+  .mascot-float {
+    animation: offline-robot-float 3.6s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  /*
+    The compass needle: fast sweeps, then a pause as if it has found north,
+    then it gives up and goes again. A constant spin reads as a loading
+    spinner, which would promise that something is in progress.
+  */
+  .mascot-needle {
+    animation: mascot-needle 5s cubic-bezier(0.3, 0, 0.2, 1) infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  @keyframes mascot-needle {
+    0% {
+      rotate: 0deg;
+    }
+    30% {
+      rotate: 400deg;
+    }
+    45% {
+      rotate: 380deg;
+    }
+    55% {
+      rotate: 395deg;
+    }
+    100% {
+      rotate: 720deg;
+    }
+  }
+
+  /* Small, sharp, irregular — a mechanism binding rather than a wobble. */
+  .mascot-judder {
+    animation: mascot-judder 2.6s steps(1, end) infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  @keyframes mascot-judder {
+    0%,
+    58%,
+    100% {
+      rotate: 0deg;
+      translate: 0 0;
+    }
+    60% {
+      rotate: 4deg;
+      translate: 1px 0;
+    }
+    64% {
+      rotate: -3deg;
+      translate: -1px 0;
+    }
+    68% {
+      rotate: 2deg;
+    }
+    72% {
+      rotate: 0deg;
+    }
+  }
+
+  /* The spark fires on the same beat as the judder, so the two read as cause
+     and effect rather than as two things happening nearby. */
+  .mascot-spark {
+    animation: mascot-spark 2.6s ease-out infinite;
+    transform-box: fill-box;
+    transform-origin: center bottom;
+  }
+
+  @keyframes mascot-spark {
+    0%,
+    55%,
+    100% {
+      opacity: 0;
+      scale: 0.6;
+    }
+    60% {
+      opacity: 1;
+      scale: 1.15;
+    }
+    75% {
+      opacity: 0;
+      scale: 0.9;
+    }
+  }
+
+  /* The shackle is tried and refused. Two quick nudges, then a long wait. */
+  .mascot-shackle {
+    animation: mascot-shackle 4.5s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center bottom;
+  }
+
+  @keyframes mascot-shackle {
+    0%,
+    70%,
+    100% {
+      translate: 0 0;
+    }
+    74% {
+      translate: 0 -3px;
+    }
+    78% {
+      translate: 0 0;
+    }
+    82% {
+      translate: 0 -2px;
+    }
+    86% {
+      translate: 0 0;
+    }
+  }
+
+  /* The keyhole looks around, then back at you. */
+  .mascot-pupil {
+    animation: mascot-pupil 6s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  @keyframes mascot-pupil {
+    0%,
+    40%,
+    100% {
+      translate: 0 0;
+    }
+    50% {
+      translate: -3px 1px;
+    }
+    65% {
+      translate: 3px 1px;
+    }
+    80% {
+      translate: 0 0;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /*
+    The plug tries the socket and falls back. Never quite reaching it is the
+    point — an animation that connected would contradict the heading above it.
+  */
+  .mascot-plug {
+    animation: mascot-plug 3.8s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  @keyframes mascot-plug {
+    0%,
+    100% {
+      translate: 0 0;
+    }
+    45% {
+      translate: 5px 0;
+    }
+    55% {
+      translate: 3px 0;
+    }
+  }
+
+  /*
+    The dots in the gap: each lights a beat after the one before it, and all
+    three are out well before the loop ends. The long dark tail is the point —
+    it is a signal that does not arrive, not a progress indicator.
+  */
+  .mascot-dots circle {
+    opacity: 0;
+    animation: mascot-dot 3.8s ease-in-out infinite;
+  }
+
+  .mascot-dots circle:nth-child(2) {
+    animation-delay: 0.18s;
+  }
+
+  .mascot-dots circle:nth-child(3) {
+    animation-delay: 0.36s;
+  }
+
+  @keyframes mascot-dot {
+    0%,
+    30% {
+      opacity: 0;
+      scale: 0.6;
+    }
+    38% {
+      opacity: 1;
+      scale: 1;
+    }
+    52% {
+      opacity: 0;
+      scale: 0.8;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+}

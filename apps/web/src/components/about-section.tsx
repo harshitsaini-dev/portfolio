@@ -18,6 +18,7 @@ export function AboutSection({
       title={copy.title}
       marker={copy.marker}
       icon={copy.icon}
+      accent={copy.accent}
     >
       <div className={`max-w-2xl space-y-5 ${type.body}`}>
         {profile.introduction.length === 0 ? (

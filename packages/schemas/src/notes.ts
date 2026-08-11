@@ -10,6 +10,8 @@
 
 import { z } from "zod";
 
+import { accentColorSchema } from "./settings.ts";
+
 import { PROJECT_STATUSES } from "@portfolio/types";
 
 const slugValue = z
@@ -100,6 +102,14 @@ export const noteCreateSchema = z
     publishedAt: publishedAtValue.default(null),
     coverMediaId: mediaValue.default(null),
     tags: tagsValue,
+    /*
+      This row's own accent, or null to follow the site's.
+
+      Reuses `accentColorSchema` rather than declaring a looser rule: the
+      argument that the admin controls a theme configuration and never
+      arbitrary CSS applies here exactly as it does to the site accent.
+    */
+    accent: accentColorSchema.default(null),
     position: positionValue.default(0),
   })
   .strict();
@@ -115,6 +125,7 @@ export const noteUpdateSchema = z
     publishedAt: publishedAtValue.optional(),
     coverMediaId: mediaValue.optional(),
     tags: tagsValue.optional(),
+    accent: accentColorSchema.optional(),
     position: positionValue.optional(),
   })
   .strict();

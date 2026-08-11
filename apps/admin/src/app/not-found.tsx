@@ -1,38 +1,74 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
+import {
+  AdminScreen,
+  type AdminScreenLine,
+} from "@/components/system/admin-screen";
+/* The same maze the public site's 404 shows, loaded in the browser — see
+   the wrapper for why the dynamic import cannot live in this file. */
+import { LazyMazeGame } from "@/components/system/screen-games";
+import { getScreenAccent } from "@/lib/site-accent";
 
 export const metadata: Metadata = {
   title: "Not found · Portfolio Admin",
 };
 
 /**
- * Admin 404.
+ * The admin's 404 — which is the site's 404.
  *
- * Rendered outside the protected layout, so it deliberately reveals nothing
- * about which admin routes exist — it offers a single link back to the
- * dashboard rather than a menu of destinations.
+ * There are four system screens in this project, not six: offline, not found,
+ * something broke, and access denied. An admin that had its *own* idea of what
+ * "not found" looks like would be a fifth, and the two would drift the first
+ * time one of them was improved.
+ *
+ * So this is the same figure, the same log, the same game and the same words.
+ * The only thing that differs is where the way out goes, which is not a
+ * different screen — it is the same screen knowing which app it is in.
+ *
+ * It reads its accent, unlike the public site's 404. That page avoids the
+ * query because an unknown URL is the most common thing a scanner requests;
+ * this Worker sits behind Cloudflare Access, so a scanner never reaches the
+ * application at all. The colour comes from the same "Not-found (404)" setting
+ * the public site uses — one decision, both apps.
  */
-export default function NotFound() {
+const LINES: readonly AdminScreenLine[] = [
+  { text: "$ resolve", tone: "prompt" },
+  { text: "checking routes...", tone: "muted" },
+  { text: "[404] no route matches", tone: "alert" },
+  { text: "[INFO] it may have moved, or never existed", tone: "muted" },
+];
+
+export default async function NotFound() {
+  const accent = await getScreenAccent("notFound");
+
   return (
-    <main
-      id="main-content"
-      tabIndex={-1}
-      className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-6 py-16"
-    >
-      <h1 className="text-2xl font-semibold tracking-tight text-fg">
-        Page not found
-      </h1>
-      <p className="mt-4 text-sm leading-relaxed text-fg-muted">
-        This admin page does not exist. It may not have been built yet.
-      </p>
-      <div className="mt-8">
-        <Link
+    <AdminScreen
+      accent={accent}
+      mascot="compass"
+      status="Error 404"
+      headlinePrefix="Page"
+      headline="not found"
+      terminalTitle="route_resolver.sh"
+      lines={LINES}
+      actions={
+        // A document load rather than `next/link`: this page renders outside
+        // the protected layout, so a client navigation would re-enter a router
+        // tree it was never part of.
+        // eslint-disable-next-line @next/next/no-html-link-for-pages
+        <a
           href="/"
-          className="inline-flex min-h-11 items-center justify-center rounded-md border border-strong bg-surface px-4 text-sm font-medium text-fg transition-colors duration-150 hover:bg-surface-muted"
+          className="inline-flex min-h-11 items-center rounded-md bg-accent px-5 text-sm font-medium text-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
-          Back to dashboard
-        </Link>
-      </div>
-    </main>
+          Back to the dashboard
+        </a>
+      }
+      footer={
+        <div className="mt-2 w-full">
+          <LazyMazeGame />
+        </div>
+      }
+    >
+      That address does not lead anywhere.
+    </AdminScreen>
   );
 }

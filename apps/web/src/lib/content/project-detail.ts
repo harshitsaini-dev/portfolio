@@ -30,6 +30,8 @@ export interface ProjectGalleryItem {
 }
 
 export interface ProjectDetail {
+  /** This project's own accent, or null to follow the site's. */
+  readonly accent: string | null;
   readonly slug: string;
   readonly title: string;
   readonly summary: string;
@@ -176,6 +178,7 @@ async function readProjectDetail(slug: string): Promise<ProjectDetail | null> {
   }
 
   return {
+    accent: project.accent,
     slug: project.slug,
     title: project.title,
     summary: project.summary,

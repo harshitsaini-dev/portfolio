@@ -4,8 +4,12 @@ import { headers } from "next/headers";
 
 import { accentCustomProperties } from "@portfolio/ui";
 
+import { screenAccentProperties } from "@/lib/screen-accent";
+
 import { Analytics } from "@/components/analytics";
 import { EasterEggs } from "@/components/easter-eggs";
+import { OfflineWatcher } from "@/components/offline/offline-watcher";
+import { ServiceWorker } from "@/components/offline/service-worker";
 import { getSiteContent } from "@/lib/content/site-content";
 import { absoluteMediaUrl, getSiteOrigin } from "@/lib/site-origin";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
@@ -150,7 +154,8 @@ export async function generateMetadata(): Promise<Metadata> {
  * contrast warning the admin shows because of it.
  */
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const { theme, consoleEgg, isKonamiEnabled } = await getSiteContent();
+  const { theme, consoleEgg, isKonamiEnabled, screenAccents } =
+    await getSiteContent();
 
   // Set by `middleware.ts`. The inline theme script below is the one script on
   // the page Next does not stamp for us, so without this the CSP blocks it and
@@ -177,9 +182,26 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       */
       suppressHydrationWarning
       data-theme={theme.defaultTheme === "system" ? undefined : theme.defaultTheme}
-      style={
-        theme.accentColor ? accentCustomProperties(theme.accentColor) : undefined
-      }
+      /*
+        The site accent, plus one set of custom properties per system screen.
+
+        The 404 and the error boundary render inside this layout and cannot be
+        handed props by it, so their colours travel as variables instead. That
+        also keeps both pages free of a database read — an unknown URL is the
+        most common thing a scanner asks for, and it should not cost a query.
+
+        `screenAccentProperties` emits nothing for a screen with no override,
+        so the fallback in each screen's own style resolves to the site accent
+        and there is no empty custom property to reason about.
+      */
+      style={{
+        ...(theme.accentColor
+          ? accentCustomProperties(theme.accentColor)
+          : undefined),
+        ...screenAccentProperties("offline", screenAccents.offline),
+        ...screenAccentProperties("not-found", screenAccents.notFound),
+        ...screenAccentProperties("error", screenAccents.error),
+      }}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
@@ -207,6 +229,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         {/* Content, from the CMS — see the component for why a console
             message counts as content. */}
         <EasterEggs console={consoleEgg} isKonamiEnabled={isKonamiEnabled} />
+        {/* Both render nothing until they have something to do. The worker
+            gives a cold visit an offline page instead of the browser's error
+            screen; the watcher covers a tab that was already open when the
+            connection went. */}
+        <ServiceWorker />
+        <OfflineWatcher />
       </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

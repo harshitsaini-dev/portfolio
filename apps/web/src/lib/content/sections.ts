@@ -75,6 +75,13 @@ export interface SectionCopy {
    */
   readonly iconMediaId?: string | null;
   readonly icon?: ContentImage | null;
+  /**
+   * This section's own accent, or null to follow the site's.
+   *
+   * Rendered as a scoped custom property on the section element, so it colours
+   * that section and nothing else — see `components/section.tsx`.
+   */
+  readonly accent?: string | null;
   /** Shown in the page navigation. Shorter than the title. */
   readonly navLabel: string;
   /**
@@ -186,6 +193,8 @@ interface SectionRow {
   readonly eyebrowAlternates?: readonly string[];
   /** The editor's chosen icon for this section, if any. */
   readonly iconMediaId?: string | null;
+  /** The editor's accent for this section, if any. */
+  readonly accent?: string | null;
 }
 
 function isSectionKey(key: string): key is SectionKey {
@@ -237,6 +246,7 @@ export function resolveSections(rows: readonly SectionRow[]): SectionCopy[] {
             // never reached the page — the row carried it and this mapper
             // dropped it, so every uploaded section icon was invisible.
             iconMediaId: override.iconMediaId ?? null,
+            accent: override.accent ?? null,
           }
         : copy,
       visible: override ? override.isVisible : true,

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { createProjectAction } from "@/lib/actions/projects";
+import { getSiteAccent } from "@/lib/site-accent";
 import { withAdminPage } from "@/lib/auth/protected-page";
 import { getMediaOptions } from "@/lib/media/options";
 import { getAdminRepositories } from "@/lib/db/binding";
@@ -17,6 +18,7 @@ export const metadata: Metadata = {
 
 export default withAdminPage(async () => {
   const mediaOptions = await getMediaOptions();
+  const siteAccent = await getSiteAccent();
   const repos = await getAdminRepositories();
   const technologies = await repos.technologies.list();
 
@@ -40,6 +42,7 @@ export default withAdminPage(async () => {
       </h1>
 
       <ProjectForm
+        siteAccent={siteAccent}
         action={createProjectAction}
         initialValues={emptyProjectValues}
         technologies={technologies}

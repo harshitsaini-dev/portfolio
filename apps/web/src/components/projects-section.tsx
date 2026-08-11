@@ -24,6 +24,7 @@ export function ProjectsSection({
       title={copy.title}
       marker={copy.marker}
       icon={copy.icon}
+      accent={copy.accent}
     >
       {projects.length === 0 ? (
         <EmptyState

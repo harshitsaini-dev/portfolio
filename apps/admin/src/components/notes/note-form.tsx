@@ -23,6 +23,8 @@
  */
 
 import Link from "next/link";
+import { ColourField } from "@/components/form/colour-field";
+
 import { useActionState, useEffect, useId, useRef, useState } from "react";
 
 import {
@@ -45,6 +47,8 @@ export interface NoteFormValues {
   coverMediaId: string;
   tags: string;
   position: number;
+  /** `""` follows the site accent. */
+  accent: string;
 }
 
 export const emptyNoteValues: NoteFormValues = {
@@ -57,6 +61,7 @@ export const emptyNoteValues: NoteFormValues = {
   coverMediaId: "",
   tags: "",
   position: 0,
+  accent: "",
 };
 
 /**
@@ -85,12 +90,15 @@ type NoteAction = (
 ) => Promise<ActionState<NoteMutationData>>;
 
 export function NoteForm({
+  siteAccent,
   action,
   noteId,
   initialValues,
   mediaOptions,
   submitLabel,
 }: {
+  /** What this row falls back to: the site accent, for the swatch. */
+  siteAccent: string;
   action: NoteAction;
   noteId?: string;
   initialValues: NoteFormValues;
@@ -238,6 +246,21 @@ export function NoteForm({
             deliberate: it means a post can never inject markup into the page.
           </p>
         </details>
+
+        {/*
+          This row's own accent. Empty follows the site's, which is the
+          default and the right answer for most rows — see
+          `migrations/0016_entity_accents.sql`.
+        */}
+        <ColourField
+          name="accent"
+          label="Accent colour"
+          value={values.accent}
+          fallback={siteAccent}
+          errors={fieldErrors.accent}
+          hint="Used for this one's highlights on the public site. Leave it to follow the site accent."
+          onChange={(value) => update("accent", value)}
+        />
       </section>
 
       <section

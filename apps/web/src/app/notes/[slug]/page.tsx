@@ -15,6 +15,8 @@ import { ShareButton } from "@/components/ui/share-button";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getNoteDetail } from "@/lib/content/notes";
+import { accentCustomProperties } from "@portfolio/ui";
+
 import { getSiteContent } from "@/lib/content/site-content";
 import { absoluteMediaUrl, getSiteOrigin } from "@/lib/site-origin";
 import { formatNoteDate } from "@/lib/format-date";
@@ -83,7 +85,17 @@ export default async function NotePage({ params }: NotePageProps) {
     <>
       <SiteHeader siteName={content.siteName} navigation={content.navigation} />
 
-      <main id="main-content" className="mx-auto max-w-3xl px-6 py-16 sm:py-24">
+      <main
+        id="main-content"
+        className="mx-auto max-w-3xl px-6 py-16 sm:py-24"
+        /*
+          This note's own accent, scoped to the article. `accentCustomProperties`
+          derives the readable foreground and the soft tint from the hue, so a
+          note accent cannot leave text unreadable on a button — and nothing
+          outside this element is touched, including the site header above it.
+        */
+        style={note.accent ? accentCustomProperties(note.accent) : undefined}
+      >
         <nav aria-label="Breadcrumb" className="text-sm">
           <Link
             href="/notes"

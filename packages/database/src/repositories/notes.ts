@@ -38,7 +38,7 @@ import type { RepositoryRuntime } from "../runtime.ts";
 const ENTITY = "note";
 
 const COLUMNS = `id, slug, title, summary, body, status, published_at,
-  cover_media_id, tags, position, created_at, updated_at`;
+  cover_media_id, tags, position, accent, created_at, updated_at`;
 
 /**
  * The ordering the public list and the admin both use.
@@ -74,6 +74,7 @@ function toNote(row: Record<string, unknown>): Note {
     coverMediaId: nullableString(ENTITY, row, "cover_media_id"),
     tags: decodeTags(requireString(ENTITY, row, "tags")),
     position: requireNumber(ENTITY, row, "position"),
+    accent: nullableString(ENTITY, row, "accent"),
     createdAt: requireString(ENTITY, row, "created_at"),
     updatedAt: requireString(ENTITY, row, "updated_at"),
   };
@@ -162,8 +163,8 @@ export function createNoteRepository(
           .prepare(
             `INSERT INTO notes
                (id, slug, title, summary, body, status, published_at,
-                cover_media_id, tags, position, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                cover_media_id, tags, position, accent, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .bind(
             id,
@@ -176,6 +177,7 @@ export function createNoteRepository(
             input.coverMediaId,
             JSON.stringify(input.tags),
             input.position,
+            input.accent ?? null,
             now,
             now,
           )
@@ -210,6 +212,7 @@ export function createNoteRepository(
         put("cover_media_id", patch.coverMediaId);
       if (patch.tags !== undefined) put("tags", JSON.stringify(patch.tags));
       if (patch.position !== undefined) put("position", patch.position);
+      if (patch.accent !== undefined) put("accent", patch.accent);
 
       if (sets.length === 0) {
         const current = await repository.getById(id);

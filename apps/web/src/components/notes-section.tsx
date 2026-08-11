@@ -54,6 +54,7 @@ export function NotesSection({
       title={copy.title}
       marker={copy.marker}
       icon={copy.icon}
+      accent={copy.accent}
     >
       {shown.length === 0 ? (
         <EmptyState

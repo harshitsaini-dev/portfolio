@@ -20,6 +20,7 @@ export function PlaygroundSection({ copy }: { copy: SectionCopy }) {
       title={copy.title}
       marker={copy.marker}
       icon={copy.icon}
+      accent={copy.accent}
     >
       <ContributionPlayground />
     </Section>

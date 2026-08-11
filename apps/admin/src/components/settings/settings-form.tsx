@@ -22,6 +22,8 @@
  * to them.
  */
 
+import { ColourField } from "@/components/form/colour-field";
+
 import { useActionState, useEffect, useId, useRef, useState } from "react";
 
 import { HEX_COLOR_PATTERN } from "@portfolio/schemas";
@@ -49,6 +51,11 @@ export interface SettingsFormValues {
   socialImageId: string;
   faviconMediaId: string;
   footerNote: string;
+  /** Per-screen accents. `""` means "follow the site accent". */
+  offlineAccent: string;
+  notFoundAccent: string;
+  errorAccent: string;
+  deniedAccent: string;
   consoleHeadline: string;
   consoleBody: string;
   isConsoleEnabled: boolean;
@@ -64,6 +71,10 @@ export const emptySettingsValues: SettingsFormValues = {
   socialImageId: "",
   faviconMediaId: "",
   footerNote: "",
+  offlineAccent: "",
+  notFoundAccent: "",
+  errorAccent: "",
+  deniedAccent: "",
   consoleHeadline: "",
   consoleBody: "",
   isConsoleEnabled: true,
@@ -75,6 +86,51 @@ type SettingsAction = (
   previous: ActionState<SettingsMutationData>,
   formData: FormData,
 ) => Promise<ActionState<SettingsMutationData>>;
+
+/**
+ * The four system screens, in the order a visitor is likely to meet them.
+ *
+ * A table rather than four copies of the same markup: they differ only in
+ * their label and their hint, and four hand-written blocks is four places to
+ * forget the preview or mistype a field name.
+ */
+/**
+ * The built-in accent, for the swatch to show when nothing is set.
+ *
+ * This is the light-theme token from `packages/ui/src/tokens.css`; the dark
+ * theme's is lighter, so the swatch is approximate in exactly one case — no
+ * accent set at all — and exact in every other, where it shows the accent the
+ * site is really using.
+ *
+ * Duplicated from the token file rather than imported, because a CSS
+ * variable's value cannot be read into TypeScript at build time. A picker
+ * showing black for "no colour" would be worse than one number to keep in
+ * step.
+ */
+const DEFAULT_ACCENT = "#2547d0";
+
+const SCREEN_ACCENT_FIELDS = [
+  {
+    name: "offlineAccent" as const,
+    label: "Offline screen",
+    hint: "Shown when a visitor loses their connection.",
+  },
+  {
+    name: "notFoundAccent" as const,
+    label: "Not-found screen (404)",
+    hint: "Shown for an address that does not exist — on the site and in this admin.",
+  },
+  {
+    name: "errorAccent" as const,
+    label: "Error screen (500)",
+    hint: "Shown when a page on the public site fails to render. The admin's own error screen takes no colour: it may be the database that failed."
+  },
+  {
+    name: "deniedAccent" as const,
+    label: "Access denied (admin)",
+    hint: "Shown in this admin app when a sign-in is refused.",
+  },
+];
 
 const THEME_OPTIONS = [
   { value: "system", label: "Follow the visitor's system setting" },
@@ -301,17 +357,60 @@ export function SettingsForm({
           }
         />
 
-        <TextField
-          id={`${fieldId}-accent`}
+        <ColourField
           name="accentColor"
           label="Accent colour"
           value={values.accentColor}
+          // What the site falls back to with no accent set: the built-in
+          // token, so the swatch shows the real starting point rather than
+          // black.
+          fallback={DEFAULT_ACCENT}
           errors={fieldErrors.accentColor}
-          hint="Six-digit hex, e.g. #2547d0. Used for links, section labels and the focus ring."
+          hint="Used for links, section labels and the focus ring."
           onChange={(value) => update("accentColor", value)}
         />
 
         <AccentPreview value={values.accentColor} />
+      </section>
+
+      {/*
+        The system screens: offline, 404, error, and the admin's own access
+        screen. Each may take its own accent, and each falls back to the site's
+        when left empty — which is the default and the right answer for most
+        sites. They are grouped rather than sitting under "Appearance" because
+        they are four fields that only matter together, and because an owner
+        looking for them is thinking "the error page", not "the accent".
+      */}
+      <section
+        aria-labelledby={`${fieldId}-screen-accents`}
+        className="flex flex-col gap-5"
+      >
+        <h2
+          id={`${fieldId}-screen-accents`}
+          className="text-sm font-semibold uppercase tracking-wider text-fg"
+        >
+          System screens
+        </h2>
+        <p className="-mt-2 text-sm text-fg-muted">
+          The offline, not-found, error and access-denied screens follow the
+          accent above unless you give them one of their own. Leave a field
+          empty to follow the site.
+        </p>
+
+        {SCREEN_ACCENT_FIELDS.map((field) => (
+          <ColourField
+            key={field.name}
+            name={field.name}
+            label={field.label}
+            value={values[field.name]}
+            // Falls back to the site accent, which is what the screen will
+            // actually use — so the swatch is never a lie.
+            fallback={values.accentColor || DEFAULT_ACCENT}
+            errors={fieldErrors[field.name]}
+            hint={field.hint}
+            onChange={(value) => update(field.name, value)}
+          />
+        ))}
       </section>
 
       <section

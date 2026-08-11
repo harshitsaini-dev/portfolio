@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { updateSectionAction } from "@/lib/actions/sections";
+import { getSiteAccent } from "@/lib/site-accent";
 import { withAdminPage } from "@/lib/auth/protected-page";
 import { getMediaOptions } from "@/lib/media/options";
 import { getAdminRepositories } from "@/lib/db/binding";
@@ -31,9 +32,10 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
     // The section's own rotating-label alternates, read after the row is
     // known to exist — asking for the alternates of a section that is about
     // to 404 would be a wasted query.
-    const [alternates, mediaOptions] = await Promise.all([
+    const [alternates, mediaOptions, siteAccent] = await Promise.all([
       repos.sections.getAlternates(section.id),
       getMediaOptions(),
+      getSiteAccent(),
     ]);
 
     return (
@@ -56,11 +58,13 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
         </h1>
 
         <SectionForm
+        siteAccent={siteAccent}
           action={updateSectionAction}
           sectionId={section.id}
           submitLabel="Save changes"
           initialValues={{
             iconMediaId: section.iconMediaId ?? "",
+            accent: section.accent ?? "",
             key: section.key,
             title: section.title,
             titleAlternates: [...alternates.title],

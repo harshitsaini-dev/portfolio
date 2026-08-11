@@ -213,6 +213,13 @@ export interface Note extends EntityMeta {
   readonly coverMediaId: string | null;
   readonly tags: readonly string[];
   readonly position: number;
+  /**
+   * This row's own accent, or null to follow the site's.
+   *
+   * A colour is a property of the thing rather than of the site. Null is the
+   * default and stays the right answer for most rows.
+   */
+  readonly accent: string | null;
 }
 
 export interface NoteCreate {
@@ -225,6 +232,7 @@ export interface NoteCreate {
   readonly coverMediaId: string | null;
   readonly tags: readonly string[];
   readonly position: number;
+  readonly accent?: string | null;
 }
 
 export interface NoteUpdate {
@@ -237,6 +245,7 @@ export interface NoteUpdate {
   readonly coverMediaId?: string | null;
   readonly tags?: readonly string[];
   readonly position?: number;
+  readonly accent?: string | null;
 }
 
 export const PROJECT_STATUSES = ["draft", "published", "archived"] as const;
@@ -332,6 +341,15 @@ export const RENDERABLE_SECTION_KEYS = [
 
 export interface Project extends EntityMeta {
   /**
+   * This row's own accent, or null to follow the site's.
+   *
+   * A colour is a property of the thing rather than of the site: a project
+   * about a green product wants green on its own page and nowhere else. Null
+   * is the default and stays the right answer for most rows.
+   */
+  readonly accent: string | null;
+
+  /**
    * Optional icon, referencing `media_assets`. `ON DELETE SET NULL`:
    * deleting the image clears the reference and leaves the row intact.
    */
@@ -373,6 +391,7 @@ export interface ProjectCreate {
   readonly title: string;
   readonly summary: string;
   readonly description?: string | null;
+  readonly accent?: string | null;
   readonly problem?: string | null;
   readonly solution?: string | null;
   readonly learnings?: string | null;
@@ -391,6 +410,7 @@ export interface ProjectUpdate {
   readonly slug?: string;
   readonly title?: string;
   readonly summary?: string;
+  readonly accent?: string | null;
   readonly description?: string | null;
   readonly problem?: string | null;
   readonly solution?: string | null;
@@ -754,9 +774,17 @@ export interface Section extends EntityMeta {
   readonly eyebrow: string | null;
   readonly position: number;
   readonly isVisible: boolean;
+  /**
+   * This row's own accent, or null to follow the site's.
+   *
+   * A colour is a property of the thing rather than of the site. Null is the
+   * default and stays the right answer for most rows.
+   */
+  readonly accent: string | null;
 }
 
 export interface SectionCreate {
+  readonly accent?: string | null;
   readonly iconMediaId?: string | null;
   readonly key: string;
   readonly title: string;
@@ -767,6 +795,7 @@ export interface SectionCreate {
 }
 
 export interface SectionUpdate {
+  readonly accent?: string | null;
   readonly iconMediaId?: string | null;
   readonly title?: string;
   readonly subtitle?: string | null;
@@ -783,6 +812,24 @@ export const THEME_PREFERENCES = ["light", "dark", "system"] as const;
 export type ThemePreference = (typeof THEME_PREFERENCES)[number];
 
 export interface SiteSettings {
+  /**
+   * A separate accent for each system screen, or null to follow the site's.
+   *
+   * Null is the default and means "look like the rest of the site", which is
+   * right for most owners. The override exists because these are the three
+   * screens where a different colour carries meaning — an error page that
+   * reads as urgent, an offline page that reads as cooler.
+   *
+   * `denied` is the admin app's access screen. It lives here because it is
+   * the same kind of decision, and a second settings surface for one value
+   * would be worse than one column that one app happens to read.
+   */
+  readonly screenAccents: {
+    readonly offline: string | null;
+    readonly notFound: string | null;
+    readonly error: string | null;
+    readonly denied: string | null;
+  };
   /**
    * The console easter egg's two lines, and whether it prints at all.
    *
@@ -824,6 +871,10 @@ export interface SiteSettings {
 }
 
 export interface SiteSettingsInput {
+  readonly offlineAccent?: string | null;
+  readonly notFoundAccent?: string | null;
+  readonly errorAccent?: string | null;
+  readonly deniedAccent?: string | null;
   readonly consoleHeadline?: string | null;
   readonly consoleBody?: string | null;
   readonly isConsoleEnabled?: boolean;

@@ -6,6 +6,8 @@ import type { ContentImage as ContentImageModel } from "@/data/types";
 import { ScrambleText } from "@/components/ui/scramble-text";
 import { RotatingTypewriter } from "@/components/ui/rotating-typewriter";
 import { Typewriter } from "@/components/ui/typewriter";
+import { accentCustomProperties } from "@portfolio/ui";
+
 import { type } from "@/components/ui/typography";
 
 interface SectionProps {
@@ -41,6 +43,14 @@ interface SectionProps {
   title: string;
   /** Optional lead paragraph under the section heading. */
   lead?: string;
+  /**
+   * This section's own accent, from the CMS, or null to follow the site's.
+   *
+   * Applied as a custom property on the `<section>` itself, so it colours this
+   * section's heading, links and highlights and nothing outside it — the same
+   * mechanism the offline and error screens use, at a smaller scope.
+   */
+  accent?: string | null;
   children: ReactNode;
 }
 
@@ -61,6 +71,7 @@ export function Section({
   lead,
   marker,
   icon,
+  accent,
   children,
 }: SectionProps) {
   const headingId = `${id}-heading`;
@@ -69,6 +80,13 @@ export function Section({
     <section
       id={id}
       aria-labelledby={headingId}
+      /*
+        Scoped to this element. `accentCustomProperties` derives the readable
+        foreground and the soft tint from the hue, so a section accent cannot
+        leave text unreadable on a button the way a bare `--accent` override
+        would.
+      */
+      style={accent ? accentCustomProperties(accent) : undefined}
       /*
         No top border. The 3D layer is fixed behind the page, so a hairline
         rule drew a line straight across the figure — reported as exactly

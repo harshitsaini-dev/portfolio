@@ -6,6 +6,91 @@ something passed without running it.
 
 ## Current phase
 
+**Phase 31 — four system screens, and colour in the owner's hands.**
+
+### The screens
+
+Offline, not found, something broke, access denied. **Four, not six**: the
+admin does not have its own 404 and error screen, it shows these — same
+figure, same log, same game, with the way out pointing at the dashboard
+instead of the portfolio.
+
+Each has a backdrop of four layers (a matrix-rain canvas, a drifting grid, an
+accent bloom, and a scrim that keeps text off the moving glyphs), a mascot
+about its own failure, a fake terminal log, and a game:
+
+| Screen | Mascot | Game |
+| --- | --- | --- |
+| Offline | two cable ends, apart | Signal — rotate tiles to rejoin the line |
+| Not found | a compass that will not settle | Maze |
+| Something broke | a gear with a tooth missing | Whack-a-bug |
+| Access denied | a padlock, watching | Code cracker |
+
+The shell, the mascots, the rain and all four games live in `packages/ui` and
+are used by both apps. They are pinned to the project's dark palette rather
+than following the theme: the site is dark and the admin is light, and on
+light the whole design fell apart — pale glyphs on white are invisible.
+
+`/preview-screens` links to all four and ships to production, because that is
+where they are worth checking. `/preview-screens/boom` throws on purpose, so
+each visit writes one real entry to the Worker log.
+
+### Colour, from the CMS (migrations 0015 and 0016)
+
+- **0015** — one accent per system screen, in Settings → System screens.
+- **0016** — one per section, per note and per project, on each row's own form.
+
+Every one is nullable and falls back to the site accent, so a database nobody
+touches looks exactly as it did. Each is scoped as a custom property on its own
+element, so a section's colour ends at that section.
+
+Every accent field is now a **colour picker** rather than a hex box, and every
+one of them warns when a colour misses 3:1 against either background — the
+site accent had warned since it was added; the seven new fields did not.
+
+### What the checks caught
+
+- **A hydration mismatch**: the games are built with `Math.random()`, so a
+  server render and a client render disagreed. All four are `ssr: false` now.
+- **`ssr: false` is not allowed in a Server Component** — the admin's 404 is
+  one, because it reads its accent. The dynamic imports moved into a client
+  wrapper, and the *build* said so rather than the page failing at runtime.
+- **`/offline` bounced to a blank page**: it probed the network, succeeded, and
+  called `history.back()`. Recovery only means something after a failure, so it
+  now waits until it has watched one request fail.
+- **An accessibility failure at 2.72:1** on fourteen tab stops. It was an
+  accent this session had written into the local database, not the code — but
+  it is exactly the failure the new pickers can now cause, which is why they
+  warn.
+- **A 500 while editing CSS**: cutting the arrow-spark animation left an
+  unbalanced brace in `globals.css`. Caught immediately, repaired, and the
+  brace count is now checked after every edit to that file.
+
+### Verification actually performed
+
+`pnpm lint` clean, `pnpm -r typecheck` clean, `pnpm test` green (the projects
+create-defaults assertion moved 18 → 19 for the accent), `pnpm build` both
+apps, Playwright **43 passed, 3 skipped**.
+
+In a browser: all four screens at desktop and phone widths; per-screen accents
+verified by setting the 404 to orange while the site stayed green; the section
+accent verified the same way (Projects pink, every other section green); the
+picker's "following the site" state; and the contrast warning showing the same
+2.72:1 the end-to-end test had failed on.
+
+**Not yet verified: the service worker.** It only registers in a production
+build, and `next start` cannot serve this app — the D1 binding exists only
+under Workers, and the production guard fails closed rather than inventing one.
+It has to be checked on the deployed site, with DevTools set to Offline.
+
+### Owner actions before the next deploy
+
+Apply migrations **0014, 0015 and 0016** to remote D1 first, from the repo
+root: `npx wrangler d1 migrations apply portfolio-cms --remote -c
+wrangler.d1.jsonc`. Every settings and section read now selects the new
+columns; deploying first would 500 the site.
+
+
 **Phase 30 — the console easter egg becomes CMS content, and one dependency
 warning is silenced.**
 

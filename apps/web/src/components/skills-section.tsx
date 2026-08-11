@@ -29,6 +29,7 @@ export function SkillsSection({
       title={copy.title}
       marker={copy.marker}
       icon={copy.icon}
+      accent={copy.accent}
     >
       {skillCategories.length === 0 ? (
         <p className={type.bodySm}>No skills have been published yet.</p>

@@ -55,6 +55,8 @@
 
 import { z } from "zod";
 
+import { accentColorSchema } from "./settings.ts";
+
 import { slugSchema } from "./internal/slug.ts";
 
 import {
@@ -104,6 +106,14 @@ export const sectionCreateSchema = z
     subtitle: nullableText(300).default(null),
     // Small label rendered above the title, e.g. "What I do".
     eyebrow: nullableText(80).default(null),
+    /*
+      This row's own accent, or null to follow the site's.
+
+      Reuses `accentColorSchema` rather than declaring a looser rule: the
+      argument that the admin controls a theme configuration and never
+      arbitrary CSS applies here exactly as it does to the site accent.
+    */
+    accent: accentColorSchema.default(null),
     position: positionValue.default(0),
     isVisible: z.boolean().default(true),
   })
@@ -127,6 +137,7 @@ export const sectionUpdateSchema = z
     title: requiredText(120).optional(),
     subtitle: nullableText(300).optional(),
     eyebrow: nullableText(80).optional(),
+    accent: accentColorSchema.optional(),
     position: positionValue.optional(),
     isVisible: z.boolean().optional(),
   })

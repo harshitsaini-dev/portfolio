@@ -12,6 +12,8 @@ import { cachedRead } from "@/lib/content/cache";
 import { getSiteRepositories } from "@/lib/db/binding";
 
 export interface NoteSummary {
+  /** This note's own accent, or null to follow the site's. */
+  readonly accent: string | null;
   readonly slug: string;
   readonly title: string;
   readonly summary: string;
@@ -31,6 +33,7 @@ function toSummary(note: Note): NoteSummary {
     // row's own creation time is the honest fallback.
     date: (note.publishedAt ?? note.createdAt).slice(0, 10),
     coverMediaId: note.coverMediaId,
+    accent: note.accent,
   };
 }
 

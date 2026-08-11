@@ -36,6 +36,7 @@ export function TerminalSection({
       title={copy.title}
       marker={copy.marker}
       icon={copy.icon}
+      accent={copy.accent}
     >
       <CommandTerminal
         data={data}

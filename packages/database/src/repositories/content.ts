@@ -371,7 +371,7 @@ export function createSectionRepository(
 ): SectionRepository {
   const entity = "section";
   const columns =
-    "id, key, title, subtitle, eyebrow, position, is_visible, icon_media_id, created_at, updated_at";
+    "id, key, title, subtitle, eyebrow, position, is_visible, icon_media_id, accent, created_at, updated_at";
 
   const decode = (row: Row): Section => ({
     id: requireString(entity, row, "id"),
@@ -382,6 +382,7 @@ export function createSectionRepository(
     position: requireNumber(entity, row, "position"),
     isVisible: requireBoolean(entity, row, "is_visible"),
     iconMediaId: nullableString(entity, row, "icon_media_id"),
+    accent: nullableString(entity, row, "accent"),
     createdAt: requireString(entity, row, "created_at"),
     updatedAt: requireString(entity, row, "updated_at"),
   });
@@ -399,6 +400,7 @@ export function createSectionRepository(
       "eyebrow",
       "position",
       "is_visible",
+      "accent",
     ],
     insertValues: (input: SectionCreate) => [
       input.iconMediaId ?? null,
@@ -408,6 +410,7 @@ export function createSectionRepository(
       input.eyebrow ?? null,
       input.position ?? 0,
       boolToInt(input.isVisible ?? true),
+      input.accent ?? null,
     ],
     // `key` is deliberately absent: it is the stable identifier the UI maps
     // to a component, so renaming it silently would break rendering.
@@ -424,6 +427,7 @@ export function createSectionRepository(
         column: "is_visible",
         encode: (p) => boolToInt(p.isVisible ?? true),
       },
+      accent: { column: "accent", encode: (p) => p.accent ?? null },
     },
   });
 
