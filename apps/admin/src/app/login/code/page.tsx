@@ -16,7 +16,9 @@ export default function LoginCodePage() {
   return (
     <AuthShell
       title="Check your email"
-      description="A six-digit code is on its way. It expires in ten minutes and works once."
+      // Kept, unlike the decoration elsewhere: the expiry and the single use
+      // are things somebody needs to know before they go and fetch the code.
+      description="It expires in ten minutes and works once."
       footer={<BackToSignIn />}
     >
       <AuthForm
