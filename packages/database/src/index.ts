@@ -69,6 +69,7 @@ export type {
   SiteSettingsRepository,
 } from "./repositories/settings.ts";
 export type { ContactMessageRepository } from "./repositories/contact-messages.ts";
+export type { AdminAuthRepository } from "./repositories/admin-auth.ts";
 export type {
   AnalyticsRepository,
   AnalyticsSummary,
