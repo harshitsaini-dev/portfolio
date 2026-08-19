@@ -64,6 +64,29 @@ console.log("\nPasswords");
   check("a salt is generated", hashed.salt.length > 0);
   check("the iteration count is stored", hashed.iterations === crypto.PASSWORD_ITERATIONS);
 
+  /*
+    The Workers runtime refuses PBKDF2 above 100,000 iterations outright:
+
+        NotSupportedError: Pbkdf2 failed: iteration counts above 100000
+        are not supported (requested 600000).
+
+    Node has no such cap, so this cannot be caught by *doing* it here — the
+    derivation above succeeds locally at any count. It is asserted as a number
+    instead, because the alternative is what actually happened: the limit was
+    discovered from a 500 in production, on the two forms nobody can work
+    around, after the code had passed every local check.
+
+    If this ever needs raising, the runtime has to allow it first.
+  */
+  check(
+    "the iteration count is within what workerd will run",
+    crypto.PASSWORD_ITERATIONS <= crypto.MAX_SUPPORTED_ITERATIONS,
+  );
+  check(
+    "and the ceiling is the one workerd actually enforces",
+    crypto.MAX_SUPPORTED_ITERATIONS === 100_000,
+  );
+
   const again = await crypto.hashPassword("correct horse battery staple");
   check(
     "the same password hashes differently each time (the salt is not fixed)",
