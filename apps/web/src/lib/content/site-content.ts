@@ -501,11 +501,59 @@ async function readSiteContent(): Promise<SiteContent> {
       body: profileRow?.availability
         ? profileRow.availability
         : "Open to conversations about new work.",
-      primaryAction: toLink(
-        profileRow?.publicEmail ? `mailto:${profileRow.publicEmail}` : null,
-        "Email",
-        "No public email address yet",
-      ),
+      // Set and switched off is not the same as never set — see the field's
+      // comment on `ContactCallToAction`.
+      primaryAction:
+        profileRow?.publicEmail && !profileRow.isPublicEmailVisible
+          ? null
+          : toLink(
+              profileRow?.publicEmail ? `mailto:${profileRow.publicEmail}` : null,
+              "Email",
+              "No public email address yet",
+            ),
+      /*
+        Both routes answer to a switch as well as to a value.
+
+        The owner asked to be able to turn either off without losing what it
+        was set to, so "hidden" and "not set" are different states here and
+        the hidden one has to be honoured in the view model rather than in the
+        component — otherwise the address would still be in the HTML for
+        anyone reading the source.
+      */
+      email:
+        profileRow?.publicEmail && profileRow.isPublicEmailVisible
+          ? profileRow.publicEmail
+          : null,
+      phone:
+        profileRow?.publicPhone && profileRow.isWhatsappVisible
+          ? profileRow.publicPhone
+          : null,
+      /*
+        Null rather than an "unavailable" placeholder.
+
+        Everywhere else on this page an absent link renders as an inert
+        button explaining itself, which is right for a thing the visitor was
+        promised. A phone number was never promised: a portfolio that does
+        not publish one should show no phone control at all, not a dead
+        button apologising for a number that does not exist.
+      */
+      whatsappAction:
+        profileRow?.publicPhone && profileRow.isWhatsappVisible
+          ? toLink(
+              /*
+                Digits only, and no `+`.
+
+                `wa.me` wants the number in full international form with the
+                country code and nothing else — no plus, no spaces, no
+                brackets. The separators the owner typed are for reading, and
+                the page still prints them; only the link is reduced to
+                something the service will accept.
+              */
+              `https://wa.me/${profileRow.publicPhone.replace(/\D/g, "")}`,
+              "WhatsApp",
+              "No WhatsApp number yet",
+            )
+          : null,
       // Kept in the model because the view type still has the field, but the
       // contact section no longer renders it: the form below it *is* the way
       // to send a message now, and an inert button saying the same thing

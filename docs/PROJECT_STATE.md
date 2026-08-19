@@ -8127,3 +8127,75 @@ Two traps worth keeping:
 
 Note: the e2e suite resets the local database, which removed the seeded mock
 tools. They were re-inserted from the scratchpad SQL to finish verifying.
+
+
+## Contact: a second route, a switch for each, and an email worth reading
+
+Four things reported in one sitting, all about the same corner of the site.
+
+### The notification email looked like a system log
+
+`notify.ts` sent `text` only. It now sends `html` and `text` both. The HTML is
+table-based with inline styles and no remote asset of any kind — see
+`docs/DECISIONS.md` for why that is deliberate rather than dated.
+
+Escaping was verified against input written to break out of it: a `<script>`
+element in the name, an `onmouseover` attribute in the address, an `<img
+onerror>` in the subject.
+
+| Check | Result |
+| --- | --- |
+| Any tag or attribute surviving as markup | none |
+| The same text still readable, escaped | `&lt;script&gt;`, `&lt;img`, `&quot;`, `&amp;` all present |
+| Line breaks in the body | preserved as `<br>` |
+
+### The email button did nothing in desktop Chrome
+
+`mailto:` has nowhere to go when no mail client is registered. Both values are
+now printed as selectable text beneath the buttons, so the page works whatever
+the machine is set up to do.
+
+### There was no second way to make contact
+
+Migration **0017** adds `public_phone`, `is_public_email_visible` and
+`is_whatsapp_visible` to `profile`. WhatsApp rather than `tel:`, which fails on
+a desktop for the same reason `mailto:` does.
+
+| Where | Before | Now |
+| --- | --- | --- |
+| Hero | Email, CV | Email, **WhatsApp**, CV |
+| Contact | Email | Email, **WhatsApp**, both values as text |
+| Admin → Profile | Public email | + WhatsApp number, + two visibility switches |
+
+### Measured
+
+| Check | Result |
+| --- | --- |
+| WhatsApp link | `https://wa.me/917017856493` — digits only, as `wa.me` requires |
+| Email link | `mailto:` unchanged |
+| WhatsApp switched off | no link, and the number absent from the HTML source |
+| Email switched off | no button at all, not an inert one |
+| Email never set | the inert placeholder, as before |
+| Horizontal overflow | none |
+
+### Checks
+
+| Check | Result |
+| --- | --- |
+| `pnpm lint` | PASS — 0 errors, 0 warnings |
+| `pnpm typecheck` | PASS |
+| `pnpm test` | PASS — 146, 161, 173, 243, 181, 83, 715, 26 all green |
+| `pnpm build` | PASS — exit 0 |
+| `pnpm test:e2e` | PASS — 43 passed, 3 skipped |
+
+### Manual actions
+
+1. **Apply migration 0017 to the remote database before deploying.** From the
+   repository root:
+   `npx wrangler d1 execute portfolio-cms --remote -c wrangler.d1.jsonc --file migrations/0017_public_phone.sql`
+   Deploying first would 500 the whole site — see the note on migration order.
+2. Set the WhatsApp number in Admin → Profile. The local database carries the
+   owner's real number for testing; nothing was written remotely.
+3. The address also appears in the Socials list and in the console easter-egg
+   text. Those are separate CMS entries and the profile switch does not govern
+   them — edit or remove them there if the address should disappear entirely.

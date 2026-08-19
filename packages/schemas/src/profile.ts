@@ -56,6 +56,21 @@ const optionalEmail = z
   );
 
 /**
+ * Optional phone number.
+ *
+ * Deliberately not validated against a pattern. Phone numbers differ by
+ * country in length, in grouping, in whether a leading zero is dropped after
+ * a `+` prefix — and the field belongs to one person who knows their own
+ * number. A regex here would reject a correct number somewhere in the world
+ * and teach nobody anything; the only real constraint is that it fits in a
+ * button and in a `tel:` URL.
+ *
+ * Stored as typed. The display form and the dialable form are the same
+ * string, and `tel:` tolerates spaces, brackets and dashes.
+ */
+const optionalPhone = optionalText(40);
+
+/**
  * Fields a caller may set when saving the profile.
  *
  * `id`, `createdAt`, and `updatedAt` are **absent by design**, and
@@ -102,6 +117,19 @@ export const profileSaveSchema = z
     location: optionalText(120),
     availability: optionalText(120),
     publicEmail: optionalEmail,
+    publicPhone: optionalPhone,
+    /*
+      Separate from "is there a value".
+
+      Clearing a number to hide it and typing it back in later is a
+      workaround, not an edit — the switch is what the owner asked for, so
+      that turning a route off does not cost them what it was set to.
+
+      Defaulting to true keeps every profile saved before these columns
+      existed behaving exactly as it did.
+    */
+    isPublicEmailVisible: z.boolean().default(true),
+    isWhatsappVisible: z.boolean().default(true),
   })
   .strict();
 

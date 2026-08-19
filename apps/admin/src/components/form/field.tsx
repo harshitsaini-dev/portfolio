@@ -93,7 +93,19 @@ export function TextField(props: {
   hint?: string;
   errors?: string[];
   required?: boolean;
-  type?: "text" | "url" | "date" | "number";
+  /**
+   * The input type.
+   *
+   * A closed union rather than the full HTML set: these are the ones the CMS
+   * actually needs, and leaving it open invites `type="email"` or
+   * `type="password"`, whose browser-side behaviour would quietly become a
+   * second validation layer competing with the Zod schema on the server.
+   *
+   * `tel` earns its place by asking a phone for the dialling keypad. It
+   * deliberately performs no validation of its own — no browser does for this
+   * type — which is exactly why it is safe to add.
+   */
+  type?: "text" | "url" | "date" | "number" | "tel";
   placeholder?: string;
   min?: number;
 }) {

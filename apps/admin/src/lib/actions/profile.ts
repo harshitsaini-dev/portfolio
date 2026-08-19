@@ -112,6 +112,9 @@ export async function saveProfileAction(
       location: input.location,
       availability: input.availability,
       publicEmail: input.publicEmail,
+      publicPhone: input.publicPhone,
+      isPublicEmailVisible: input.isPublicEmailVisible,
+      isWhatsappVisible: input.isWhatsappVisible,
       avatarMediaId: input.avatarMediaId,
       xrayMediaId: input.xrayMediaId,
     });

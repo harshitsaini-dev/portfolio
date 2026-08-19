@@ -54,6 +54,11 @@ export interface Profile extends EntityMeta {
   readonly location: string | null;
   readonly availability: string | null;
   readonly publicEmail: string | null;
+  readonly publicPhone: string | null;
+  /** Whether the address is shown publicly, independently of whether it is set. */
+  readonly isPublicEmailVisible: boolean;
+  /** The same, for the WhatsApp number. */
+  readonly isWhatsappVisible: boolean;
 }
 
 export interface ProfileInput {
@@ -66,6 +71,9 @@ export interface ProfileInput {
   readonly location?: string | null;
   readonly availability?: string | null;
   readonly publicEmail?: string | null;
+  readonly publicPhone?: string | null;
+  readonly isPublicEmailVisible?: boolean;
+  readonly isWhatsappVisible?: boolean;
 }
 
 // ---------------------------------------------------------------------------

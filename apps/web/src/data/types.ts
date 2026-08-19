@@ -196,8 +196,39 @@ export interface ResumeLink {
 export interface ContactCallToAction {
   readonly heading: string;
   readonly body: string;
-  readonly primaryAction: PlaceholderLink;
+  /**
+   * The email route, or null when the owner has switched it off.
+   *
+   * Three states, not two. An address that has never been set renders as this
+   * project's usual honest placeholder — an inert button saying so — because
+   * the visitor was, in effect, promised one. An address that is set and
+   * deliberately hidden renders as nothing at all: a button apologising for
+   * the absence of something the owner chose to withdraw is both a lie and a
+   * leak of the fact that it exists.
+   */
+  readonly primaryAction: PlaceholderLink | null;
   readonly secondaryAction: PlaceholderLink;
+  /**
+   * The address itself, not only the `mailto:` behind the button.
+   *
+   * The button was the whole offering, and on a desktop browser with no mail
+   * client registered pressing it does nothing at all — no error, no new
+   * window. Reported exactly that way. Printing the address means the visitor
+   * can read it, select it and copy it whatever their machine is set up to
+   * do, and the button becomes a shortcut rather than the only door.
+   */
+  readonly email: string | null;
+  /** The number behind the WhatsApp button, printed for the same reason. */
+  readonly phone: string | null;
+  /**
+   * The WhatsApp link, or null when there is no number or it is switched off.
+   *
+   * WhatsApp rather than `tel:` because `tel:` has the same problem the email
+   * button had — a desktop browser with nothing registered does nothing at
+   * all — and because it is the app most people actually answer. `wa.me`
+   * opens the web client on a desktop and the app on a phone.
+   */
+  readonly whatsappAction: PlaceholderLink | null;
 }
 
 export interface NavigationItem {

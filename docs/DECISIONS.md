@@ -1924,3 +1924,39 @@ presenting an upload control that cannot work.
   decides it. The `display: none` half is wrapped in
   `@supports selector(:popover-open)` so a browser that cannot show the popover
   does not hide the cursor forever.
+- **The contact notification is sent as HTML and text, not text alone.** An
+  earlier version of `notify.ts` argued for plain text only, on the grounds
+  that rendering a stranger's words as HTML means escaping them correctly
+  forever. The reasoning was sound and the conclusion was wrong: the escaping
+  is four replacements in one function, and the result looked like a system
+  log. Both parts are sent now. The HTML is written like it is 2005 — tables,
+  inline styles, no stylesheet, no web font, no image — because mail clients
+  strip `<style>`, ignore flexbox, block remote images by default, and Outlook
+  renders through Word. No remote asset at all: an image would be blocked until
+  the reader allowed it, and allowing it would tell the sender the mail had
+  been opened.
+- **The contact section prints the address and the number, not only the
+  buttons.** `mailto:` opens a mail app on a phone and does nothing whatsoever
+  in a desktop browser with no mail client registered — no error, no window.
+  That is not fixable in the link; the browser has nowhere to send it. What is
+  fixable is being left with only that link, so both values are printed as
+  selectable text and the buttons became a shortcut rather than the only door.
+- **WhatsApp rather than `tel:`.** A dial link has exactly the same failure as
+  `mailto:` on a desktop, and WhatsApp is the channel most people actually
+  answer. `https://wa.me/<digits>` opens the web client on a desktop and the
+  app on a phone. The number is stored as the owner types it — reformatting
+  somebody's own number is the kind of helpfulness that gets an international
+  prefix wrong — and reduced to digits only at the point of use, because
+  `wa.me` accepts nothing else.
+- **Visibility is a switch, not an empty field.** Clearing an address to hide
+  it and typing it back in later is a workaround, not an edit, so
+  `is_public_email_visible` and `is_whatsapp_visible` sit beside the values
+  they govern on `profile`. Hidden is honoured in the view model rather than in
+  the component, or the value would still be in the HTML for anyone reading the
+  source.
+- **Hidden and never-set render differently.** An address that was never set
+  keeps this project's honest placeholder — an inert button saying so — because
+  the visitor was in effect promised one. An address that is set and
+  deliberately switched off renders as nothing at all: a button apologising for
+  something the owner chose to withdraw is both a lie and a leak of the fact
+  that it exists.

@@ -106,19 +106,35 @@ export function Hero({
               <p className={`mt-6 ${type.meta}`}>{profile.location}</p>
             ) : null}
 
-            {/* The two things a visitor is most likely to want. Both are
-                wrapped rather than replaced: the magnet is a transform on a
-                span around each control, so the anchor keeps its own hit area,
+            {/* The things a visitor is most likely to want. Each is wrapped
+                rather than replaced: the magnet is a transform on a span
+                around the control, so the anchor keeps its own hit area,
                 focus ring and behaviour, and the effect disappears entirely on
                 touch and under reduced motion. */}
             <div className="rise rise-5 mt-10 flex flex-wrap items-start gap-3">
-              <Magnetic>
-                <PlaceholderAction
-                  action={contact.primaryAction}
-                  variant="primary"
-                  context="hero"
-                />
-              </Magnetic>
+              {contact.primaryAction ? (
+                <Magnetic>
+                  <PlaceholderAction
+                    action={contact.primaryAction}
+                    variant="primary"
+                    context="hero"
+                  />
+                </Magnetic>
+              ) : null}
+              {/* WhatsApp belongs up here too, not only at the bottom of the
+                  page. Somebody who has decided to make contact has decided
+                  it by the time they have read the headline, and asking them
+                  to scroll past everything first is asking them to change
+                  their mind. Secondary, because the email is still the route
+                  that reaches a written record. */}
+              {contact.whatsappAction ? (
+                <Magnetic>
+                  <PlaceholderAction
+                    action={contact.whatsappAction}
+                    context="hero-whatsapp"
+                  />
+                </Magnetic>
+              ) : null}
               {resume ? (
                 <Magnetic>
                 <a
