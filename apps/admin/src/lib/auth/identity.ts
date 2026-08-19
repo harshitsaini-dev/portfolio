@@ -14,7 +14,15 @@
 
 /** How the current identity was established. */
 export type AdminAuthSource =
-  /** Verified Cloudflare Access application JWT. The only production path. */
+  /**
+   * A session issued by this app's own login.
+   *
+   * The path everything is moving to. Cloudflare Access stays below it while
+   * the transition is under way — see `resolveAdminIdentity` for the order and
+   * why a session outranks it.
+   */
+  | "admin-session"
+  /** Verified Cloudflare Access application JWT. */
   | "cloudflare-access"
   /** Local development identity. Never reachable in a production build. */
   | "development";
@@ -30,9 +38,18 @@ export interface AdminIdentity {
   readonly source: AdminAuthSource;
 }
 
-/** True when this identity came from a real verified Access token. */
+/**
+ * True when this identity was really proved, rather than assumed locally.
+ *
+ * Both real sources count. The question this answers is "may this identity be
+ * trusted in production", and the only answer that has ever been "no" is the
+ * development one.
+ */
 export function isProductionIdentity(identity: AdminIdentity): boolean {
-  return identity.source === "cloudflare-access";
+  return (
+    identity.source === "cloudflare-access" ||
+    identity.source === "admin-session"
+  );
 }
 
 /**

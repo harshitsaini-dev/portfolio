@@ -38,7 +38,7 @@ import {
   getThemeChoice,
   subscribeToThemeChoice,
   type ThemeChoice,
-} from "@portfolio/ui/theme";
+} from "../theme.ts";
 
 /** The cycle order, and what the button moves to next. */
 const ORDER: readonly ThemeChoice[] = ["system", "light", "dark"];
@@ -57,7 +57,7 @@ export function ThemeToggle() {
     component owns, and saying so avoids the `useState` plus mount-effect
     pattern that renders once with a placeholder and again with the truth.
     It also means a change made in one tab reaches the others — see
-    `@portfolio/ui/theme`.
+    `../theme.ts`.
   */
   const choice = useSyncExternalStore(
     subscribeToThemeChoice,

@@ -96,9 +96,26 @@ export type RateLimitOutcome =
 /**
  * Counts one attempt against a bucket and says whether it may proceed.
  *
- * Called **before** the work it protects, and it counts on every call
- * including the ones it refuses. A limiter that stops counting once it starts
- * refusing lets an attacker hammer through the block the moment it lifts.
+ * Called **before** the work it protects, so an attempt is paid for whether or
+ * not it turns out to be correct.
+ *
+ * ## Once a bucket is blocked, further attempts are refused without counting
+ *
+ * The first instinct is the opposite — keep counting, and push the block
+ * further out with every attempt, so hammering is punished. That was written
+ * down here as the intent before the test caught the code doing something
+ * else, and the code turned out to be right.
+ *
+ * A block that extends on every attempt is a way to lock the owner out of
+ * their own CMS *using somebody else's traffic*. An attacker who cannot guess
+ * the password can still hold the door shut indefinitely by knocking on it,
+ * and there is no way for the owner to make them stop. A block that expires at
+ * a fixed time cannot be extended by an attacker at all: they get five
+ * attempts a quarter hour whatever they do, and so does everybody else.
+ *
+ * The cost of the fixed block is that a patient attacker gets five attempts
+ * every fifteen minutes forever. Against a twelve-character passphrase that is
+ * not a threat worth trading availability for.
  *
  * Not atomic. D1 has no compare-and-swap and this is a read followed by a
  * write, so two requests arriving in the same millisecond can both read the

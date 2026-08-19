@@ -18,6 +18,7 @@ import {
   readAccessConfig,
 } from "./config.ts";
 import type { AdminIdentity } from "./identity.ts";
+import { readSessionIdentity } from "./current-session.ts";
 import {
   ACCESS_JWT_HEADER,
   verifyAccessToken,
@@ -62,6 +63,23 @@ export async function resolveAdminIdentity(
   env: NodeJS.ProcessEnv = process.env,
   readToken: AccessTokenReader = requestTokenReader,
 ): Promise<AdminAuthOutcome> {
+  /*
+    This app's own session comes first.
+
+    Order matters here as much as it did when Access was the only path, and
+    for the mirrored reason. Access is being retired: while both are in front
+    of the app, a valid session must be enough on its own, or the owner could
+    never verify that the new login works without first removing the old one —
+    which is exactly the sequence that ends with nobody able to get in.
+
+    A session is only ever *accepted* here, never demanded. Its absence falls
+    through to Access, which is what keeps `/setup` reachable: the owner
+    creates their password behind the protection that is still standing, and
+    only then takes it down.
+  */
+  const session = await readSessionIdentity();
+  if (session) return { ok: true, identity: session };
+
   const accessConfigured = readAccessConfig(env).ok;
 
   if (accessConfigured) {
@@ -148,8 +166,31 @@ export async function requireAdminIdentity(
   return outcome.identity;
 }
 
-/** Where unauthenticated requests are sent. */
+/**
+ * Where a request goes when Cloudflare Access refused it.
+ *
+ * Access's own failure, so the page explains Access rather than offering a
+ * form this app could not honour.
+ */
 export const DENIED_PATH = "/denied";
+
+/** Where a request goes when there is simply nobody signed in. */
+export const LOGIN_PATH = "/login";
+
+/**
+ * Picks between the two.
+ *
+ * The distinction is not cosmetic. While Access is still in front of this app,
+ * a token failure means *their* login is the thing to fix and sending somebody
+ * to a CMS password form would be a dead end. Once Access is removed,
+ * `not_configured` becomes the ordinary signed-out case and the answer is our
+ * own login page.
+ */
+export function deniedRedirectPath(reason: AccessFailureReason): string {
+  return reason === "not_configured" || reason === "no_session"
+    ? LOGIN_PATH
+    : DENIED_PATH;
+}
 
 /**
  * Require an admin identity in a page or layout, redirecting if absent.
@@ -181,7 +222,7 @@ export async function requireAdminIdentityOrRedirect(
     // this module loadable outside a Next request, so the fail-closed
     // branches stay testable.
     const { redirect } = await import("next/navigation");
-    redirect(DENIED_PATH);
+    redirect(deniedRedirectPath(outcome.reason));
     // Unreachable: `redirect()` throws. TypeScript cannot see its `never`
     // return through a dynamic import, so the intent is stated explicitly
     // rather than papered over with a cast — and if `redirect` ever stopped
