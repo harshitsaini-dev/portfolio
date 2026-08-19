@@ -61,14 +61,30 @@ export default withAdminPage<{ params: Promise<{ id: string }> }>(
             </dt>
             <dd className="mt-1 text-fg">
               {message.senderName}{" "}
-              {/* A mailto is the fastest way to answer, and the address is
-                  already visible beside it. */}
-              <a
-                href={`mailto:${message.senderEmail}`}
-                className="text-accent underline underline-offset-2 transition-colors duration-150 hover:text-fg"
-              >
-                {message.senderEmail}
-              </a>
+              {/* Whichever routes they left, and both when they left both.
+                  The form requires one of the two, so at least one link is
+                  always here — the old markup assumed an address and would
+                  have rendered `mailto:` pointing at nothing. */}
+              {message.senderEmail ? (
+                <a
+                  href={`mailto:${message.senderEmail}`}
+                  className="text-accent underline underline-offset-2 transition-colors duration-150 hover:text-fg"
+                >
+                  {message.senderEmail}
+                </a>
+              ) : null}
+              {message.senderEmail && message.senderPhone ? " · " : null}
+              {message.senderPhone ? (
+                <a
+                  href={`https://wa.me/${`${message.senderPhoneCountry ?? ""}${message.senderPhone}`.replace(/\D/g, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent underline underline-offset-2 transition-colors duration-150 hover:text-fg"
+                >
+                  {`${message.senderPhoneCountry ?? ""} ${message.senderPhone}`.trim()}
+                  <span className="sr-only"> (opens WhatsApp in a new tab)</span>
+                </a>
+              ) : null}
             </dd>
           </div>
           <div>

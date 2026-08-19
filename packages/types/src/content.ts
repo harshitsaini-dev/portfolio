@@ -940,7 +940,17 @@ export type ContactMessageStatus = (typeof CONTACT_MESSAGE_STATUSES)[number];
 export interface ContactMessage {
   readonly id: string;
   readonly senderName: string;
-  readonly senderEmail: string;
+  /**
+   * Null when the sender left it blank.
+   *
+   * Either this or `senderPhone` is present — the form requires one and
+   * accepts both. Stored as the empty string in a NOT NULL column and mapped
+   * back to null here; see migration 0019 for why the column was not altered.
+   */
+  readonly senderEmail: string | null;
+  readonly senderPhone: string | null;
+  /** The dialling prefix, e.g. `+91`, kept apart from the number. */
+  readonly senderPhoneCountry: string | null;
   readonly subject: string | null;
   readonly body: string;
   readonly status: ContactMessageStatus;
@@ -952,7 +962,9 @@ export interface ContactMessage {
 
 export interface ContactMessageCreate {
   readonly senderName: string;
-  readonly senderEmail: string;
+  readonly senderEmail?: string | null;
+  readonly senderPhone?: string | null;
+  readonly senderPhoneCountry?: string | null;
   readonly subject?: string | null;
   readonly body: string;
   readonly sourceCountry?: string | null;

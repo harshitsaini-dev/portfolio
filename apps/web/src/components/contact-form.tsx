@@ -15,6 +15,26 @@
  * takes focus after a submission, so a screen-reader user hears the outcome
  * instead of being left at the send button wondering.
  *
+ * ## Validation is the page's, not the browser's
+ *
+ * `noValidate` on the form, and the checks re-implemented below. That looks
+ * like giving up something for nothing, so it is worth writing down why:
+ * the browser's own bubble is an operating-system tooltip. It cannot be
+ * styled, it renders in the OS light theme on top of a dark page, it says
+ * "Please fill out this field" in the browser's language rather than the
+ * page's, it points at one field at a time, and it vanishes on the next
+ * keystroke — so a screen reader announces it once, if at all.
+ *
+ * The replacement keeps everything the native behaviour was doing: nothing is
+ * submitted while it is invalid, the first bad field takes focus, and each
+ * message is tied to its input with `aria-describedby` and `aria-invalid`.
+ * It adds what the native version cannot do — messages that stay put, in the
+ * page's own colours, and a cross-field rule the browser has no concept of.
+ *
+ * The server validates all of it again regardless. Client-side checking is a
+ * courtesy to someone filling in a form, never a control: `noValidate` is one
+ * line for an attacker too.
+ *
  * ## The honeypot is hidden from people, not from bots
  *
  * `aria-hidden` plus `tabIndex={-1}` plus off-screen positioning: a sighted
@@ -26,7 +46,7 @@
  * put a real value into a field named `website` and reject an honest visitor.
  */
 
-import { useActionState, useEffect, useId, useRef } from "react";
+import { useActionState, useEffect, useId, useRef, useState } from "react";
 
 import { HONEYPOT_FIELD } from "@portfolio/schemas";
 
@@ -37,9 +57,68 @@ import {
 } from "@/lib/actions/contact-state";
 import { actionVariant } from "@/components/ui/action";
 import { type } from "@/components/ui/typography";
+import {
+  COUNTRY_CODES,
+  DEFAULT_COUNTRY_CODE,
+} from "@/components/ui/country-codes";
 
-const fieldClasses =
-  "min-h-11 w-full rounded-md border border-strong bg-surface px-3 py-2 text-sm text-fg placeholder:text-fg-muted/70";
+/*
+  Everything a field looks like, except how wide it is.
+
+  Width is separate because two controls here are not full width, and
+  `w-full` from a shared string cannot be overridden by adding `w-24` next to
+  it: both are utilities of the same specificity, so which one wins is decided
+  by Tailwind's own output order rather than by the order they are written in.
+  Measured the hard way — the country selector came out 419px wide and left
+  the number field 26px.
+*/
+const fieldBase =
+  "min-h-11 rounded-md border border-strong bg-surface px-3 py-2 text-sm text-fg placeholder:text-fg-muted/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent aria-[invalid=true]:border-danger";
+
+const fieldClasses = `${fieldBase} w-full`;
+
+/** The client-side rules, in one place so the messages read consistently. */
+type ClientErrors = Partial<Record<string, string[]>>;
+
+function validate(form: HTMLFormElement): ClientErrors {
+  const value = (name: string) =>
+    (form.elements.namedItem(name) as HTMLInputElement | null)?.value.trim() ??
+    "";
+
+  const errors: ClientErrors = {};
+
+  if (value("senderName").length === 0) errors.senderName = ["Enter your name"];
+  if (value("body").length === 0) errors.body = ["Write a message"];
+
+  const email = value("senderEmail");
+  const phone = value("senderPhone");
+
+  // Shape only, and deliberately loose — the same reasoning as the server's
+  // schema. A stricter test here would reject a valid address before the
+  // server ever got the chance to accept it.
+  if (email.length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    errors.senderEmail = ["Enter a valid email address"];
+  }
+  if (phone.length > 0 && !/\d/.test(phone)) {
+    errors.senderPhone = ["Enter a phone number"];
+  }
+
+  /*
+    One way to reply is required; two are welcome.
+
+    Reported on both fields rather than once at the top, because a rule shown
+    only in a summary is a rule people read after they have given up. The
+    browser cannot express this at all — `required` on both would demand both,
+    and on neither would demand nothing.
+  */
+  if (email.length === 0 && phone.length === 0) {
+    const message = "Add an email address or a phone number";
+    errors.senderEmail = [...(errors.senderEmail ?? []), message];
+    errors.senderPhone = [...(errors.senderPhone ?? []), message];
+  }
+
+  return errors;
+}
 
 function FieldError({ id, errors }: { id: string; errors?: string[] }) {
   if (!errors || errors.length === 0) return null;
@@ -79,7 +158,55 @@ export function ContactForm() {
     if (field) field.value = String(Date.now());
   }, []);
 
-  const fieldErrors = state.status === "error" ? (state.fieldErrors ?? {}) : {};
+  const serverErrors = state.status === "error" ? (state.fieldErrors ?? {}) : {};
+  const [clientErrors, setClientErrors] = useState<ClientErrors>({});
+  const formRef = useRef<HTMLFormElement>(null);
+
+  /*
+    The client's answer wins while it exists.
+
+    Both can be present at once — a server reply from the previous submission
+    and a fresh client check on this one — and showing both would mean the same
+    field carrying a stale message underneath a current one. The client's is
+    the newer of the two by construction: it was computed from what is in the
+    boxes right now.
+  */
+  const fieldErrors: ClientErrors = { ...serverErrors, ...clientErrors };
+
+  /**
+   * Runs the checks, and stops the submission if any fail.
+   *
+   * Focus moves to the first bad field, which is the part of the native
+   * behaviour worth keeping: a keyboard user must not have to hunt for what
+   * went wrong.
+   */
+  function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    const form = event.currentTarget;
+    const errors = validate(form);
+    setClientErrors(errors);
+
+    const firstBad = Object.keys(errors)[0];
+    if (!firstBad) return;
+
+    event.preventDefault();
+    const field = form.elements.namedItem(firstBad);
+    if (field instanceof HTMLElement) field.focus();
+  }
+
+  /** Clears a field's message as soon as it is being corrected. */
+  function clearError(name: string) {
+    setClientErrors((current) => {
+      if (!current[name]) return current;
+      const next = { ...current };
+      delete next[name];
+      // The cross-field rule was reported on both, so correcting either one
+      // has to clear both — otherwise typing an email leaves "add an email or
+      // a phone number" sitting under the phone field.
+      if (name === "senderEmail") delete next.senderPhone;
+      if (name === "senderPhone") delete next.senderEmail;
+      return next;
+    });
+  }
 
   // Move focus to the outcome so it is announced and not missed.
   useEffect(() => {
@@ -94,8 +221,11 @@ export function ContactForm() {
         role="status"
         className={`rounded-md border border-subtle bg-surface p-6 ${type.body}`}
       >
-        Thanks — your message has been sent. I read these myself and will reply
-        to the address you gave.
+        {/* "the address you gave" was true when an address was the only
+            thing the form accepted. Somebody who left a phone number instead
+            would have been promised a reply somewhere they never mentioned. */}
+        Thanks — your message has been sent. I read these myself and will get
+        back to you.
       </p>
     );
   }
@@ -104,7 +234,15 @@ export function ContactForm() {
     // Fills its column rather than capping at `max-w-md`. The cap existed to
     // stop the fields stretching across a full-width panel; the section now
     // gives this a column of its own, so the cap only left dead space.
-    <form action={formAction} className="flex w-full flex-col gap-3">
+    <form
+      ref={formRef}
+      action={formAction}
+      onSubmit={onSubmit}
+      /* The browser's own bubbles are switched off — see the module comment
+         for what replaces them and why. */
+      noValidate
+      className="flex w-full flex-col gap-3"
+    >
       <input ref={startedAtRef} type="hidden" name="startedAt" defaultValue="" />
 
       {/* The honeypot. See the module comment for why it is positioned
@@ -162,9 +300,9 @@ export function ContactForm() {
           id={`${fieldId}-name`}
           name="senderName"
           type="text"
-          required
           maxLength={120}
           autoComplete="name"
+          onInput={() => clearError("senderName")}
           aria-describedby={
             fieldErrors.senderName ? `${fieldId}-name-error` : undefined
           }
@@ -176,16 +314,19 @@ export function ContactForm() {
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor={`${fieldId}-email`} className="sr-only">
-          Email (required)
+          Email
         </label>
         <input
           placeholder="Email"
           id={`${fieldId}-email`}
           name="senderEmail"
+          /* `type="email"` still, for the keyboard it asks a phone for and
+             the autofill it invites. Its validation is inert under
+             `noValidate`, which is the point. */
           type="email"
-          required
           maxLength={254}
           autoComplete="email"
+          onInput={() => clearError("senderEmail")}
           aria-describedby={
             fieldErrors.senderEmail ? `${fieldId}-email-error` : undefined
           }
@@ -198,6 +339,83 @@ export function ContactForm() {
         />
       </div>
       </div>
+
+      {/*
+        The phone, with its dialling prefix beside it.
+
+        Two controls, one field. The prefix is a `<select>` rather than
+        something typed, because the set of valid answers is short and known,
+        and because a prefix that arrives as free text ends up in a `tel:`
+        link the owner presses. The number itself is *not* constrained beyond
+        containing a digit — see the schema for why a stricter rule would
+        reject a real person's real number.
+
+        `w-auto` on the select and `flex-1` on the input, so the prefix takes
+        the width its longest option needs and the number takes the rest.
+      */}
+      <div className="flex flex-col gap-1.5">
+        <div className="flex gap-2">
+          <label htmlFor={`${fieldId}-phone-country`} className="sr-only">
+            Country dialling code
+          </label>
+          <select
+            id={`${fieldId}-phone-country`}
+            name="senderPhoneCountry"
+            defaultValue={DEFAULT_COUNTRY_CODE}
+            /*
+              A fixed, narrow width.
+
+              `w-auto` was the first attempt and it took nearly the whole row:
+              a `<select>` sizes itself to its longest option, and "United Arab
+              Emirates" is long. The number field was left as a sliver.
+            */
+            className={`${fieldBase} w-24 shrink-0`}
+          >
+            {COUNTRY_CODES.map((entry) => (
+              // `iso` in the key because a prefix is not unique — +1 is both
+              // the United States and Canada, and React would warn.
+              //
+              // "IN +91" rather than "India +91" because a browser sizes the
+              // open list to the control, so a long country name is truncated
+              // in the one place it would actually be read. Two letters and a
+              // prefix fit whole, and the label names the control for anybody
+              // who cannot see the shape of it.
+              <option key={entry.iso} value={entry.code} title={entry.name}>
+                {entry.iso} {entry.code}
+              </option>
+            ))}
+          </select>
+
+          <label htmlFor={`${fieldId}-phone`} className="sr-only">
+            Phone number
+          </label>
+          <input
+            placeholder="Phone (optional)"
+            id={`${fieldId}-phone`}
+            name="senderPhone"
+            type="tel"
+            maxLength={30}
+            autoComplete="tel-national"
+            onInput={() => clearError("senderPhone")}
+            aria-describedby={
+              fieldErrors.senderPhone ? `${fieldId}-phone-error` : undefined
+            }
+            aria-invalid={fieldErrors.senderPhone ? true : undefined}
+            className={`${fieldBase} min-w-0 flex-1`}
+          />
+        </div>
+        <FieldError
+          id={`${fieldId}-phone-error`}
+          errors={fieldErrors.senderPhone}
+        />
+      </div>
+
+      {/* Said once, plainly, rather than left for somebody to discover by
+          submitting an empty form. */}
+      <p className={type.fine}>
+        Leave an email address or a phone number — whichever you would rather
+        be reached on.
+      </p>
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor={`${fieldId}-subject`} className="sr-only">
@@ -226,8 +444,8 @@ export function ContactForm() {
           placeholder="Message"
           id={`${fieldId}-body`}
           name="body"
-          required
           rows={3}
+          onInput={() => clearError("body")}
           maxLength={4000}
           aria-describedby={
             fieldErrors.body ? `${fieldId}-body-error` : undefined

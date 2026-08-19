@@ -71,6 +71,8 @@ export async function sendContactMessageAction(
   const raw = {
     senderName: formData.get("senderName"),
     senderEmail: formData.get("senderEmail"),
+    senderPhone: formData.get("senderPhone"),
+    senderPhoneCountry: formData.get("senderPhoneCountry"),
     subject: formData.get("subject"),
     body: formData.get("body"),
     [HONEYPOT_FIELD]: formData.get(HONEYPOT_FIELD),
@@ -112,6 +114,8 @@ export async function sendContactMessageAction(
     await repos.contactMessages.create({
       senderName: input.senderName,
       senderEmail: input.senderEmail,
+      senderPhone: input.senderPhone,
+      senderPhoneCountry: input.senderPhoneCountry,
       subject: input.subject,
       body: input.body,
       sourceCountry: await readSourceCountry(),
@@ -135,6 +139,8 @@ export async function sendContactMessageAction(
   await notifyOwner({
     senderName: input.senderName,
     senderEmail: input.senderEmail,
+    senderPhone: input.senderPhone,
+    senderPhoneCountry: input.senderPhoneCountry,
     subject: input.subject,
     body: input.body,
   });
