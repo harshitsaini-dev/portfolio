@@ -8199,3 +8199,76 @@ a desktop for the same reason `mailto:` does.
 3. The address also appears in the Socials list and in the console easter-egg
    text. Those are separate CMS entries and the profile switch does not govern
    them — edit or remove them there if the address should disappear entirely.
+
+
+## Contact form: a phone number, and validation that belongs to the page
+
+### What changed
+
+| | Before | Now |
+| --- | --- | --- |
+| Reply route | Email, required | Email **or** phone, at least one, both allowed |
+| Phone | — | Number + dialling-code selector (43 countries) |
+| Validation | The browser's native bubble | In-page messages in the site's own styling |
+| Success wording | "will reply to the address you gave" | "will get back to you" — the old line promised a reply somewhere a phone-only sender never mentioned |
+| Admin inbox | Assumed an address | Shows whichever routes were left; the phone links to WhatsApp |
+| Notification email | `From: name <email>` | Both routes, and the reply button opens WhatsApp when there is no address |
+
+Migration **0019** adds `sender_phone` and `sender_phone_country` to
+`contact_messages`. `sender_email` stays `NOT NULL` and an absent address is
+stored as the empty string, mapped back to null in the repository — the
+alternative was a twelve-statement table rebuild on a live database to change
+one constraint. That compromise is written into the migration rather than left
+to be discovered.
+
+### Measured in a browser
+
+| Case | Result |
+| --- | --- |
+| Empty submit | 4 styled messages, 4 fields `aria-invalid`, focus on the first |
+| Native bubble | none — `form.noValidate` is true |
+| Name + message only | "Add an email address or a phone number" on both fields |
+| Typing a phone | both messages clear at once |
+| Bad email with a phone present | "Enter a valid email address", phone untouched |
+| Phone-only submission | saved: `sender_phone` 9876543210, country `+91` |
+| Selector / number widths | 96px / 315px desktop, 96px / 217px at 390px |
+| Horizontal overflow, target sizes | none, all ≥24px |
+
+The server-side rule was tested directly against the schema: phone-only, email-
+only and both parse; neither fails with the message attached to both fields.
+
+### Checks
+
+| Check | Result |
+| --- | --- |
+| `pnpm lint` | PASS — 0 errors, 0 warnings |
+| `pnpm typecheck` | PASS |
+| `pnpm test` | PASS — all suites |
+| `pnpm build` | PASS — exit 0 |
+| `pnpm test:e2e` | PASS — 43 passed, 3 skipped |
+
+## Admin login: groundwork only
+
+The owner asked to replace Cloudflare Access with their own login page —
+password, then a six-digit code by email, with rate limiting, a forgotten-
+password flow and a change-password page. **This is not finished.** What exists
+is the layer underneath it, and none of it is wired to anything yet:
+
+- Migration **0018** — `admin_users`, `admin_sessions`,
+  `admin_verification_codes`, `admin_rate_limits`.
+- `packages/types/src/admin-auth.ts`, and a repository in
+  `packages/database` that refuses to accept a plaintext password, token or
+  code.
+- `apps/admin/src/lib/auth/` — `crypto.ts` (PBKDF2 at 600,000 iterations,
+  constant-time comparison, unbiased six-digit codes), `session.ts`,
+  `codes.ts`, `rate-limit.ts`.
+
+**Cloudflare Access is still the only thing protecting the admin**, and must
+stay switched on until the login pages, the guard integration and the theme
+toggle are built and verified. Nothing in this groundwork weakens the existing
+protection: no route reads it, and `guard.ts` is unchanged.
+
+Still to build: login and code pages, forgotten-password and change-password
+flows, sending the code through Resend, integrating the session into
+`guard.ts`/`identity.ts`, the theme toggle in the admin and on the login page,
+and tests for every refusal path.

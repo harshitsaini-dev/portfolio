@@ -57,14 +57,58 @@ export const MINIMUM_COMPLETION_MS = 2000;
 const emailValue = z
   .string()
   .trim()
-  .min(1, "Required")
   .max(254, "Too long")
-  .email("Enter a valid email address");
+  // Empty becomes null *before* the format check, or clearing the field would
+  // be a validation error rather than a choice.
+  .transform((value) => (value.length === 0 ? null : value))
+  .nullable()
+  .default(null)
+  .refine(
+    (value) => value === null || z.string().email().safeParse(value).success,
+    { message: "Enter a valid email address" },
+  );
+
+/**
+ * A phone number, with its country code alongside.
+ *
+ * Not validated against a pattern beyond "some digits". Numbers differ by
+ * country in length and grouping, and a regex confident enough to reject one
+ * would reject a real person's real number somewhere in the world — on the
+ * form whose entire job is letting a stranger get in touch. The country code
+ * is checked against the list the selector offers, which is the part that
+ * *can* be checked.
+ */
+const phoneValue = z
+  .string()
+  .trim()
+  .max(30, "Too long")
+  .transform((value) => (value.length === 0 ? null : value))
+  .nullable()
+  .default(null)
+  .refine(
+    (value) => value === null || /\d/.test(value),
+    { message: "Enter a phone number" },
+  );
 
 export const contactMessageSchema = z
   .object({
     senderName: z.string().trim().min(1, "Required").max(120, "Too long"),
     senderEmail: emailValue,
+    senderPhone: phoneValue,
+    /**
+     * The dialling prefix, e.g. `+91`.
+     *
+     * Stored separately from the number so the number is not silently
+     * reformatted, and validated against the list the selector offers —
+     * an arbitrary prefix would end up in a `tel:` link the owner presses.
+     */
+    senderPhoneCountry: z
+      .string()
+      .trim()
+      .max(8, "Too long")
+      .transform((value) => (value.length === 0 ? null : value))
+      .nullable()
+      .default(null),
     subject: z
       .string()
       .trim()
@@ -97,7 +141,27 @@ export const contactMessageSchema = z
      */
     startedAt: z.number().int().positive(),
   })
-  .strict();
+  .strict()
+  /*
+    One way to reply is required; two are welcome.
+
+    The form used to demand an email address, which quietly excluded anyone who
+    would rather be phoned or messaged. Demanding either instead keeps the only
+    thing that actually matters — that a reply can reach them — without
+    choosing on their behalf which one it should be.
+
+    A cross-field rule, so it has to live on the object rather than on either
+    field. The message is attached to `senderEmail` as well as being raised at
+    the form level, because a rule reported only at the top of a form is a rule
+    people read after they have already given up.
+  */
+  .superRefine((value, ctx) => {
+    if (value.senderEmail === null && value.senderPhone === null) {
+      const message = "Add an email address or a phone number";
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["senderEmail"], message });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["senderPhone"], message });
+    }
+  });
 
 export type ContactMessageInput = z.infer<typeof contactMessageSchema>;
 

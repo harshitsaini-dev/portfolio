@@ -1960,3 +1960,36 @@ presenting an upload control that cannot work.
   deliberately switched off renders as nothing at all: a button apologising for
   something the owner chose to withdraw is both a lie and a leak of the fact
   that it exists.
+- **The contact form requires an email address *or* a phone number.** It
+  demanded an address, which quietly excluded anyone who would rather be
+  phoned or messaged back. Either is now enough and both are welcome. It is a
+  cross-field rule, so it lives on the object in the schema rather than on
+  either field, and it is reported on both inputs rather than once in a
+  summary — a rule shown only at the top of a form is a rule people read after
+  they have already given up.
+- **The form validates itself; the browser does not.** `noValidate`, and the
+  checks re-implemented in the component. The native bubble is an
+  operating-system tooltip: it cannot be styled, it renders in the OS light
+  theme on top of a dark page, it speaks the browser's language rather than
+  the page's, it points at one field at a time, and it disappears on the next
+  keystroke. The replacement keeps what the native behaviour was doing —
+  nothing submits while invalid, the first bad field takes focus, every message
+  is tied to its input with `aria-describedby` and `aria-invalid` — and adds
+  the cross-field rule the browser has no way to express. The server validates
+  everything again regardless: `noValidate` is one line for an attacker too.
+- **The country selector shows `IN +91`, not `India +91`.** A `<select>` sizes
+  itself to its longest option, and browsers size the open list to the control
+  — so a long country name is truncated in the one place it would actually be
+  read, and "United Arab Emirates" made the control 419px wide, leaving the
+  number field 26px. Two letters and a prefix fit whole. The full name is on
+  each option's `title`, and the visually-hidden label names the control.
+- **Field width is not part of the shared field class.** `w-full` in a shared
+  string cannot be overridden by writing `w-24` beside it: both are utilities
+  of equal specificity, so which wins is decided by Tailwind's output order,
+  not by the order they appear in the class attribute. The base carries
+  everything except width; width is added per field.
+- **The list of dialling codes is hand-written, not a dependency.** The
+  libraries that do this properly carry every calling code, area code and
+  validation table — a few hundred kilobytes for a dropdown beside one optional
+  field, shipped to every visitor whether or not they ever write in. The list
+  is not exhaustive, which is a real limitation rather than an oversight.

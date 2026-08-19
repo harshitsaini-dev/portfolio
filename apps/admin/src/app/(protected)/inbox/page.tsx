@@ -99,7 +99,11 @@ export default withAdminPage(async () => {
                       {message.senderName}
                     </span>
                     <span className="block text-xs text-fg-muted">
-                      {message.senderEmail}
+                      {/* One of the two is always present; the phone is
+                          shown when it is the only one, so a row is never
+                          blank under the name. */}
+                      {message.senderEmail ??
+                        `${message.senderPhoneCountry ?? ""} ${message.senderPhone ?? ""}`.trim()}
                     </span>
                   </td>
                   <td className="py-3 pr-4 align-top text-fg-muted">

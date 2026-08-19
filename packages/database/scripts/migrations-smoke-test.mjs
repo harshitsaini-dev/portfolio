@@ -181,6 +181,11 @@ const EXPECTED_TABLES = [
   "timeline_entries",
   "timeline_highlights",
   "tools",
+  // 0018 — the admin's own login, replacing Cloudflare Access.
+  "admin_users",
+  "admin_sessions",
+  "admin_verification_codes",
+  "admin_rate_limits",
 ];
 
 const EXPECTED_INDEXES = [

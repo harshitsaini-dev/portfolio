@@ -29,14 +29,25 @@ import {
 import type { RepositoryRuntime } from "../runtime.ts";
 
 const ENTITY = "contact_message";
-const COLUMNS = `id, sender_name, sender_email, subject, body, status,
-  source_country, created_at, read_at`;
+const COLUMNS = `id, sender_name, sender_email, sender_phone,
+  sender_phone_country, subject, body, status, source_country, created_at,
+  read_at`;
 
 function toMessage(row: Row): ContactMessage {
   return {
     id: requireString(ENTITY, row, "id"),
     senderName: requireString(ENTITY, row, "sender_name"),
-    senderEmail: requireString(ENTITY, row, "sender_email"),
+    /*
+      Empty string means "not given".
+
+      The column is NOT NULL and predates the form accepting a phone number
+      instead — see migration 0019. Mapping it here keeps that compromise in
+      one place rather than letting every reader discover that an absent
+      address arrives as `""`.
+    */
+    senderEmail: requireString(ENTITY, row, "sender_email") || null,
+    senderPhone: nullableString(ENTITY, row, "sender_phone"),
+    senderPhoneCountry: nullableString(ENTITY, row, "sender_phone_country"),
     subject: nullableString(ENTITY, row, "subject"),
     body: requireString(ENTITY, row, "body"),
     status: requireEnum(ENTITY, row, "status", CONTACT_MESSAGE_STATUSES),
@@ -105,14 +116,20 @@ export function createContactMessageRepository(
         await db
           .prepare(
             `INSERT INTO contact_messages
-               (id, sender_name, sender_email, subject, body, status,
-                source_country, created_at, read_at)
-             VALUES (?, ?, ?, ?, ?, 'unread', ?, ?, NULL)`,
+               (id, sender_name, sender_email, sender_phone,
+                sender_phone_country, subject, body, status, source_country,
+                created_at, read_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, 'unread', ?, ?, NULL)`,
           )
           .bind(
             id,
             input.senderName,
-            input.senderEmail,
+            // Empty string, not null: the column is NOT NULL and older than
+            // the form's ability to accept a phone number instead. Mapped back
+            // to null on read. See migration 0019.
+            input.senderEmail ?? "",
+            input.senderPhone ?? null,
+            input.senderPhoneCountry ?? null,
             input.subject ?? null,
             input.body,
             input.sourceCountry ?? null,

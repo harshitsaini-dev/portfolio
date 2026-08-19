@@ -43,6 +43,10 @@ import {
   type ContactMessageRepository,
 } from "./repositories/contact-messages.ts";
 import {
+  createAdminAuthRepository,
+  type AdminAuthRepository,
+} from "./repositories/admin-auth.ts";
+import {
   createMediaAssetRepository,
   createResumeRepository,
   type MediaAssetRepository,
@@ -105,6 +109,13 @@ export interface Repositories {
   readonly siteSettings: SiteSettingsRepository;
   readonly sceneSettings: SceneSettingsRepository;
   readonly contactMessages: ContactMessageRepository;
+  /**
+   * Who may administer the site, and the sessions and codes that prove it.
+   *
+   * Read and written only by `apps/admin`, and only from inside its auth
+   * boundary — no page, component or content action touches it.
+   */
+  readonly adminAuth: AdminAuthRepository;
 }
 
 export interface CreateRepositoriesOptions {
@@ -145,5 +156,6 @@ export function createRepositories(
     siteSettings: createSiteSettingsRepository(db, runtime),
     sceneSettings: createSceneSettingsRepository(db, runtime),
     contactMessages: createContactMessageRepository(db, runtime),
+    adminAuth: createAdminAuthRepository(db, runtime),
   };
 }

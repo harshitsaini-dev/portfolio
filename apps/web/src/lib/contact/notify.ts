@@ -39,7 +39,10 @@ export type NotifyResult = "sent" | "skipped" | "failed";
 
 export interface ContactNotification {
   readonly senderName: string;
-  readonly senderEmail: string;
+  /** Null when the sender gave a phone number instead. One of the two. */
+  readonly senderEmail: string | null;
+  readonly senderPhone: string | null;
+  readonly senderPhoneCountry: string | null;
   readonly subject: string | null;
   readonly body: string;
 }
@@ -61,8 +64,17 @@ const RESEND_ENDPOINT = "https://api.resend.com/emails";
  * and the escaping is done in exactly one place.
  */
 export function toPlainText(message: ContactNotification): string {
+  const reachAt = [
+    message.senderEmail,
+    message.senderPhone
+      ? `${message.senderPhoneCountry ?? ""} ${message.senderPhone}`.trim()
+      : null,
+  ]
+    .filter((value) => value !== null)
+    .join(", ");
+
   return [
-    `From: ${message.senderName} <${message.senderEmail}>`,
+    `From: ${message.senderName} <${reachAt}>`,
     message.subject ? `Subject: ${message.subject}` : null,
     "",
     message.body,
@@ -120,7 +132,20 @@ function escapeHtml(value: string): string {
  */
 export function toHtml(message: ContactNotification): string {
   const name = escapeHtml(message.senderName);
-  const email = escapeHtml(message.senderEmail);
+  const email = message.senderEmail ? escapeHtml(message.senderEmail) : null;
+  const phone = message.senderPhone
+    ? escapeHtml(
+        `${message.senderPhoneCountry ?? ""} ${message.senderPhone}`.trim(),
+      )
+    : null;
+  // Digits only, with the prefix, for the link. The printed form keeps the
+  // sender's own spacing; only what is dialled is reduced.
+  const phoneDigits = message.senderPhone
+    ? `${message.senderPhoneCountry ?? ""}${message.senderPhone}`.replace(
+        /[^\d+]/g,
+        "",
+      )
+    : null;
   const subject = message.subject ? escapeHtml(message.subject) : null;
   const body = escapeHtml(message.body).replace(/\r?\n/g, "<br>");
   const initial = escapeHtml(
@@ -160,7 +185,15 @@ export function toHtml(message: ContactNotification): string {
 <td>
 <div style="font-size:15px;font-weight:600;color:#111827;">${name}</div>
 <div style="font-size:13px;color:#6b7280;padding-top:2px;">
-<a href="mailto:${email}" style="color:#6b7280;text-decoration:none;">${email}</a>
+${
+  email
+    ? `<a href="mailto:${email}" style="color:#6b7280;text-decoration:none;">${email}</a>`
+    : ""
+}${email && phone ? " &middot; " : ""}${
+      phone
+        ? `<a href="tel:${phoneDigits}" style="color:#6b7280;text-decoration:none;">${phone}</a>`
+        : ""
+    }
 </div>
 </td>
 </tr>
@@ -191,7 +224,19 @@ ${
 <table role="presentation" cellpadding="0" cellspacing="0" border="0">
 <tr>
 <td style="background-color:#1f2937;border-radius:8px;">
-<a href="mailto:${email}${subject ? `?subject=${encodeURIComponent(`Re: ${message.subject}`)}` : ""}" style="display:inline-block;padding:11px 22px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">Reply to ${name}</a>
+${
+  /*
+    The button goes wherever the sender can actually be reached.
+
+    They were required to leave one of the two and may have left both; the
+    email is preferred because a written reply to a written message keeps the
+    thread together. With only a number, the button opens WhatsApp — the same
+    choice the contact section makes, and for the same reason.
+  */
+  email
+    ? `<a href="mailto:${email}${subject ? `?subject=${encodeURIComponent(`Re: ${message.subject}`)}` : ""}" style="display:inline-block;padding:11px 22px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">Reply to ${name}</a>`
+    : `<a href="https://wa.me/${phoneDigits?.replace(/\D/g, "") ?? ""}" style="display:inline-block;padding:11px 22px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">Message ${name} on WhatsApp</a>`
+}
 </td>
 </tr>
 </table>
