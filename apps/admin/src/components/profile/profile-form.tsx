@@ -29,7 +29,7 @@ import {
   type ActionState,
 } from "@/lib/actions/result";
 import type { ProfileMutationData } from "@/lib/actions/profile";
-import { TextAreaField, TextField } from "@/components/form/field";
+import { CheckboxField, TextAreaField, TextField } from "@/components/form/field";
 import {
   MediaPickerField,
   type MediaOption,
@@ -47,6 +47,9 @@ export interface ProfileFormValues {
   location: string;
   availability: string;
   publicEmail: string;
+  publicPhone: string;
+  isPublicEmailVisible: boolean;
+  isWhatsappVisible: boolean;
 }
 
 export const emptyProfileValues: ProfileFormValues = {
@@ -60,6 +63,9 @@ export const emptyProfileValues: ProfileFormValues = {
   location: "",
   availability: "",
   publicEmail: "",
+  publicPhone: "",
+  isPublicEmailVisible: true,
+  isWhatsappVisible: true,
 };
 
 type ProfileAction = (
@@ -249,6 +255,39 @@ export function ProfileForm({
           errors={fieldErrors.publicEmail}
           hint="Optional. Shown publicly, so use an address you are happy to publish."
           onChange={(value) => update("publicEmail", value)}
+        />
+
+        <CheckboxField
+          id={`${fieldId}-show-email`}
+          name="isPublicEmailVisible"
+          label="Show the email on the site"
+          checked={values.isPublicEmailVisible}
+          hint="Separate from the address itself, so turning it off does not lose what you typed."
+          onChange={(checked) => update("isPublicEmailVisible", checked)}
+        />
+
+        <TextField
+          id={`${fieldId}-public-phone`}
+          name="publicPhone"
+          label="WhatsApp number"
+          /* `type="tel"` rather than `text`: it asks a phone for the dialling
+             keypad, and it does not invite a browser to autofill an email
+             address into it. No pattern — see the schema for why a regex here
+             would reject a correct number somewhere in the world. */
+          type="tel"
+          value={values.publicPhone}
+          errors={fieldErrors.publicPhone}
+          hint="Optional. Shown beside the email, with a button that opens WhatsApp. Include the country code, e.g. +91 98765 43210."
+          onChange={(value) => update("publicPhone", value)}
+        />
+
+        <CheckboxField
+          id={`${fieldId}-show-whatsapp`}
+          name="isWhatsappVisible"
+          label="Show WhatsApp on the site"
+          checked={values.isWhatsappVisible}
+          hint="Nothing is shown when the number is empty, whatever this is set to."
+          onChange={(checked) => update("isWhatsappVisible", checked)}
         />
       </section>
 

@@ -5,8 +5,10 @@ import type {
 
 import type { D1Like } from "../d1.ts";
 import { toDatabaseError } from "../errors.ts";
+import { boolToInt } from "../internal/sql.ts";
 import {
   nullableString,
+  requireBoolean,
   requireString,
   type Row,
 } from "../mapping.ts";
@@ -26,6 +28,9 @@ function toProfile(row: Row): Profile {
     location: nullableString(ENTITY, row, "location"),
     availability: nullableString(ENTITY, row, "availability"),
     publicEmail: nullableString(ENTITY, row, "public_email"),
+    publicPhone: nullableString(ENTITY, row, "public_phone"),
+    isPublicEmailVisible: requireBoolean(ENTITY, row, "is_public_email_visible"),
+    isWhatsappVisible: requireBoolean(ENTITY, row, "is_whatsapp_visible"),
     avatarMediaId: nullableString(ENTITY, row, "avatar_media_id"),
     xrayMediaId: nullableString(ENTITY, row, "xray_media_id"),
     createdAt: requireString(ENTITY, row, "created_at"),
@@ -62,8 +67,9 @@ export function createProfileRepository(
         const row = await db
           .prepare(
             `SELECT id, full_name, headline, tagline, bio, location,
-                    availability, public_email, avatar_media_id, xray_media_id,
-                    created_at, updated_at
+                    availability, public_email, public_phone,
+                    is_public_email_visible, is_whatsapp_visible,
+                    avatar_media_id, xray_media_id, created_at, updated_at
              FROM profile WHERE id = ?`,
           )
           .bind(SINGLETON_ID)
@@ -83,9 +89,10 @@ export function createProfileRepository(
           .prepare(
             `INSERT INTO profile
                (id, full_name, headline, tagline, bio, location, availability,
-                public_email, avatar_media_id, xray_media_id, created_at,
-                updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                public_email, public_phone, is_public_email_visible,
+                is_whatsapp_visible, avatar_media_id, xray_media_id,
+                created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(id) DO UPDATE SET
                full_name = excluded.full_name,
                headline = excluded.headline,
@@ -94,6 +101,9 @@ export function createProfileRepository(
                location = excluded.location,
                availability = excluded.availability,
                public_email = excluded.public_email,
+               public_phone = excluded.public_phone,
+               is_public_email_visible = excluded.is_public_email_visible,
+               is_whatsapp_visible = excluded.is_whatsapp_visible,
                avatar_media_id = excluded.avatar_media_id,
                xray_media_id = excluded.xray_media_id,
                updated_at = excluded.updated_at`,
@@ -107,6 +117,9 @@ export function createProfileRepository(
             input.location ?? null,
             input.availability ?? null,
             input.publicEmail ?? null,
+            input.publicPhone ?? null,
+            boolToInt(input.isPublicEmailVisible ?? true),
+            boolToInt(input.isWhatsappVisible ?? true),
             input.avatarMediaId ?? null,
             input.xrayMediaId ?? null,
             now,

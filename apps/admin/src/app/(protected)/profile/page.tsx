@@ -88,6 +88,9 @@ export default withAdminPage(async () => {
                 location: profile.location ?? "",
                 availability: profile.availability ?? "",
                 publicEmail: profile.publicEmail ?? "",
+                publicPhone: profile.publicPhone ?? "",
+                isPublicEmailVisible: profile.isPublicEmailVisible,
+                isWhatsappVisible: profile.isWhatsappVisible,
                 avatarMediaId: profile.avatarMediaId ?? "",
                 xrayMediaId: profile.xrayMediaId ?? "",
               }

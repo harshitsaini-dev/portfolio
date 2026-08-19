@@ -58,15 +58,65 @@ export function ContactSection({
             where the two are actually side by side. */}
         <div className="md:self-center">
           <p className={type.body}>{contact.body}</p>
-          {/* The email address stays alongside the form. Some people would
-              rather use their own mail client, and a form is not a reason to
-              hide the address. */}
-          <div className="mt-6 flex flex-wrap items-start gap-x-6 gap-y-4">
-            <PlaceholderAction
-              action={contact.primaryAction}
-              context="contact"
-            />
+          {/*
+            The direct routes, alongside the form.
+
+            Some people would rather use their own mail client, and a form is
+            not a reason to hide the address — nor the number, which is the
+            other thing people look for and which had nowhere to live until
+            now.
+          */}
+          <div className="mt-6 flex flex-wrap items-start gap-3">
+            {contact.primaryAction ? (
+              <PlaceholderAction
+                action={contact.primaryAction}
+                context="contact"
+              />
+            ) : null}
+            {contact.whatsappAction ? (
+              <PlaceholderAction
+                action={contact.whatsappAction}
+                context="contact-whatsapp"
+              />
+            ) : null}
           </div>
+
+          {/*
+            And the values themselves, in plain text.
+
+            `mailto:` opens a mail app on a phone and does nothing whatsoever
+            in a desktop browser with no mail client registered — no error, no
+            window, nothing. Reported exactly that way, and it is not a bug
+            that can be fixed in the link: the browser has nowhere to send it.
+            What can be fixed is being left with only that link. Printed here,
+            the address and the number can be read, selected and copied on any
+            machine, and the buttons above become a shortcut rather than the
+            only way through.
+
+            `select-all` so one click takes the whole value rather than a
+            word of it, and `break-all` on the address because a long one
+            would otherwise push the column wider than the card.
+          */}
+          {contact.email || contact.phone ? (
+            <dl className="mt-5 flex flex-col gap-2">
+              {contact.email ? (
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <dt className={type.fine}>Email</dt>
+                  <dd className="select-all break-all font-mono text-sm text-fg">
+                    {contact.email}
+                  </dd>
+                </div>
+              ) : null}
+              {contact.phone ? (
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <dt className={type.fine}>WhatsApp</dt>
+                  <dd className="select-all font-mono text-sm text-fg">
+                    {contact.phone}
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
+          ) : null}
         </div>
 
         <ContactForm />
