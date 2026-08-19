@@ -112,10 +112,43 @@ export function CustomCursor() {
     /** Timestamp of the previous frame, for delta-timed damping. */
     let lastFrame = performance.now();
 
+    /*
+      Whether the cursor can be lifted into the top layer.
+
+      It has to be, because a modal `<dialog>` lives there and the top layer
+      beats every z-index there is — a cursor at `z-60` is painted *under* the
+      panel and its backdrop, which is why opening one left the screen with no
+      pointer at all. A manual popover is the only way to put a plain element
+      alongside a dialog rather than beneath it.
+    */
+    const canLift = typeof HTMLElement.prototype.showPopover === "function";
+
+    /** Puts both parts into the top layer, or moves them back to its front. */
+    const lift = () => {
+      if (!canLift) return;
+      for (const node of [dotRef.current, ringRef.current]) {
+        if (!node) continue;
+        // The top layer is ordered by when an element entered it, so a dialog
+        // opened after the cursor sits above it. Leaving and re-entering is
+        // what puts the cursor back on top; it is why this is called again on
+        // every dialog rather than only once.
+        if (node.matches(":popover-open")) node.hidePopover();
+        node.showPopover();
+      }
+    };
+
     const show = () => {
+      lift();
       // Only now is it safe to hide the native cursor: the replacement has a
       // real position and is being drawn.
-      root.classList.add(HIDE_CLASS);
+      //
+      // And only if it *can* be drawn over everything. Without popover
+      // support the custom cursor would vanish under any open panel, so on
+      // those browsers the native one is left alone rather than swapped for
+      // nothing.
+      if (canLift || !document.querySelector("dialog[open]")) {
+        root.classList.add(HIDE_CLASS);
+      }
     };
 
     const restore = () => {
@@ -185,7 +218,32 @@ export function CustomCursor() {
       }
     };
 
+    /** Whether a modal was over the page on the previous frame. */
+    let wasCovered = false;
+
     const tick = (now: number) => {
+      /*
+        Follow whatever takes over the screen.
+
+        Read from the DOM rather than subscribed to: a dialog can be opened by
+        any component on any page, and none of them should have to know the
+        cursor exists. It is one `querySelector` per frame on a selector the
+        browser answers from an index.
+      */
+      const covered = document.querySelector("dialog[open]") !== null;
+      if (covered !== wasCovered) {
+        wasCovered = covered;
+        if (covered && hasPosition) {
+          // Re-enter the top layer above the panel that just opened.
+          if (canLift) lift();
+          // On a browser without popovers there is nowhere above it to draw,
+          // so hand the native pointer back rather than leave none at all.
+          else restore();
+        } else if (!covered && hasPosition) {
+          show();
+        }
+      }
+
       /*
         Genuinely framerate-independent now.
 
@@ -295,7 +353,11 @@ export function CustomCursor() {
         aria-hidden="true"
         // `transition-opacity` so the dot fades out over text rather than
         // blinking off — see where the opacity is written.
-        className="pointer-events-none fixed left-0 top-0 z-[60] hidden size-1.5 rounded-full bg-accent transition-opacity duration-300 sm:block"
+        // `popover` so it can be raised into the top layer, above an open
+        // panel. `cursor-layer` undoes the browser's own popover styling,
+        // which would otherwise centre it and give it a border.
+        popover="manual"
+        className="cursor-layer pointer-events-none fixed left-0 top-0 z-[60] hidden size-1.5 rounded-full bg-accent transition-opacity duration-300 sm:block"
         style={{ willChange: "transform" }}
       />
       {/* The ring: trails, and grows over anything actionable. */}
@@ -308,7 +370,8 @@ export function CustomCursor() {
         // `duration-300` to keep pace with the eased inversion, which settles
         // at about 430ms. At 200ms the border vanished while the ring was
         // still growing, which is half of what made the change look abrupt.
-        className="pointer-events-none fixed left-0 top-0 z-[60] hidden size-20 rounded-full border-2 border-accent/60 transition-[border-color,background-color] duration-300 sm:block"
+        popover="manual"
+        className="cursor-layer pointer-events-none fixed left-0 top-0 z-[60] hidden size-20 rounded-full border-2 border-accent/60 transition-[border-color,background-color] duration-300 sm:block"
         style={{ willChange: "transform" }}
       />
     </>

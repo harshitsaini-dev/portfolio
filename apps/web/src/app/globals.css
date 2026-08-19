@@ -115,6 +115,63 @@ body {
 }
 
 /*
+  The custom cursor's two parts, once they are popovers.
+
+  They are popovers so they can be raised into the top layer, where an open
+  `<dialog>` lives — the top layer beats every z-index there is, so a cursor
+  at `z-60` was painted under the panel and its backdrop, and opening one left
+  the screen with no pointer at all.
+
+  The browser's own `[popover]` rules would centre them with `inset: 0` and
+  `margin: auto`, and give each a border, a background and padding. Every one
+  of those is undone here; the element keeps the position its transform gives
+  it, which is the whole point.
+
+  Written in the `base` layer, which is the part that took two attempts.
+  Unlayered, the reset beat the utility classes on the elements themselves —
+  `border: 0` cancelled the ring's `border-2` and `background: transparent`
+  cancelled the dot's `bg-accent`, leaving both of them in the top layer,
+  correctly positioned, and completely invisible. `:where()` did not rescue
+  it either: in Tailwind v4 the utilities live in a cascade layer, and
+  unlayered author CSS outranks every layered rule no matter how little
+  specificity it carries. Layer order is what decides this, so the reset has
+  to be in a layer that loses to `utilities`.
+
+  A UA rule loses to any author rule, so `base` is still enough to undo the
+  popover styling.
+*/
+@layer base {
+  .cursor-layer {
+    inset: auto;
+    margin: 0;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    overflow: visible;
+    color: inherit;
+  }
+}
+
+/*
+  A popover is `display: none` until it is shown, and the utility classes on
+  these elements set `display` too. This keeps the hidden-until-shown
+  behaviour the component depends on: it calls `showPopover()` only once the
+  cursor has a real position.
+
+  Guarded, because without the guard this rule is a trap: a browser with no
+  popover support never matches `:popover-open`, so the custom cursor would
+  be hidden permanently — on the one browser where the component has already
+  decided to leave the native cursor alone, which would have meant a pointer
+  that is simply gone. The support query keeps the rule and the script
+  agreeing about which browser they are on.
+*/
+@supports selector(:popover-open) {
+  .cursor-layer:not(:popover-open) {
+    display: none;
+  }
+}
+
+/*
   Every descendant, not a list of them.
   
   The first version named the interactive elements. That missed anything else

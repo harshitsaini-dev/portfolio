@@ -1904,3 +1904,23 @@ presenting an upload control that cannot work.
   and every image with it. `/projects` already existed as the page that
   lists everything, and the link under the section now carries the total so
   the number is visible before anyone presses it.
+- **The custom cursor is a popover, so it can sit in the top layer.** Opening
+  the overflow panel left the screen with no pointer at all: the cursor draws
+  at `z-60`, a modal `<dialog>` lives in the top layer, and the top layer beats
+  every z-index there is — so the replacement was painted under the panel while
+  `cursor: none` was still hiding the real one. A manual popover is the only
+  way to put a plain element alongside a dialog rather than beneath it. The top
+  layer is ordered by entry, so the cursor leaves and re-enters whenever a
+  dialog opens; that check rides the animation loop that was already running.
+  On a browser without popover support the native cursor is handed back instead
+  of being swapped for nothing.
+- **The popover reset lives in `@layer base`.** Written unlayered it beat the
+  utility classes on the cursor's own elements — `border: 0` cancelled the
+  ring's `border-2` and `background: transparent` cancelled the dot's
+  `bg-accent`, leaving both correctly positioned in the top layer and
+  completely invisible. `:where()` did not rescue it: in Tailwind v4 the
+  utilities are in a cascade layer, and unlayered author CSS outranks every
+  layered rule however little specificity it carries. Layer order is what
+  decides it. The `display: none` half is wrapped in
+  `@supports selector(:popover-open)` so a browser that cannot show the popover
+  does not hide the cursor forever.
