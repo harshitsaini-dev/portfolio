@@ -8083,3 +8083,47 @@ npx wrangler d1 execute portfolio-cms --local -c wrangler.d1.jsonc   --command "
 ```
 
 They are local only — nothing was written to the remote database.
+
+
+## The cursor over the panel
+
+Reported after the panel shipped: opening it left the screen with no pointer
+at all. The custom cursor draws at `z-60`; a modal `<dialog>` is in the top
+layer, which beats every z-index there is. The replacement was painted under
+the panel while `cursor: none` still hid the real one.
+
+Both parts are now `popover="manual"` elements, raised into the top layer and
+re-entered whenever a dialog opens — the top layer is ordered by entry, so a
+dialog opened afterwards would otherwise sit above them. The check rides the
+animation loop the cursor already runs.
+
+| Check | Result |
+| --- | --- |
+| Dot and ring in the top layer with the panel open | both `:popover-open` |
+| Tracking at 500,300 / 900,500 / 763,365 | dot centred on the pointer each time |
+| Dot fill with the panel open | `rgb(142, 166, 255)` — the accent |
+| Ring at rest | 32x32, 1.6px accent border at 0.6 alpha |
+| Ring over a link | grows to 61x61 |
+| Native cursor | still hidden, and handed back where popovers are unsupported |
+
+Two traps worth keeping:
+
+- The reset that undoes the browser's `[popover]` styling has to be in
+  `@layer base`. Unlayered it cancelled the ring's border and the dot's fill,
+  leaving both invisible; `:where()` did not help, because unlayered CSS
+  outranks Tailwind v4's layered utilities regardless of specificity.
+- The `display: none` half is behind `@supports selector(:popover-open)`, or a
+  browser that cannot show the popover hides the cursor permanently.
+
+### Checks
+
+| Check | Result |
+| --- | --- |
+| `pnpm lint` | PASS — 0 errors, 0 warnings |
+| `pnpm typecheck` | PASS |
+| `pnpm test` | PASS — 181/181, 83/83, 715/715, 26/26 |
+| `pnpm build` | PASS — exit 0 |
+| `pnpm test:e2e` | PASS — 43 passed, 3 skipped |
+
+Note: the e2e suite resets the local database, which removed the seeded mock
+tools. They were re-inserted from the scratchpad SQL to finish verifying.
