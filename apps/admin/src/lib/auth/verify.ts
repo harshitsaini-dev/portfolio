@@ -47,7 +47,15 @@ export const ACCESS_JWT_HEADER = "cf-access-jwt-assertion";
 export type AccessFailureReason =
   | "not_configured"
   | "missing_token"
-  | "invalid_token";
+  | "invalid_token"
+  /**
+   * No usable session cookie.
+   *
+   * Named separately from `missing_token` because the two send a visitor to
+   * different places: an Access failure is somebody else's login screen, and
+   * this one is ours.
+   */
+  | "no_session";
 
 export type AccessVerificationResult =
   | { readonly ok: true; readonly identity: AdminIdentity }

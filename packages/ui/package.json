@@ -15,6 +15,7 @@
     "./system-screen.css": "./src/system-screen.css",
     "./shadcn.css": "./src/shadcn.css",
     "./lib/utils": "./src/lib/utils.ts",
+    "./theme": "./src/theme.ts",
     "./components/*": "./src/components/*.tsx"
   },
   "scripts": {

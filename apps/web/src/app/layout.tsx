@@ -12,7 +12,7 @@ import { OfflineWatcher } from "@/components/offline/offline-watcher";
 import { ServiceWorker } from "@/components/offline/service-worker";
 import { getSiteContent } from "@/lib/content/site-content";
 import { absoluteMediaUrl, getSiteOrigin } from "@/lib/site-origin";
-import { THEME_INIT_SCRIPT } from "@/lib/theme";
+import { THEME_INIT_SCRIPT } from "@portfolio/ui/theme";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -216,7 +216,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
 
           `dangerouslySetInnerHTML` is the only way to emit an inline script,
           and the name is worth taking seriously. It is safe here because the
-          script interpolates nothing — see `lib/theme.ts`, where the only
+          script interpolates nothing — see `@portfolio/ui/theme`, where the only
           value in it is a constant key and the only thing written to the DOM
           is one of two hard-coded strings behind an equality check.
         */}

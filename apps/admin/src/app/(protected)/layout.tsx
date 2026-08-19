@@ -11,7 +11,7 @@
 import { redirect } from "next/navigation";
 
 import { AdminShell } from "@/components/admin-shell";
-import { DENIED_PATH, resolveAdminIdentity } from "@/lib/auth/guard";
+import { deniedRedirectPath, resolveAdminIdentity } from "@/lib/auth/guard";
 
 /**
  * Force per-request rendering.
@@ -53,7 +53,9 @@ export default async function ProtectedLayout({ children }: LayoutProps<"/">) {
      * experimental behind `authInterrupts`, and a security boundary is the
      * wrong place to depend on an experimental flag.
      */
-    redirect(DENIED_PATH);
+    // Our login when nobody is signed in; Access's page when Access
+    // refused. See `deniedRedirectPath`.
+    redirect(deniedRedirectPath(outcome.reason));
   }
 
   return <AdminShell identity={outcome.identity}>{children}</AdminShell>;

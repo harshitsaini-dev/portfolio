@@ -8272,3 +8272,92 @@ Still to build: login and code pages, forgotten-password and change-password
 flows, sending the code through Resend, integrating the session into
 `guard.ts`/`identity.ts`, the theme toggle in the admin and on the login page,
 and tests for every refusal path.
+
+
+## The admin login is built
+
+Replacing Cloudflare Access with a login this project owns: password, then a
+six-digit code by email, with rate limiting, a forgotten-password flow and a
+change-password page. The groundwork was merged separately; this is the rest.
+
+**Cloudflare Access is still in front of the admin and must stay there until
+the sequence below has been followed.** Nothing here removes it, and the guard
+accepts an Access identity exactly as before when there is no session.
+
+### What exists
+
+| Route | What it does |
+| --- | --- |
+| `/setup` | Creates the administrator. 404s once one exists |
+| `/login` | Email and password |
+| `/login/code` | The six digits, with a resend control |
+| `/login/forgot` | Asks for an address; answers identically whether or not it matched |
+| `/login/reset` | The code for a reset |
+| `/login/new-password` | Choosing the new one |
+| `/account` | Change password: current password + emailed code + the new one twice |
+
+The header now carries the theme toggle, an Account link and Sign out. The
+toggle is the public site's, moved to `packages/ui` and shared.
+
+### Measured in a browser, against a real local database
+
+| Check | Result |
+| --- | --- |
+| `/setup` creates the account | redirects to `/login?created=1` |
+| `/setup` afterwards | **404** |
+| Sign in, wrong code | "That code is not right. 4 attempts left." |
+| Sign in, right code | dashboard, session `active`, `password_version` 1 |
+| Wrong password ×7 | 5 refusals, then "Try again in 15 minutes" — and the 7th too |
+| Change password, wrong current | refused, and the code is not spent |
+| Change password, mismatch / short | each reported separately |
+| Change password, wrong code | "4 attempts left" |
+| Change password, correct | `password_version` → 2, one session left, reissued |
+| Old password after the change | refused |
+| Forgotten password, unknown address | same page, same wording as a known one |
+| Forgotten password, full flow | code → new password → sign in with it |
+| Theme toggle | system → light → dark → system, persists across navigation |
+
+Recovering a code from its stored SHA-256 by trying all one million took
+**0.6 seconds** locally. That number is the argument for the attempt cap, and
+it is why the cap rather than the length is the control.
+
+### Tests
+
+`apps/admin/scripts/login-tests.mjs` — 49 checks over the primitives and every
+refusal path: hashing, the salt varying per call, corrupt stored hashes
+refusing rather than throwing, the timing of a miss against a hit, constant-time
+comparison, token uniqueness, code distribution, the attempt cap (including
+that the *right* code is refused past it), expiry, and the rate limiter's
+windows, blocks and corrupt-row handling.
+
+One of those tests failed on the first run and the code was right: the comment
+claimed a blocked bucket keeps counting, and it does not. Extending a block on
+every attempt would let an attacker hold the owner out of their own CMS with
+traffic alone. The comment was corrected, not the behaviour.
+
+### Checks
+
+| Check | Result |
+| --- | --- |
+| `pnpm lint` | PASS — 0 errors, 0 warnings |
+| `pnpm typecheck` | PASS |
+| `pnpm test` | PASS — including 49 new login checks |
+| `pnpm build` | PASS — exit 0 |
+| `pnpm test:e2e` | PASS — 43 passed, 3 skipped |
+
+### The sequence for switching over
+
+Doing these out of order is how a person locks themselves out of their own CMS.
+
+1. **Set the secrets on the admin Worker.** They are per-Worker; the ones on
+   `portfolio-web` do not apply. From `apps/admin`:
+   `npx wrangler secret put RESEND_API_KEY` and
+   `npx wrangler secret put ADMIN_NOTIFY_FROM`.
+2. **Deploy the admin, with Access still on.**
+3. **Visit `/setup`** — Access is what is guarding it — and choose a password.
+4. **Sign in with it** and confirm the emailed code arrives.
+5. **Only then remove the Access application**, and unset `CF_ACCESS_TEAM_DOMAIN`
+   and `CF_ACCESS_AUD` so the guard stops expecting a token.
+
+Until step 5, both paths work: a session is accepted first, and an Access
+identity is accepted when there is no session.

@@ -1993,3 +1993,65 @@ presenting an upload control that cannot work.
   validation table — a few hundred kilobytes for a dropdown beside one optional
   field, shipped to every visitor whether or not they ever write in. The list
   is not exhaustive, which is a real limitation rather than an oversight.
+- **The admin login replaces Cloudflare Access, and that is a trade.** Access
+  terminated authentication at the edge, so an unauthenticated request never
+  reached the Worker. The owner wanted a login page they control, with their
+  own design and their own second factor; the cost is that the whole burden
+  moves inside the app. Everything below follows from that.
+- **PBKDF2-HMAC-SHA256 at 600,000 iterations, not argon2 or bcrypt.** Those are
+  better algorithms and neither is available: Workers has no native module
+  loading, so both would arrive as JavaScript or WebAssembly, run slower per
+  iteration than the runtime's own PBKDF2, and end up configured *weaker* to
+  fit inside a request's CPU budget. The iteration count is stored per row, so
+  it can be raised later without invalidating the password, and a password is
+  rehashed at the higher cost the next time it is used.
+- **A missing account costs the same as a wrong password.** `fakeVerify` runs
+  a full derivation for an address that does not exist. Without it, "no such
+  user" returns in a millisecond and "wrong password" in the hundreds — a
+  difference measurable from outside, which turns the login form into a
+  checker for whether an address is the administrator's.
+- **Six digits are secured by the attempt cap, not by their length.** One in a
+  million is strong against five tries and no protection at all against a
+  million — measured: recovering a code from its SHA-256 by trying all
+  1,000,000 took 0.6 seconds locally. Three fences: attempts per code, codes
+  per hour, submissions per user.
+- **A blocked rate-limit bucket refuses without counting further.** The first
+  instinct is to extend the block on every attempt so hammering is punished,
+  and it is wrong: an attacker who cannot guess the password could then hold
+  the owner out of their own CMS indefinitely with traffic alone. A block that
+  expires at a fixed time cannot be extended by an attacker. The cost is that a
+  patient attacker gets five attempts every fifteen minutes forever, which is
+  not a threat worth trading availability for.
+- **Rate limits live in D1, not the Workers rate-limiting binding.** That
+  binding counts per colo, so an attacker whose next request lands in another
+  data centre would get a fresh allowance. The read-then-write is not atomic —
+  a real hole, and a small one, worth one extra attempt per exact collision on
+  a limit of five.
+- **Sessions carry the `password_version` they were issued under.** Changing a
+  password invalidates every other session by comparison rather than by
+  remembering to delete rows — it cannot miss one, and it still works if a
+  delete fails halfway. Changing a password signs out every browser except the
+  one that did it, which has just proved it knows both the old password and the
+  inbox.
+- **Changing a password requires the current one *and* an emailed code.** A
+  session proves a browser was signed in at some point; it does not prove who
+  is at the keyboard now. On the one form that can replace the credential
+  itself, an unattended laptop must not be a way to take the account.
+- **`/setup` creates the administrator once, behind Access.** The sequence is
+  the safety, not the code: deploy with Access still on, create the password
+  behind it, sign in to prove the code arrives, and only then remove Access.
+  The page 404s and the action refuses the moment a user exists — checked in
+  both places, because the render and the write happen at different moments.
+- **Codes are typed, never linked.** No emailed URL means no link followed from
+  a machine that is not the one signing in, nothing for a mail scanner to
+  prefetch and consume, and no target for a phishing copy of the same design.
+- **With no email provider configured, a non-production build prints the code
+  to the server console.** The guard is `NODE_ENV`, fixed at build time, so no
+  runtime variable can reach it. It exists because the alternative is a login
+  whose failure paths can only be walked in production.
+- **The theme module moved to `packages/ui`.** The admin wanted the control the
+  public site has, and the two implementations would have been identical — the
+  same storage key, the same three values, the same pre-paint script.
+  Duplicating it would have drifted on the key, and the symptom would be a
+  theme that sticks in one app and not the other, with nothing failing to say
+  why.

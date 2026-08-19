@@ -9,6 +9,18 @@
  * key and the accepted values are defined once. Two spellings of a
  * `localStorage` key is a bug that only shows up as "my setting did not
  * stick", with nothing to catch it.
+ *
+ * ## Why this is shared rather than duplicated
+ *
+ * It lived in `apps/web` until the admin wanted the same control. The two
+ * would have been identical — the same key, the same three values, the same
+ * pre-paint script — and identical is the case where sharing is right. It is
+ * also the case where duplication is most expensive: the copies would drift on
+ * the storage key, and the symptom would be a theme that sticks in one app and
+ * not the other, with nothing failing anywhere to say why.
+ *
+ * The tokens both apps import already live here, so the module is now beside
+ * the CSS it drives.
  */
 
 export const THEME_STORAGE_KEY = "portfolio-theme";

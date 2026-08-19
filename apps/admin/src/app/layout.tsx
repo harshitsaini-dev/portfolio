@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
 import { getPublicSiteOrigin } from "@/lib/site-origin";
+import { headers } from "next/headers";
+import { THEME_INIT_SCRIPT } from "@portfolio/ui/theme";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -72,13 +74,50 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // The nonce the middleware minted for this request. The CSP here is
+  // `strict-dynamic` with no `unsafe-inline`, so an inline script without it
+  // is refused — which is the intended behaviour and not a thing to work
+  // around.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      /*
+        The pre-paint script writes `data-theme` before React sees the
+        document, so React finds the live DOM different from the HTML it sent
+        and warns — correctly by its own rules, and uselessly here, because
+        that difference is the entire purpose of the script. Measured as a
+        hydration error on every admin page once the toggle had been used.
+
+        Scoped to this element. `suppressHydrationWarning` does not cascade,
+        so every other mismatch in the app is still reported — using it
+        anywhere the difference was not deliberate would be hiding a bug
+        rather than declaring intent.
+      */
+      suppressHydrationWarning
     >
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        {/*
+          Applies a stored theme choice before the first paint.
+
+          The same script the public site runs, from the same module — see
+          `@portfolio/ui/theme`. It has to be inline and synchronous: by the
+          time React hydrates, the page has already been painted, so an editor
+          who chose dark would get a white flash on every navigation between
+          CMS pages. `dangerouslySetInnerHTML` is the only way to emit one, and
+          it is safe because the script interpolates nothing — the only value
+          in it is a constant key, and the only thing it writes to the DOM is
+          one of two hard-coded strings behind an equality check.
+        */}
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
+        />
+        {children}
+      </body>
     </html>
   );
 }

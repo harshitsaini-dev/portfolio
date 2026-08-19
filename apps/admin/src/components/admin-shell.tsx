@@ -12,6 +12,8 @@ import type { ReactNode } from "react";
 import { AdminNav } from "./admin-nav";
 import { MobileNav } from "./mobile-nav";
 import { identityLabel, type AdminIdentity } from "@/lib/auth/identity";
+import { ThemeToggle } from "@portfolio/ui/components/theme-toggle";
+import { AccountMenu } from "@/components/auth/account-menu";
 
 export function AdminShell({
   identity,
@@ -54,6 +56,14 @@ export function AdminShell({
               <span className="hidden text-sm text-fg-muted sm:inline">
                 {identityLabel(identity)}
               </span>
+              {/* The same control the public site has, from the same module.
+                  An editor works in here for hours; being able to turn the
+                  screen down is not a luxury feature. */}
+              <ThemeToggle />
+              {/* Only for a real session. There is nothing to sign out of when
+                  the identity came from Cloudflare Access — that is somebody
+                  else's session — or from the development fallback. */}
+              {identity.source === "admin-session" ? <AccountMenu /> : null}
             </div>
           </div>
         </header>
