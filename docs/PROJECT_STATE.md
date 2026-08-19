@@ -8361,3 +8361,35 @@ Doing these out of order is how a person locks themselves out of their own CMS.
 
 Until step 5, both paths work: a session is accepted first, and an Access
 identity is accepted when there is no session.
+
+
+## The login's first production failure: workerd caps PBKDF2
+
+`/setup` and `/login` both returned the admin error page while everything else
+worked. The cause, from `wrangler tail`:
+
+```
+NotSupportedError: Pbkdf2 failed: iteration counts above 100000
+are not supported (requested 600000).
+```
+
+Not a CPU limit and not a bug in the flow — a hard cap in the Workers runtime.
+The code was written against OWASP's 600,000 and verified locally, where Node
+imposes no cap at all, so the whole login passed every local check and then
+failed on the two forms nobody can route around.
+
+| | |
+| --- | --- |
+| Was | `PASSWORD_ITERATIONS = 600_000` |
+| Now | `PASSWORD_ITERATIONS = 100_000`, with `MAX_SUPPORTED_ITERATIONS` pinned |
+| Caught by | production only — now by a test that asserts the number |
+| Cost | six times weaker against an offline attack on a leaked database |
+| Unchanged | online guessing, still bounded at five attempts a quarter hour |
+
+The test asserts the constant rather than performing a derivation, because a
+derivation at any count succeeds under Node — the thing that needed pinning is
+a fact about the *other* runtime.
+
+No accounts were created before the fix, so nothing was stored at the
+unsupported count and no migration of existing hashes is needed. The per-row
+iteration count means one would not have been needed anyway.

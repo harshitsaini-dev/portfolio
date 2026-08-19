@@ -13,11 +13,14 @@ import "server-only";
  * ## Why PBKDF2 rather than argon2 or bcrypt
  *
  * Those are better algorithms. Neither is available: Workers has no native
- * module loading, so both would arrive as JavaScript or WebAssembly, run
- * slower per iteration than the runtime's own PBKDF2, and therefore be
- * configured *weaker* to fit inside the CPU budget of a request. PBKDF2-SHA256
- * at a high iteration count, run natively, is the stronger choice in this
- * environment even though it is the weaker algorithm on paper.
+ * module loading, so both would arrive as JavaScript or WebAssembly and run
+ * slower per iteration than the runtime's own PBKDF2.
+ *
+ * That argument was originally written as "PBKDF2 at a high iteration count
+ * is the stronger choice here", and the runtime then refused the high
+ * iteration count — see `PASSWORD_ITERATIONS`. The conclusion survives, but
+ * more narrowly than intended: PBKDF2 is what this platform will actually
+ * run.
  *
  * ## Everything compared here is compared in constant time
  *
@@ -28,15 +31,45 @@ import "server-only";
  */
 
 /**
- * PBKDF2 iterations for new passwords.
+ * The most iterations the Cloudflare Workers runtime will perform.
  *
- * OWASP's floor for PBKDF2-HMAC-SHA256 is 600,000 at the time of writing.
- * Stored per row rather than read from here at verification time, so raising
- * this number does not lock the owner out of their own site: an old password
- * keeps verifying at the count it was created with, and is rewritten at the
- * new count the next time it is used.
+ * Not a choice. workerd refuses anything higher outright:
+ *
+ *     NotSupportedError: Pbkdf2 failed: iteration counts above 100000
+ *     are not supported (requested 600000).
+ *
+ * This was set to 600,000 — OWASP's current floor for PBKDF2-HMAC-SHA256 —
+ * and every password operation returned a 500 in production while working
+ * perfectly in local development, because Node imposes no such cap. The
+ * disagreement between the two runtimes is the whole lesson: a limit that
+ * only exists in the deployment target is invisible until deployment.
+ *
+ * ## What is lost, stated plainly
+ *
+ * 100,000 is six times weaker than the recommendation against an attacker who
+ * has stolen the database and is grinding hashes offline. There is no way to
+ * buy that back within PBKDF2 here, and pretending otherwise would be worse
+ * than saying it.
+ *
+ * What still stands: the attack this weakens requires the D1 database to leak
+ * first, and the credential it protects is a twelve-character minimum
+ * passphrase rather than a word. Online guessing — the attack that does not
+ * need a leak — is bounded by the rate limiter at five attempts a quarter
+ * hour, and is untouched by this number.
+ *
+ * If that trade ever stops being acceptable, the fix is a pepper: an
+ * `ADMIN_PASSWORD_PEPPER` Worker secret mixed into the derivation, so a
+ * leaked database is not enough on its own. It is deliberately not done here,
+ * because a pepper that is lost locks the owner out permanently and that is a
+ * failure mode worth choosing on purpose rather than inheriting.
  */
-export const PASSWORD_ITERATIONS = 600_000;
+export const PASSWORD_ITERATIONS = 100_000;
+
+/**
+ * The runtime's hard ceiling, pinned so a future raise fails a test rather
+ * than production. See `PASSWORD_ITERATIONS`.
+ */
+export const MAX_SUPPORTED_ITERATIONS = 100_000;
 
 /** 16 bytes, the usual floor. Per user, never reused, never secret. */
 const SALT_BYTES = 16;

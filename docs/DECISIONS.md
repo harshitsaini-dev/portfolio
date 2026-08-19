@@ -1998,13 +1998,25 @@ presenting an upload control that cannot work.
   reached the Worker. The owner wanted a login page they control, with their
   own design and their own second factor; the cost is that the whole burden
   moves inside the app. Everything below follows from that.
-- **PBKDF2-HMAC-SHA256 at 600,000 iterations, not argon2 or bcrypt.** Those are
-  better algorithms and neither is available: Workers has no native module
-  loading, so both would arrive as JavaScript or WebAssembly, run slower per
-  iteration than the runtime's own PBKDF2, and end up configured *weaker* to
-  fit inside a request's CPU budget. The iteration count is stored per row, so
-  it can be raised later without invalidating the password, and a password is
-  rehashed at the higher cost the next time it is used.
+- **PBKDF2-HMAC-SHA256 at 100,000 iterations, because that is workerd's hard
+  ceiling.** Not argon2 or bcrypt: Workers has no native module loading, so both
+  would arrive as JavaScript or WebAssembly and run slower per iteration than
+  the runtime's own PBKDF2. The count was set to 600,000 — OWASP's current floor
+  — and the runtime refuses anything above 100,000 outright
+  (`NotSupportedError: Pbkdf2 failed: iteration counts above 100000 are not
+  supported`). Every password operation returned a 500 in production while
+  passing every local check, because Node imposes no such cap; a limit that
+  exists only in the deployment target is invisible until deployment, so the
+  ceiling is now pinned by a test that asserts the *number* rather than trying
+  the operation. What is lost is real and worth stating: 100,000 is six times
+  weaker than the recommendation against an attacker grinding a stolen
+  database. What still stands is that the attack needs the database to leak
+  first, the credential is a twelve-character minimum passphrase, and online
+  guessing is bounded by the rate limiter regardless. The hardening, if that
+  trade stops being acceptable, is a peppered derivation with the pepper as a
+  Worker secret — deliberately not done, because a lost pepper locks the owner
+  out permanently and that failure mode should be chosen rather than
+  inherited.
 - **A missing account costs the same as a wrong password.** `fakeVerify` runs
   a full derivation for an address that does not exist. Without it, "no such
   user" returns in a millisecond and "wrong password" in the hundreds — a
