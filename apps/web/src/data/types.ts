@@ -138,6 +138,15 @@ export interface Skill {
   readonly id: string;
   readonly name: string;
   readonly image: ContentImage | null;
+  /**
+   * How well this is known, 1-5, or null when it was never rated.
+   *
+   * The CMS has asked for this since skills existed and the site ignored it:
+   * the field saved, the column filled, and nothing on the page ever read it.
+   * Null is common and means exactly "not rated" — it is not a zero, and the
+   * page renders no meter for it rather than an empty one.
+   */
+  readonly proficiency: number | null;
 }
 
 export interface SkillCategory {

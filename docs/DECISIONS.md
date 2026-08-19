@@ -1861,3 +1861,46 @@ presenting an upload control that cannot work.
 - **CI has no deploy step.** Phase 1A explicitly excludes Cloudflare
   deployment; CI is limited to install/lint/typecheck/test/build with
   read-only permissions.
+- **A list too long for the page gets a panel, not a smaller box.** The
+  skills inside a category and the tools list can both grow without limit,
+  and both were printed in full. That is fine at nine and wrong at a
+  hundred: on a phone the page becomes one list, and inside the skills
+  carousel — whose stage is measured to its tallest card — one long card
+  drags the whole section with it. Capping the list and scrolling it inside
+  the card was tried first and rejected on sight: a list you can see a third
+  of, in a box that looks like the end of the card, with a scrollbar cutting
+  through a glass panel. The overflow now opens a native `<dialog>` sized to
+  the viewport (`OverflowPanel`), which is what a hundred of anything
+  actually needs. A `<details>` printing the whole list stays as the
+  no-JavaScript path — tall, which is the correct failure, since the
+  carousel has already degraded to a grid by then.
+- **The overflow panel is portalled to `document.body`.** Its trigger lives
+  inside a carousel slide, and that subtree is hostile to a modal: off-stage
+  slides carry `inert`, which takes `pointer-events` with it, and the stage
+  applies a 3D transform, which makes a `position: fixed` descendant resolve
+  against the slide rather than the viewport. Measured, not theorised — the
+  panel drew in the right place and then refused every click and wheel.
+- **The page is held still by stopping Lenis, not by `overflow: hidden`.**
+  Lenis drives the window's scroll position with `scrollTo`, and a
+  programmatic scroll ignores `overflow: hidden` — so the CSS lock had no
+  effect on a wheel and the page scrolled behind the open panel. Stopping
+  the instance holds it without changing a single style, which matters:
+  `overflow: hidden` removes the scrollbar, the layout reflows ten pixels
+  wider, and a panel centred in the old box is visibly off-centre in the new
+  one (measured at 187px of backdrop on one side and 197px on the other).
+  The blunt lock survives only under `prefers-reduced-motion`, where there
+  is no Lenis to stop. A stopped Lenis also swallows the wheel over the
+  panel, so the panel scrolls itself from an `onWheel` handler; touch and
+  the keyboard never went through the library and still scroll it natively.
+- **A `<dialog>` needs its centring restated.** The browser centres one with
+  `margin: auto` against `inset: 0`, and Tailwind's preflight resets the
+  margin on every element — which quietly takes that away and parks the
+  panel against the left edge. `scrollbar-gutter: stable` is held open on
+  `html` permanently so the reduced-motion lock cannot shift the layout
+  sideways underneath it.
+- **The home page shows six projects, not all of them.** The section had no
+  limit, which was invisible at nine and would not be at fifty: below `md`
+  the carousel is a plain grid, so a phone would have received every card
+  and every image with it. `/projects` already existed as the page that
+  lists everything, and the link under the section now carries the total so
+  the number is visible before anyone presses it.
