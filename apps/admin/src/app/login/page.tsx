@@ -44,7 +44,6 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
   return (
     <AuthShell
       title="Sign in"
-      description="The CMS behind the portfolio."
       footer={
         <Link
           href="/login/forgot"
@@ -82,7 +81,6 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
           label="Password"
           type="password"
           autoComplete="current-password"
-          hint="A six-digit code follows, by email."
         />
       </AuthForm>
     </AuthShell>

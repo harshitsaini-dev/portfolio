@@ -28,7 +28,7 @@ export default function NewPasswordPage() {
           label="New password"
           type="password"
           autoComplete="new-password"
-          hint="At least 12 characters. Length beats punctuation."
+          hint="At least 12 characters."
           autoFocus
         />
         <AuthField

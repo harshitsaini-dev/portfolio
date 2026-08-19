@@ -135,9 +135,7 @@ export function ChangePassword({ email }: { email: string }) {
               autoComplete="new-password"
               className={fieldClasses}
             />
-            <p className="text-xs text-fg-muted">
-              At least 12 characters. Length beats punctuation.
-            </p>
+            <p className="text-xs text-fg-muted">At least 12 characters.</p>
           </div>
 
           <div className="flex flex-col gap-1.5">

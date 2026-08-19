@@ -36,7 +36,7 @@ export default async function SetupPage() {
   return (
     <AuthShell
       title="Create the administrator"
-      description="This page works once, and then stops existing. Do it while Cloudflare Access is still protecting this app."
+      description="This page works once. Do it while Cloudflare Access is still protecting the app."
     >
       <AuthForm
         action={createFirstAdminAction}
@@ -49,7 +49,7 @@ export default async function SetupPage() {
           label="Email"
           type="email"
           autoComplete="username"
-          hint="Sign-in codes are sent here. It must be an address you can read."
+          hint="Sign-in codes are sent here."
           autoFocus
         />
         <AuthField
@@ -58,7 +58,7 @@ export default async function SetupPage() {
           label="Password"
           type="password"
           autoComplete="new-password"
-          hint="At least 12 characters. Length beats punctuation."
+          hint="At least 12 characters."
         />
         <AuthField
           id="confirm"

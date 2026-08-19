@@ -14,7 +14,6 @@ export default function ForgotPasswordPage() {
   return (
     <AuthShell
       title="Forgotten password"
-      description="Enter your address and a code will be sent to it."
       footer={<BackToSignIn />}
     >
       <AuthForm
