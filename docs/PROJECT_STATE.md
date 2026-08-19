@@ -8019,3 +8019,67 @@ validation. Three things are worth settling before any code:
 **Phase 9 engineering starts only after this closure is reviewed, merged,
 and its post-merge `main` CI is green** — not on the strength of this
 branch. It is not to be implemented until explicitly scoped and approved.
+
+
+## Skills and tools at scale — panel, and a home-page limit
+
+The owner asked what happens to a category holding a hundred skills, and then
+to a hundred tools, and then to fifty projects on a phone. All three had the
+same answer — everything was printed — so all three were bounded.
+
+### What changed
+
+| Area | Before | Now |
+| --- | --- | --- |
+| Skill category card | every skill, folded | first 5, then `Show all N` |
+| Tools | 24 rows, rest folded onto the page | 24 rows, then `Show all N` |
+| Overflow | inline `<details>` | `OverflowPanel` — a viewport-sized `<dialog>` |
+| Home page projects | all of them | first 6, with `View all projects (N)` |
+
+`apps/web/src/components/ui/overflow-panel.tsx` is shared by both lists. It
+portals to `document.body`, restores focus to its trigger on close, and falls
+back to a native `<details>` before hydration and without JavaScript.
+
+### Measured with seeded data
+
+A category of 105 skills and a list of 108 tools were seeded into local D1 and
+the panel measured in a real browser:
+
+| Check | Result |
+| --- | --- |
+| Card height with the overflow available | 383px, unchanged by opening it |
+| Skills section height | 1108px, unchanged |
+| Panel, 1536x730 | 1152x698, backdrop 187px each side, 16px top and bottom |
+| Panel, 390x844 | 342x812, backdrop 19px each side, one column, 44x44 close |
+| Rows rendered in the panel | 105 skills / 108 tools, 3 columns wide |
+| Wheel over the backdrop | page held at 5208px |
+| Wheel over the panel, past its end | page held; panel scrolled to 1166px |
+| Escape | closes; focus returns to the trigger and stays |
+| Backdrop click | closes |
+| Carousel autoplay while open | held at the same slide, resumes after close |
+
+With 53 projects seeded, the phone home page rendered 6 cards and the link
+read `View all projects (53)`; `/projects` still listed all 53.
+
+### Checks
+
+| Check | Result |
+| --- | --- |
+| `pnpm lint` | PASS — 0 errors, 0 warnings |
+| `pnpm typecheck` | PASS |
+| `pnpm test` | PASS — 715/715 Server Action authorization, 26/26 platform |
+| `pnpm build` | PASS — exit 0, both apps |
+| `pnpm test:e2e` | PASS — 43 passed, 3 skipped |
+
+### Local database
+
+The seeded skills (`big-%`) and projects (`bulk-%`) were deleted after
+measuring. The 104 mock tools (`mock-tool-%`) were **left in place** at the
+owner's request, so the panel can be seen with a realistic list. To remove
+them:
+
+```
+npx wrangler d1 execute portfolio-cms --local -c wrangler.d1.jsonc   --command "DELETE FROM tools WHERE id LIKE 'mock-tool-%'"
+```
+
+They are local only — nothing was written to the remote database.

@@ -257,6 +257,7 @@ function toSkillCategory(
       id: skill.id,
       name: skill.name,
       image: toImage(assets, skill.iconMediaId),
+      proficiency: skill.proficiency,
     })),
   };
 }

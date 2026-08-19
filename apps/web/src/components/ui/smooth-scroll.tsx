@@ -28,6 +28,15 @@
  * Not started at all. Smoothing is momentum the visitor did not ask for, and
  * the native scroll is exactly what they want instead.
  *
+ * ## Modals
+ *
+ * Lenis drives the window's scroll position with `scrollTo`, and a programmatic
+ * scroll is not stopped by `overflow: hidden` — so the CSS that holds the page
+ * still behind an open panel had no effect on a wheel, and the page went on
+ * moving underneath it. It is stopped outright while any dialog is open, and
+ * `data-lenis-prevent` on the panel hands wheels over the panel back to the
+ * browser so the panel scrolls natively.
+ *
  * ## It cannot leave scrolling broken
  *
  * `destroy()` runs on unmount, which restores native behaviour. And because
@@ -45,8 +54,15 @@ export function SmoothScroll() {
   useEffect(() => {
     if (reducedMotion) return;
 
-    let lenis: { raf: (time: number) => void; destroy: () => void } | null = null;
+    let lenis: {
+      raf: (time: number) => void;
+      destroy: () => void;
+      stop: () => void;
+      start: () => void;
+    } | null = null;
     let frame = 0;
+    let watcher = 0;
+    let stopped = false;
     let cancelled = false;
 
     // Imported dynamically so the library is not in the initial bundle: it is
@@ -77,11 +93,32 @@ export function SmoothScroll() {
         frame = requestAnimationFrame(raf);
       };
       frame = requestAnimationFrame(raf);
+
+      /*
+        Yield to whatever is on top of the page.
+
+        Read from the DOM on every frame rather than kept as state: a dialog
+        can be opened by any component on any page, and none of them should
+        have to know this exists. It is a `querySelector` per frame on a
+        selector the browser answers from an index — measured at no cost worth
+        writing a subscription to avoid.
+      */
+      const watch = () => {
+        const blocked = document.querySelector("dialog[open]") !== null;
+        if (blocked !== stopped) {
+          stopped = blocked;
+          if (blocked) lenis?.stop();
+          else lenis?.start();
+        }
+        watcher = requestAnimationFrame(watch);
+      };
+      watcher = requestAnimationFrame(watch);
     });
 
     return () => {
       cancelled = true;
       cancelAnimationFrame(frame);
+      cancelAnimationFrame(watcher);
       // Restores native scrolling. Without this, a navigation that unmounts
       // the component would leave the listeners attached.
       lenis?.destroy();

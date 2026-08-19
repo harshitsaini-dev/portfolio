@@ -711,3 +711,112 @@ html {
     text-shadow: none !important;
   }
 }
+
+/*
+  The panel that holds a list too long for the page — every skill in a
+  category, or every tool.
+
+  Styling a `<dialog>` by hand rather than reaching for a library: the element
+  already does the hard parts — focus trapping, Escape, inertness of the page
+  behind — so what is left is a box and a backdrop.
+
+  `max-height` with the panel scrolling inside is what makes a hundred skills
+  readable: the panel is the height of the viewport, so the list scrolls the
+  way a page scrolls rather than inside a box the size of a card.
+*/
+/*
+  The page holds still while a panel is over it.
+
+  `overscroll-behavior` on the panel stops a scroll that *starts* inside it
+  from continuing into the page, but a wheel over the backdrop never touched
+  the panel at all — so the page went on scrolling behind the panel, which is
+  what it looked like: content moving under something that was supposed to
+  have taken over.
+
+  Most of the time the smooth-scroll library does this job: it owns the wheel,
+  and it is stopped while a dialog is open (see `smooth-scroll.tsx`), which
+  holds the page without changing a single style. That matters more than it
+  sounds — `overflow: hidden` takes the scrollbar away, the layout reflows ten
+  pixels wider, and a panel centred in the old box is then visibly off-centre
+  in the new one. Reported as exactly that, and measured: 187px of backdrop on
+  one side and 197px on the other.
+
+  Under reduced motion there is no smooth scrolling to stop, so the blunt
+  version is used there and only there. The ten pixels come back, and a panel
+  a hair off-centre is a much smaller problem than a page that scrolls out
+  from under it.
+
+  Not a class toggled from an effect: the dialog element already knows whether
+  it is open, and a second source of truth for the same fact is the kind that
+  gets left switched on when something throws.
+*/
+/*
+  The scrollbar's space is held open at all times.
+
+  It costs ten pixels that were going to the scrollbar anyway, and it buys
+  two things: the reduced-motion lock below can take the scrollbar away
+  without the page jumping sideways, and a panel centred in this box is
+  centred in the same box whether one is open or not.
+*/
+html {
+  scrollbar-gutter: stable;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:has(dialog[open]),
+  html:has(dialog[open]) body {
+    /* Both, because which of the two actually scrolls depends on the styles
+       applied above and getting it wrong is silent. */
+    overflow: hidden;
+  }
+}
+
+.overflow-panel {
+  /*
+    Centred by hand.
+
+    A `<dialog>` centres itself in the browser's own stylesheet with
+    `margin: auto` against `inset: 0` — and Tailwind's preflight resets the
+    margin on every element, which quietly takes that away. The panel sat
+    against the left edge as a result. Restated here rather than excluded from
+    the reset, so it stays true whichever order the stylesheets land in.
+  */
+  inset: 0;
+  margin: auto;
+  width: min(72rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: hidden;
+}
+
+.overflow-panel::backdrop {
+  /* Dark enough that the page behind reads as out of the way, transparent
+     enough that it still reads as the same page. */
+  background: rgb(0 0 0 / 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.overflow-panel-body {
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  /* Kept, but made to look like it belongs. The bar was removed from the
+     cards because a native gutter cutting through a small glass panel reads
+     as damage; on something the size of a page it is the thing that says
+     there is more below, so it stays — thin, and in the page's own colours
+     rather than the operating system's. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-fg-muted, rgb(255 255 255 / 0.3)) transparent;
+  overscroll-behavior: contain;
+  padding: 1.5rem;
+  border: 1px solid var(--color-border-subtle, rgb(255 255 255 / 0.1));
+  border-radius: 1rem;
+  background: var(--color-bg, #0b0c10);
+}
+
+@media (min-width: 640px) {
+  .overflow-panel-body {
+    padding: 2rem;
+  }
+}
