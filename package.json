@@ -2,6 +2,7 @@
   "name": "portfolio",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "description": "Production 3D portfolio + CMS monorepo (apps/web, apps/admin, shared packages).",
   "packageManager": "pnpm@11.20.0",
   "engines": {
