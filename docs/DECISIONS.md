@@ -2067,3 +2067,21 @@ presenting an upload control that cannot work.
   Duplicating it would have drifted on the key, and the symptom would be a
   theme that sticks in one app and not the other, with nothing failing to say
   why.
+- **Grid items carry `min-w-0` where a card can be narrower than its contents.**
+  A grid item's automatic minimum is its `min-content` width, not zero, so a
+  column sized from its container still refuses to shrink below whatever the
+  contents insist on. In the skills carousel's fallback grid that demand came
+  from skill rows bleeding 8px into the card's padding with `-mx-2`; at a 320px
+  viewport the single column resolved to 358.8px and the page scrolled
+  sideways. The contact card had the same failure independently, at 322px
+  inside the 232px a 320px phone actually offers.
+- **Horizontal overflow is tested by sweeping widths, not at one.** The
+  existing check ran at the `phone` project's 412px and passed through a 59px
+  overflow that only appeared below 375px, because the failure mode — a
+  `min-content` floor — is invisible until the viewport is narrower than the
+  floor. 320, 360 and 375 are now checked explicitly: the narrowest viewport
+  still in use, the commonest Android width, and the iPhone SE.
+- **The dashboard counts skills, not skill categories.** "Skills: 3" would be a
+  strange answer when those three categories hold forty, so the tile sums the
+  nested skills. It replaced Technologies, and Notes replaced Robot lines,
+  because those are the two the owner actually edits.

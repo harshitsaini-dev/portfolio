@@ -241,7 +241,11 @@ export function ContactForm() {
       /* The browser's own bubbles are switched off — see the module comment
          for what replaces them and why. */
       noValidate
-      className="flex w-full flex-col gap-3"
+      /* `min-w-0` because this form is the second column of the contact
+         card's grid, and a grid item does not shrink below its `min-content`
+         without it. The inputs have an intrinsic width of their own, which is
+         exactly the kind of content that keeps a column too wide. */
+      className="flex w-full min-w-0 flex-col gap-3"
     >
       <input ref={startedAtRef} type="hidden" name="startedAt" defaultValue="" />
 
