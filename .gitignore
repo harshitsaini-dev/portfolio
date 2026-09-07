@@ -67,3 +67,11 @@ apps/*/CLAUDE.md
 # Database exports taken before a remote migration. Real content, sometimes
 # personal — kept locally as a safety net, never committed.
 /backup-prod-*.sql
+
+# Generated project cover images.
+#
+# These are made to be uploaded to the CMS (Admin → Media) and referenced from
+# a project's Cover image field, which stores them in R2. Committing them too
+# would mean two copies of the same picture with no way to tell which one the
+# site is actually serving — and the answer is always R2.
+/covers/
