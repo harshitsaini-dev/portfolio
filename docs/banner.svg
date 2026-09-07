@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-label="Portfolio and CMS — Next.js on Cloudflare Workers, D1 and R2">
+  <defs>
+    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#9d00ff" stop-opacity="0.30"/>
+      <stop offset="60%" stop-color="#9d00ff" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#9d00ff" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="rail" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#9d00ff"/>
+      <stop offset="100%" stop-color="#9d00ff" stop-opacity="0.35"/>
+    </linearGradient>
+
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#ffffff" stroke-opacity="0.028" stroke-width="1"/>
+    </pattern>
+
+    <radialGradient id="vignette" cx="50%" cy="0%" r="90%">
+      <stop offset="0%" stop-color="#0b0c10" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#0b0c10" stop-opacity="0.75"/>
+    </radialGradient>
+
+    <clipPath id="frame">
+      <rect x="0" y="0" width="1200" height="360" rx="16"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#frame)">
+    <!-- The site's own dark canvas: --bg in tokens.css -->
+    <rect width="1200" height="360" fill="#0b0c10"/>
+    <rect width="1200" height="360" fill="url(#grid)"/>
+    <circle cx="180" cy="60" r="420" fill="url(#glow)"/>
+    <rect width="1200" height="360" fill="url(#vignette)"/>
+
+    <!-- ── left column ─────────────────────────────────────────────── -->
+    <g transform="translate(64, 96)">
+      <circle cx="5" cy="-5" r="5" fill="#9d00ff"/>
+      <text x="20" y="0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+            font-size="14" letter-spacing="3.4" fill="#9d00ff">harshitsaini.in</text>
+
+      <text x="0" y="66" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+            font-size="56" font-weight="700" letter-spacing="-1.6" fill="#f1f2f5">Portfolio<tspan fill="#9d00ff"> + </tspan>CMS</text>
+
+      <text x="0" y="106" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+            font-size="17" fill="#a5a7b3">Next.js on Cloudflare Workers, D1 and R2 —</text>
+      <text x="0" y="132" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+            font-size="17" fill="#a5a7b3">every word on the site is editable, and the CMS is mine too.</text>
+
+      <!-- The skills section's proportional rails, as a rhythm device -->
+      <g transform="translate(0, 164)">
+        <rect x="0" y="0" width="196" height="3" rx="1.5" fill="url(#rail)"/>
+        <rect x="212" y="0" width="118" height="3" rx="1.5" fill="#ffffff" fill-opacity="0.13"/>
+        <rect x="346" y="0" width="74" height="3" rx="1.5" fill="#ffffff" fill-opacity="0.08"/>
+      </g>
+    </g>
+
+    <!-- ── the hero's console, rebuilt ─────────────────────────────── -->
+    <g transform="translate(716, 74)">
+      <rect x="0" y="0" width="420" height="212" rx="12" fill="#131419" stroke="#ffffff" stroke-opacity="0.09"/>
+      <line x1="0" y1="38" x2="420" y2="38" stroke="#ffffff" stroke-opacity="0.07"/>
+      <circle cx="22" cy="19" r="4.5" fill="#ff5f57"/>
+      <circle cx="40" cy="19" r="4.5" fill="#febc2e"/>
+      <circle cx="58" cy="19" r="4.5" fill="#28c840"/>
+
+      <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13.5">
+        <text x="22" y="72" fill="#5c5f6e">$</text>
+        <text x="42" y="72" fill="#e7e8ee">pnpm build</text>
+
+        <text x="22" y="102" fill="#5c5f6e">›</text>
+        <text x="42" y="102" fill="#a5a7b3">apps/web</text>
+        <text x="360" y="102" fill="#28c840">ok</text>
+
+        <text x="22" y="128" fill="#5c5f6e">›</text>
+        <text x="42" y="128" fill="#a5a7b3">apps/admin</text>
+        <text x="360" y="128" fill="#28c840">ok</text>
+
+        <text x="22" y="154" fill="#5c5f6e">›</text>
+        <text x="42" y="154" fill="#a5a7b3">49 e2e, 26 suites</text>
+        <text x="360" y="154" fill="#28c840">ok</text>
+
+        <text x="22" y="186" fill="#5c5f6e">$</text>
+        <text x="42" y="186" fill="#e7e8ee">deploy</text>
+        <rect x="98" y="175" width="8" height="15" fill="#9d00ff"/>
+      </g>
+    </g>
+
+    <!-- ── footer strip ───────────────────────────────────────────── -->
+    <!-- One flowing <text> with tspans rather than positioned runs: fixed x
+         values cannot know how wide each word renders, so the separators sat
+         at uneven distances from the words either side of them. -->
+    <text x="64" y="306" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+          font-size="12.5" fill="#6b6e7d" letter-spacing="0.2">TypeScript<tspan
+      fill="#33353f"> · </tspan>Next.js 16<tspan
+      fill="#33353f"> · </tspan>Cloudflare Workers<tspan
+      fill="#33353f"> · </tspan>D1<tspan
+      fill="#33353f"> · </tspan>R2<tspan
+      fill="#33353f"> · </tspan>Tailwind<tspan
+      fill="#33353f"> · </tspan>Playwright</text>
+
+    <rect x="0.5" y="0.5" width="1199" height="359" rx="16" fill="none" stroke="#ffffff" stroke-opacity="0.08"/>
+  </g>
+</svg>
