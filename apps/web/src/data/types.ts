@@ -101,8 +101,17 @@ export interface Project {
   readonly summary: string;
   readonly technologies: readonly string[];
   readonly year: string;
-  readonly repository: PlaceholderLink;
-  readonly liveSite: PlaceholderLink;
+  /**
+   * Null when there is no link, rather than a button explaining its absence.
+   *
+   * The inert-with-a-reason treatment is right where something was promised
+   * and is missing. A project simply having no repository, or not being
+   * deployed, is neither — it is an ordinary fact about that project, and
+   * announcing it on the card says "this is incomplete" about work that is
+   * merely private or unfinished by choice.
+   */
+  readonly repository: PlaceholderLink | null;
+  readonly liveSite: PlaceholderLink | null;
 }
 
 export interface TimelineEntry {

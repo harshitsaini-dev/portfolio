@@ -82,16 +82,25 @@ export function ProjectCard({ project }: { project: Project }) {
             items={project.technologies}
             label={`Technologies used in ${project.title}`}
           />
-          <div className="mt-5 flex flex-wrap items-start gap-x-6 gap-y-4">
-            <PlaceholderAction
-              action={project.repository}
-              context={`${project.slug}-repository`}
-            />
-            <PlaceholderAction
-              action={project.liveSite}
-              context={`${project.slug}-live`}
-            />
-          </div>
+          {/* The row itself only exists if something goes in it. Rendering
+              it regardless left `mt-5` of empty space under the tags of every
+              project that has neither link. */}
+          {project.repository || project.liveSite ? (
+            <div className="mt-5 flex flex-wrap items-start gap-x-6 gap-y-4">
+              {project.repository ? (
+                <PlaceholderAction
+                  action={project.repository}
+                  context={`${project.slug}-repository`}
+                />
+              ) : null}
+              {project.liveSite ? (
+                <PlaceholderAction
+                  action={project.liveSite}
+                  context={`${project.slug}-live`}
+                />
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
     </Surface>

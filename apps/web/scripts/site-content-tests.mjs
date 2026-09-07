@@ -338,15 +338,16 @@ try {
     publicProject.repository.status,
     "available",
   );
-  equal(
-    "a missing live link is unavailable, with a reason",
-    publicProject.liveSite.status,
-    "unavailable",
-  );
-  check(
-    "the unavailable link explains itself",
-    publicProject.liveSite.reason.length > 0,
-  );
+  /*
+    A missing link is null, not an inert button explaining its absence.
+
+    The card used to render "Live site — Not available yet — Not deployed yet"
+    for any project without one, which announces "this is incomplete" about
+    work that is merely private or unfinished by choice. The placeholder
+    treatment is still right where something was promised and is missing; a
+    project having no deployment was never a promise.
+  */
+  equal("a missing live link is null", publicProject.liveSite, null);
   equal(
     "a start date with no end reads as ongoing",
     content.timeline[0].period,

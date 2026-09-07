@@ -191,8 +191,20 @@ function toProject(
     summary: row.summary,
     technologies: technologyNames,
     year: toPeriod(row.periodLabel, row.startedOn, row.completedOn),
-    repository: toLink(repositoryUrl, "Source code", "No repository link yet"),
-    liveSite: toLink(liveUrl, "Live site", "Not deployed yet"),
+    /*
+      No URL means no control at all — see the field comments on `Project`.
+
+      Built directly rather than through `toLink`, which exists to turn an
+      absent URL into an explanatory placeholder. That is the behaviour being
+      removed here, so passing it an empty reason it would never use would be
+      keeping the shape of a decision after reversing it.
+    */
+    repository: repositoryUrl
+      ? { status: "available", href: repositoryUrl, label: "Source code" }
+      : null,
+    liveSite: liveUrl
+      ? { status: "available", href: liveUrl, label: "Live site" }
+      : null,
   };
 }
 
