@@ -279,7 +279,9 @@ export default async function ProjectPage({
 
             {project.gallery.length > 0 ? (
               <div className="mt-14">
-                <h2 className={type.minorHeading}>Gallery</h2>
+                <h2 className={`${type.minorHeadingBase} text-accent`}>
+                  Gallery
+                </h2>
                 <ul className="mt-6 grid gap-8 sm:grid-cols-2">
                   {project.gallery.map((item) => (
                     <li key={item.image.id}>
