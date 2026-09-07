@@ -342,7 +342,20 @@
        The cards do NOT stretch to fill it — see below. Stretching made the
        ones without a cover open a large void between their summary and their
        actions, because the card foot is pushed down by `mt-auto`. */
-    height: var(--stage-height, 34rem);
+    /*
+      Room for the hover glow, above and below.
+
+      The stage clips (see `overflow` below) and the slides used to sit at
+      `top: 0`, so a hovered card's outer glow — `0 0 26px -6px`, which
+      reaches about 20px past the card — was sliced off dead along the top
+      edge. It read as the card having been cut, which is exactly how it was
+      reported. Measured: zero pixels between the stage's top and the card's.
+
+      The component keeps publishing the *content* height and this adds the
+      allowance, so neither has to know the other's number.
+    */
+    --stage-bleed: 20px;
+    height: calc(var(--stage-height, 34rem) + var(--stage-bleed) * 2);
     /* Depth. Larger values flatten the effect; smaller ones distort the card
        edges badly enough to look like a rendering bug. */
     perspective: 1600px;
@@ -394,7 +407,9 @@
 
   .project-stage .project-slide {
     position: absolute;
-    top: 0;
+    /* Not zero — see `--stage-bleed`. The slides sit inside the allowance so
+       the glow has somewhere to go. */
+    top: var(--stage-bleed);
     /* Centred by its own width rather than with `inset: 0` and auto margins,
        so the translate below measures from the middle of the stage. */
     left: 50%;

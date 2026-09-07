@@ -104,7 +104,16 @@ function CaseStudyPart({
   if (paragraphs.length === 0) return null;
   return (
     <section className="mt-12 max-w-2xl">
-      <h2 className={type.minorHeading}>{heading}</h2>
+      {/*
+        The accent, not the foreground.
+
+        `text-accent` resolves through `var(--accent)`, and the page body
+        already scopes that to this project's own accent when it has one —
+        see `accentCustomProperties` below. So a project with its own colour
+        gets it here and one without falls through to the site's, with no
+        condition to write and none to forget.
+      */}
+      <h2 className={`${type.minorHeadingBase} text-accent`}>{heading}</h2>
       <div className={`mt-5 space-y-5 ${type.body}`}>
         {paragraphs.map((paragraph, index) => (
           // Paragraph order is fixed and never reordered or filtered, so the
@@ -251,7 +260,9 @@ export default async function ProjectPage({
 
             {project.technologies.length > 0 ? (
               <div className="mt-12">
-                <h2 className={type.minorHeading}>Built with</h2>
+                <h2 className={`${type.minorHeadingBase} text-accent`}>
+                  Built with
+                </h2>
                 <div className="mt-5">
                   <BadgeList
                     items={project.technologies}

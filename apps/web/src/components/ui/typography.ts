@@ -13,6 +13,17 @@ export const type = {
   heading: "text-2xl font-semibold tracking-tight text-fg sm:text-3xl",
   /** Subsection and card headings (h3/h4). */
   subheading: "text-lg font-semibold tracking-tight text-fg",
+  /**
+   * A small structural heading with no colour of its own.
+   *
+   * Exists because `text-fg` cannot be overridden by writing `text-accent`
+   * beside it: both are utilities of equal specificity, so which one wins is
+   * decided by Tailwind's output order rather than by the order they appear
+   * in the class attribute. Measured — the accent-coloured case-study headings
+   * came out `rgb(241 242 245)`, the foreground, with no sign anything had
+   * been ignored. The same trap as the contact form's field widths.
+   */
+  minorHeadingBase: "text-sm font-semibold uppercase tracking-wider",
   /** Small structural headings inside a section. */
   minorHeading: "text-sm font-semibold uppercase tracking-wider text-fg",
   /** Lead paragraph under a display or section heading. */

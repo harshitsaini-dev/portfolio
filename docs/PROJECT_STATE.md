@@ -8451,3 +8451,67 @@ categories), Notes 1, both linking to the right pages.
 | `pnpm test` | PASS — 26 suites |
 | `pnpm build` | PASS — exit 0 |
 | `pnpm test:e2e` | PASS — 49 passed, 3 skipped (was 43) |
+
+
+## Project cards and the case-study page
+
+Three reports, all measured in a browser before and after.
+
+### A missing link no longer advertises itself
+
+| | Before | After |
+| --- | --- | --- |
+| Project with no repository link | inert "Source code" button | nothing |
+| Project with no live link | "Live site" + "Not available yet — Not deployed yet" | nothing |
+| Project with neither | both, plus `mt-5` of empty row | no row at all |
+
+Verified against the local database, which happens to hold one project with no
+links and three with a repository link only: the first renders no actions, the
+other three render "Source code" alone, and the string "Not available yet" does
+not appear anywhere in the section.
+
+The site-content test asserted the old behaviour and failed, which is what it
+is for. It now asserts that a missing link is null.
+
+### The hover glow was being clipped
+
+Reported as an edge appearing above the card on hover, as though it had been
+cut — and diagnosed correctly by the owner as the container being too short.
+
+`ul.project-stage` clips (deliberately: receding side cards would otherwise
+give the page a horizontal scrollbar), and the slides sat at `top: 0`.
+Measured: **0px** between the stage's top and the card's, against a glow that
+reaches about 20px. A `--stage-bleed: 20px` now sits in the stage's height and
+the slides sit inside it — measured after: 20px above, 36px below.
+
+### Case-study headings follow the project's accent
+
+"The problem", "What I built", "Built with" and "What I learned" now take the
+accent rather than the foreground. All four, not the two that were asked about
+— one heading in a different colour from its neighbours reads as a mistake.
+
+| Project | Heading colour |
+| --- | --- |
+| accent set to `#ff6b35` | `rgb(255, 107, 53)` |
+| no accent | the site accent |
+
+No condition is written for that: the page already scopes `--accent` to the
+project's own colour when it has one, so `text-accent` does the right thing by
+resolving.
+
+Getting there needed `type.minorHeadingBase`, a heading style with no colour.
+`text-accent` written beside `type.minorHeading` did nothing, because
+`text-fg` is already in it and Tailwind's output order decides between two
+utilities of equal specificity. The same trap as the contact form's field
+widths, and worth recognising faster next time: **if a utility appears to be
+ignored, look for another utility setting the same property in the shared
+string.**
+
+### Checks
+
+| Check | Result |
+| --- | --- |
+| `pnpm lint` | PASS — 0 errors, 0 warnings |
+| `pnpm typecheck` | PASS |
+| `pnpm test` | PASS — 26 suites |
+| `pnpm build` | PASS — exit 0 |

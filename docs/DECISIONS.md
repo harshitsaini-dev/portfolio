@@ -2085,3 +2085,29 @@ presenting an upload control that cannot work.
   strange answer when those three categories hold forty, so the tile sums the
   nested skills. It replaced Technologies, and Notes replaced Robot lines,
   because those are the two the owner actually edits.
+- **A project card shows no control for a link that does not exist.** It used
+  to render "Live site" as an inert button reading "Not available yet — Not
+  deployed yet", which announces "this is incomplete" about work that is merely
+  private or not deployed by choice. The honest-placeholder treatment is still
+  right where something was *promised* and is missing; a project having no
+  repository was never a promise. The row itself is conditional too, or a
+  project with neither link left `mt-5` of empty space under its tags.
+- **The carousel stage reserves room for the hover glow.** Slides sat at
+  `top: 0` inside a stage that clips, so a hovered card's `0 0 26px -6px` glow
+  — which reaches about 20px past the card — was sliced dead along the top
+  edge and read as the card having been cut. Measured: zero pixels between the
+  stage's top and the card's. A `--stage-bleed` of 20px is added to the height
+  in CSS and the slides sit inside it, so the component keeps publishing the
+  content height and neither has to know the other's number.
+- **Case-study headings take the accent, and `minorHeadingBase` exists so they
+  can.** `type.minorHeading` carries `text-fg`, and writing `text-accent`
+  beside it does nothing: both are utilities of equal specificity, so Tailwind's
+  output order decides. Measured — the headings came out `rgb(241 242 245)`
+  with no sign anything had been ignored. Splitting the colour out of the base
+  is the same fix the contact form's field widths needed, and the second time
+  this trap has cost a debugging session.
+- **The accent those headings take is the project's own, with no condition
+  written.** The project page already scopes `--accent` to the project's colour
+  when it has one, so `text-accent` resolves to the project's accent or falls
+  through to the site's. Verified both ways: a project set to `#ff6b35`
+  rendered `rgb(255 107 53)`, one with none rendered the site accent.
