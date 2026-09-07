@@ -49,7 +49,7 @@ export default withAdminPage(async () => {
   const [
     messages,
     projects,
-    technologies,
+    skillCategories,
     timeline,
     education,
     certifications,
@@ -57,12 +57,14 @@ export default withAdminPage(async () => {
     socials,
     media,
     sections,
-    robotLines,
+    notes,
     traffic,
   ] = await Promise.all([
     repos.contactMessages.list(),
     repos.projects.list(),
-    repos.technologies.list(),
+    // With their skills nested, because the count that means something here is
+    // how many skills exist, not how many boxes they are filed in.
+    repos.skills.listWithSkills(),
     repos.timeline.list(),
     repos.education.list(),
     repos.certifications.list(),
@@ -70,7 +72,7 @@ export default withAdminPage(async () => {
     repos.socialLinks.list(),
     repos.media.list(),
     repos.sections.list(),
-    repos.robotLines.list(),
+    repos.notes.list(),
     // The only read here allowed to fail without taking the dashboard with
     // it. Analytics is the newest table, so it is the one most likely to be
     // missing between a deploy and its migration — and a dashboard that will
@@ -88,7 +90,17 @@ export default withAdminPage(async () => {
 
   const counts = [
     { label: "Projects", value: projects.length, href: "/projects" },
-    { label: "Technologies", value: technologies.length, href: "/technologies" },
+    {
+      label: "Skills",
+      // Every skill across every category, not the number of categories. The
+      // owner asked for this tile by name, and "3" would be a strange answer
+      // to "how many skills" when there are forty in those three.
+      value: skillCategories.reduce(
+        (total, category) => total + category.skills.length,
+        0,
+      ),
+      href: "/skills",
+    },
     { label: "Experience", value: timeline.length, href: "/timeline" },
     { label: "Education", value: education.length, href: "/education" },
     {
@@ -99,7 +111,7 @@ export default withAdminPage(async () => {
     { label: "Tools", value: tools.length, href: "/tools" },
     { label: "Social links", value: socials.length, href: "/socials" },
     { label: "Media", value: media.length, href: "/media" },
-    { label: "Robot lines", value: robotLines.length, href: "/robot-lines" },
+    { label: "Notes", value: notes.length, href: "/notes" },
   ];
 
   return (

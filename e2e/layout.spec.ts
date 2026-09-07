@@ -56,6 +56,52 @@ test("the document does not scroll horizontally", async ({ page }) => {
   expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1);
 });
 
+/**
+ * The same check, on phones narrower than the one the suite emulates.
+ *
+ * The test above runs at the `phone` project's width — a Pixel 7, 412px — and
+ * passed all the way through a real horizontal overflow that only appeared
+ * below 375px. It was reported from a 320px device as a gap beside the header
+ * when zoomed out, which is what sideways scroll looks like from a phone, and
+ * measured at 59px.
+ *
+ * The cause both times was a grid item's automatic minimum: a column will not
+ * shrink below its contents' `min-content`, however narrow the container gets,
+ * so the failure is invisible until the viewport is smaller than whatever the
+ * contents insist on. That makes width the variable worth sweeping rather than
+ * a single value worth picking.
+ *
+ * 320 is the narrowest viewport still in use (an iPhone SE in landscape zoom,
+ * an old Android); 360 is the commonest Android width; 375 is the iPhone SE
+ * and mini. Anything wider was already covered.
+ */
+for (const width of [320, 360, 375]) {
+  test(`the document does not scroll horizontally at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/");
+    await settle(page);
+
+    // Every section, not just the ones above the fold: the overflow that
+    // prompted this was in the contact card at the bottom of the page.
+    await page.evaluate(async () => {
+      for (let y = 0; y < document.body.scrollHeight; y += 600) {
+        window.scrollTo(0, y);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      window.scrollTo(0, 0);
+    });
+
+    const overflow = await page.evaluate(() => {
+      const doc = document.documentElement;
+      return { scrollWidth: doc.scrollWidth, clientWidth: doc.clientWidth };
+    });
+
+    expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1);
+  });
+}
+
 test("every image stays inside the viewport", async ({ page }) => {
   await page.goto("/");
   await settle(page);

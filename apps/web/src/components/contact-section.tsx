@@ -56,7 +56,11 @@ export function ContactSection({
             line or two and the form is five controls tall, so aligning at the
             top leaves the left column looking abandoned. Only from `md`,
             where the two are actually side by side. */}
-        <div className="md:self-center">
+        {/* `min-w-0` for the reason given in `Carousel3D`: a grid item
+            will not shrink below its own `min-content`, and this column's
+            contents — a monospace address, a row of buttons — insisted on
+            322px inside the 232px a 320px phone actually had. */}
+        <div className="min-w-0 md:self-center">
           <p className={type.body}>{contact.body}</p>
           {/*
             The direct routes, alongside the form.

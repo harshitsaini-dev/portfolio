@@ -8393,3 +8393,61 @@ a fact about the *other* runtime.
 No accounts were created before the fix, so nothing was stored at the
 unsupported count and no migration of existing hashes is needed. The per-row
 iteration count means one would not have been needed anyway.
+
+
+## Mobile horizontal overflow, and two dashboard tiles
+
+### The overflow
+
+Reported from a 320px phone as a gap beside the header when zoomed out — which
+is what sideways scroll looks like from a phone. Reproduced and measured with
+Playwright driven from a script, because the Playwright MCP server would not
+connect this session.
+
+| Viewport | Overflow before | After |
+| --- | --- | --- |
+| 320px | **59px** | none |
+| 360px | 19px | none |
+| 375px | 4px | none |
+| 390px and wider | none | none |
+
+Two independent causes, both the same mechanism — a grid item will not shrink
+below its contents' `min-content`:
+
+1. **The skills carousel's fallback grid.** Skill rows bleed 8px each side into
+   the card's padding with `-mx-2`; that demand propagated out until the single
+   column resolved to 358.8px inside a 270px container.
+2. **The contact card.** Its columns insisted on 322px inside the 232px a 320px
+   phone offers — which is also why the contact form did not look right there.
+   The same report covered both; they had one cause.
+
+A decorative glow in the hero also measures past the viewport, and is *not* a
+cause: an ancestor already clips it, so it never contributed to `scrollWidth`.
+Recorded so it is not "fixed" later.
+
+### Why the suite missed it
+
+`the document does not scroll horizontally` runs at the `phone` project's
+width — a Pixel 7, 412px — where there was nothing to find. Six new tests sweep
+320, 360 and 375. Verified the honest way: with the fix reverted the 320px test
+fails at 367 against a 321 limit, and passes with it.
+
+### Dashboard
+
+| Was | Now |
+| --- | --- |
+| Technologies | **Skills** — summing the skills nested in every category |
+| Robot lines | **Notes** |
+
+Read in a browser against the local database: Skills 15 (not 4, the number of
+categories), Notes 1, both linking to the right pages.
+
+### Checks
+
+| Check | Result |
+| --- | --- |
+| `pnpm lint` | PASS — 0 errors, 0 warnings |
+| `pnpm typecheck` | PASS |
+| `pnpm test` | PASS — 26 suites |
+| `pnpm build` | PASS — exit 0 |
+| `pnpm test:e2e` | PASS — 49 passed, 3 skipped (was 43) |

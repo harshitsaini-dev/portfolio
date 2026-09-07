@@ -294,7 +294,24 @@ export function Carousel3D<T>({
       >
         {items.map((item, index) => {
           if (!enhanced) {
-            return <li key={getKey(item)}>{renderItem(item)}</li>;
+            /*
+              `min-w-0`, or the column refuses to shrink.
+
+              A grid item's automatic minimum is its `min-content` width, not
+              zero, so a column sized from the container still cannot get
+              narrower than its contents insist on. Inside a skill card those
+              contents include rows that bleed 8px into the card's padding
+              with `-mx-2`, and that demand propagates all the way out: at a
+              320px viewport the single column resolved to **358.8px** and the
+              whole page scrolled sideways. Measured, after it was reported as
+              a gap beside the header when zoomed out — which is what
+              horizontal overflow looks like from a phone.
+            */
+            return (
+              <li key={getKey(item)} className="min-w-0">
+                {renderItem(item)}
+              </li>
+            );
           }
 
           const offset = circularOffset(index, active, total);
