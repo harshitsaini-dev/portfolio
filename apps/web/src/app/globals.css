@@ -629,27 +629,23 @@ html {
 }
 
 /*
-  The terminal's block caret.
+  The blink shared by the caret-like marks.
 
-  Sized in `ch` and `em` so it tracks the monospace face rather than a guess in
-  pixels. It is decoration beside a real text input that has a real caret of its
-  own, so it is hidden from assistive technology in the markup — and because it
-  is purely additional, leaving it perfectly still under reduced motion costs
-  nothing.
+  The `.terminal-caret` class that these keyframes were written for is gone —
+  it drew a block after the terminal's input, which is `flex-1`, so it landed
+  against the right edge of the box instead of after the typed text. The
+  native caret does that job correctly.
+
+  The keyframes stay because `.offline-caret` in `packages/ui/src/system-
+  screen.css` animates by this name. An animation naming keyframes that do not
+  exist is not an error in CSS — it simply does not animate — so deleting
+  these would have stopped the offline screen's caret with nothing to show
+  for it anywhere.
+
+  Declared inside the media query on purpose: under reduced motion the name
+  resolves to nothing and every caret using it holds still.
 */
-.terminal-caret {
-  width: 1ch;
-  height: 1.1em;
-  vertical-align: text-bottom;
-  background-color: var(--color-accent);
-  opacity: 0.9;
-}
-
 @media (prefers-reduced-motion: no-preference) {
-  .terminal-caret {
-    animation: terminal-caret 1.1s steps(1, end) infinite;
-  }
-
   @keyframes terminal-caret {
     0%,
     49% {

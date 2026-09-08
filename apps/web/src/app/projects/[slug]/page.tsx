@@ -114,7 +114,21 @@ function CaseStudyPart({
         condition to write and none to forget.
       */}
       <h2 className={`${type.minorHeadingBase} text-accent`}>{heading}</h2>
-      <div className={`mt-5 space-y-5 ${type.body}`}>
+      {/*
+        `wrap-anywhere`, not `break-words`.
+
+        This is CMS prose, so it contains whatever was written — and one entry
+        contains `REACT_APP_BACKEND_URL=http://127.0.0.1:8000`, a single token
+        with nothing to break at. At 375px it pushed the page to 388px wide,
+        which on a phone zooms the whole layout out and takes the header with
+        it.
+
+        `break-words` (`overflow-wrap: break-word`) does not fix that on its
+        own: it lets the glyphs wrap but leaves the element's min-content width
+        as the full token, so the ancestor still sizes to it. `anywhere` shrinks
+        min-content too, which is the part that stops the overflow.
+      */}
+      <div className={`mt-5 space-y-5 wrap-anywhere ${type.body}`}>
         {paragraphs.map((paragraph, index) => (
           // Paragraph order is fixed and never reordered or filtered, so the
           // index is a stable key.
