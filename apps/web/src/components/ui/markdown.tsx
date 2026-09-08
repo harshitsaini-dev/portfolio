@@ -259,5 +259,9 @@ export function Markdown({ body }: { body: string }) {
     }
   }
 
-  return <div className="max-w-2xl">{blocks}</div>;
+  // Same reasoning as the case-study prose: this renders whatever was typed
+  // into the CMS, and an unbroken URL or env-var assignment is wide enough to
+  // push a phone-width page sideways. `<pre>` blocks keep their own
+  // `overflow-x-auto` and are unaffected — they scroll rather than wrap.
+  return <div className="max-w-2xl wrap-anywhere">{blocks}</div>;
 }

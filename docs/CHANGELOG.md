@@ -1,6 +1,25 @@
 
 # Changelog
 
+## 2026-09-08 — Two overflow fixes on the public site
+
+### Fixed
+
+- **The terminal's stray caret.** A decorative block `<span>` sat after a
+  `flex-1` input, so it rendered against the right edge of the terminal rather
+  than after the typed text. Removed; the input's native caret already does
+  the job. `@keyframes terminal-caret` kept — `.offline-caret` in
+  `packages/ui` animates by that name.
+- **A project page 13px wider than a phone.** `wrap-anywhere` on the
+  case-study prose and the Markdown renderer. An unbroken
+  `REACT_APP_BACKEND_URL=http://127.0.0.1:8000` in one project's learnings
+  made `/projects/speaklink` measure 388px at a 375px viewport, which zooms a
+  phone out and breaks the header. `break-words` does not fix this — it leaves
+  min-content width at the full token.
+
+Verified in a browser at 375px: 388px before, 375px after. Lint, typecheck,
+26 test suites, both builds, and 49 e2e tests (3 skipped) all pass.
+
 ## 2026-08-08 — Phase 9: media library CMS
 
 The first Phase 9 slice with a user interface. **Phase 9 is not complete** —

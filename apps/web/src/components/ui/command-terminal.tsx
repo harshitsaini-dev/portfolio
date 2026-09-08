@@ -299,13 +299,16 @@ export function CommandTerminal({
           className="peer min-w-0 flex-1 bg-transparent text-fg outline-none placeholder:text-fg-muted/60"
         />
         {/*
-          A block caret, for the look of the thing. The input has its own
-          native caret, so this is decoration and is hidden from assistive
-          technology; it sits after the field and only while the field is
-          focused, via `peer-focus`, so it never implies a cursor that is not
-          there. The blink is a CSS animation and stops under reduced motion.
+          There was a decorative block caret here. It sat after the input, and
+          the input is `flex-1` — so it rendered hard against the right edge of
+          the terminal, inches from the text being typed, looking like a stray
+          square rather than a cursor. Sizing the field to its content would
+          put it back in the right place, but `field-sizing: content` is not
+          in Firefox, so the bug would simply survive there instead.
+
+          The native caret already blinks in exactly the right place, which is
+          what the decoration was imitating.
         */}
-        <span aria-hidden="true" className="terminal-caret hidden peer-focus:inline-block" />
       </form>
 
       {footer ? (

@@ -3,6 +3,50 @@
 Notable architectural/tooling decisions and their rationale. Append new
 entries; do not delete history.
 
+## 2026-09-08 — Two overflow bugs, one shape
+
+### The terminal's block caret is gone, not repositioned
+
+It was a decorative `<span>` after the input, and the input is `flex-1` — so
+the caret rendered against the right edge of the terminal, a purple square
+sitting several hundred pixels from the text being typed. It had presumably
+always done this; it is only obvious once the box is wide.
+
+Sizing the field to its content with `field-sizing: content` would put the
+decoration back beside the text, and was rejected: Firefox does not implement
+it, so the fix would work in Chrome and leave the identical bug in Firefox.
+Deleted instead. The native caret blinks in the right place already, which is
+what the decoration was imitating.
+
+The `@keyframes terminal-caret` stay in `globals.css`, because
+`.offline-caret` in `packages/ui/src/system-screen.css` animates by that name
+across a file boundary. An `animation` naming keyframes that do not exist is
+not a CSS error — it silently does not animate — so removing them would have
+stopped the offline screen's caret with nothing to show for it.
+
+### `wrap-anywhere`, not `break-words`, for CMS prose
+
+A project's learnings contain `REACT_APP_BACKEND_URL=http://127.0.0.1:8000`.
+One token, no break opportunity: at 375px the page measured 388px, and on a
+phone that zooms the whole layout out — the reported symptom was a broken
+header, three sections away from the cause.
+
+`break-words` (`overflow-wrap: break-word`) is the reflex and is not enough.
+It permits the glyphs to wrap but leaves the element's **min-content width**
+equal to the whole token, so an ancestor sizing to min-content still overflows.
+`anywhere` shrinks min-content too. That distinction is the entire fix, and it
+is the same lesson as the carousel's `min-w-0`: intrinsic sizing, not painting,
+is what makes a page wider than the screen.
+
+Applied to the case-study prose and to the Markdown renderer — both render
+whatever was typed into the CMS. `<pre>` blocks are unaffected; they keep
+`overflow-x-auto` and scroll rather than wrap, which is right for code.
+
+**No regression test.** The overflow needs that specific string, which lives in
+the production database and not in the local one, so a test asserting it would
+either depend on remote content or restate the fix. The measurement is recorded
+here instead: 388px before, 375px after, at a 375px viewport.
+
 ## 2026-08-12 — Four system screens, shared by both apps
 
 Offline, not found, something broke, access denied. The admin does not get its
