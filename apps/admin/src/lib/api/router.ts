@@ -195,7 +195,7 @@ export async function handleApiRequest(
       headers: UNAUTHORIZED_HEADERS,
     });
   }
-  if (!key.scopes.includes(route.scope)) {
+  if (route.scope !== "any" && !key.scopes.includes(route.scope)) {
     return errorResponse(403, "insufficient_scope", `This API key lacks the \`${route.scope}\` permission.`);
   }
 
@@ -227,6 +227,10 @@ export async function handleApiRequest(
     } else {
       data = await (route.handler as (c: typeof context, p: PathParams) => Promise<unknown>)(context, params);
     }
+
+    // A handler that needs more than JSON (a file download) builds its own
+    // response. It still went through every check above.
+    if (data instanceof Response) return data;
 
     const status = route.successStatus ?? (method === "POST" ? 201 : method === "DELETE" ? 204 : 200);
     if (status === 204) return new Response(null, { status: 204, headers: BASE_HEADERS });

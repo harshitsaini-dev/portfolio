@@ -16,12 +16,16 @@ import type { ApiRoute, JsonSchema } from "../define.ts";
 import { analyticsRoutes, analyticsSchemas } from "./analytics.ts";
 import { certificationRoutes, certificationSchemas } from "./certifications.ts";
 import { educationRoutes, educationSchemas } from "./education.ts";
+import { extraRoutes, priorityExtraRoutes } from "./extras.ts";
 import { headlineAlternateRoutes, headlineAlternateSchemas } from "./headline-alternates.ts";
 import { inboxRoutes, inboxSchemas } from "./inbox.ts";
 import { mediaRoutes, mediaSchemas } from "./media.ts";
+import { metaRoutes } from "./meta.ts";
 import { noteRoutes, noteSchemas } from "./notes.ts";
+import { orderingRoutes } from "./ordering.ts";
 import { profileRoutes, profileSchemas } from "./profile.ts";
 import { projectRoutes } from "./projects.ts";
+import { relationRoutes } from "./relations.ts";
 import { resumeRoutes, resumeSchemas } from "./resumes.ts";
 import { robotLineRoutes, robotLineSchemas } from "./robot-lines.ts";
 import { ENTITY_SCHEMAS as CORE_SCHEMAS } from "./schemas.ts";
@@ -34,7 +38,9 @@ import { terminalLineRoutes, terminalLineSchemas } from "./terminal-lines.ts";
 import { timelineRoutes, timelineSchemas } from "./timeline.ts";
 import { toolRoutes, toolSchemas } from "./tools.ts";
 
-export const API_ROUTES: readonly ApiRoute[] = [
+const CONTENT_ROUTES: readonly ApiRoute[] = [
+  // Literal paths that would otherwise match an `{id}` route come first.
+  ...priorityExtraRoutes,
   ...profileRoutes,
   ...headlineAlternateRoutes,
   ...projectRoutes,
@@ -54,7 +60,13 @@ export const API_ROUTES: readonly ApiRoute[] = [
   ...settingsRoutes,
   ...inboxRoutes,
   ...analyticsRoutes,
+  ...relationRoutes,
+  ...orderingRoutes,
+  ...extraRoutes,
 ];
+
+/** `/me`, `/search` and `/export` first; `/export` reuses the routes above. */
+export const API_ROUTES: readonly ApiRoute[] = [...metaRoutes(CONTENT_ROUTES), ...CONTENT_ROUTES];
 
 const PARTS: readonly Readonly<Record<string, JsonSchema>>[] = [
   CORE_SCHEMAS,

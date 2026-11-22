@@ -90,7 +90,12 @@ function operationFor(route: ApiRoute) {
     [String(status)]:
       status === 204
         ? { description: route.returns }
-        : {
+        : route.binaryResponse
+          ? {
+              description: route.returns,
+              content: { "*/*": { schema: { type: "string", format: "binary" } } },
+            }
+          : {
             description: route.returns,
             content: {
               "application/json": {
@@ -110,7 +115,9 @@ function operationFor(route: ApiRoute) {
             },
           },
     "401": errorRef("Missing, unknown, revoked or expired API key."),
-    "403": errorRef(`The key lacks the \`${route.scope}\` permission.`),
+    ...(route.scope === "any"
+      ? {}
+      : { "403": errorRef(`The key lacks the \`${route.scope}\` permission.`) }),
     "500": errorRef("Server fault."),
   };
   if (route.path.includes("{")) responses["404"] = errorRef("No such record.");
@@ -153,7 +160,9 @@ function operationFor(route: ApiRoute) {
     operationId: route.operationId,
     tags: [route.tag],
     summary: route.summary,
-    description: `${route.description ? `${route.description}\n\n` : ""}**Requires permission:** \`${route.scope}\``,
+    description: `${route.description ? `${route.description}\n\n` : ""}${
+      route.scope === "any" ? "**Any valid key.**" : `**Requires permission:** \`${route.scope}\``
+    }`,
     security: [{ apiKey: [] }],
     "x-required-scope": route.scope,
     ...(parameters.length > 0 ? { parameters } : {}),

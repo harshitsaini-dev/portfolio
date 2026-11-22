@@ -23,6 +23,23 @@ export const apiKeyCreateSchema = z
   })
   .strict();
 
+/**
+ * A new display order for an ordered collection: the ids, first to last.
+ *
+ * Lives here rather than per entity because the rule is the same everywhere:
+ * unique ids, bounded. Whether every id exists is the API's check, against
+ * the collection it is reordering.
+ */
+export const reorderSchema = z
+  .object({
+    ids: z
+      .array(z.string().trim().min(1, "Required").max(64, "Too long"))
+      .min(1, "List at least one id")
+      .max(500, "Too many items")
+      .refine((ids) => new Set(ids).size === ids.length, { message: "An id is listed twice" }),
+  })
+  .strict();
+
 /** Identifies a key for revoke/delete. */
 export const apiKeyIdSchema = z.string().trim().min(1, "Required").max(64, "Too long");
 

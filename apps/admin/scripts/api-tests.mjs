@@ -205,12 +205,13 @@ try {
   }
   equal("no two routes share a method and path", duplicateRoute, null);
   check("every route is in the document", routes.every((route) => doc.paths[route.path]?.[route.method.toLowerCase()]));
-  check("every operation names its scope", routes.every((route) => ["read", "write", "inbox"].includes(route.scope)));
+  check("every operation names its scope", routes.every((route) => ["read", "write", "inbox", "any"].includes(route.scope)));
+  equal("only /me is open to any key", routes.filter((r) => r.scope === "any").map((r) => r.path).join(","), "/me");
   check("every GET is read or inbox scoped", routes.filter((r) => r.method === "GET").every((r) => r.scope !== "write"));
-  check("every mutation is write or inbox scoped", routes.filter((r) => r.method !== "GET").every((r) => r.scope !== "read"));
+  check("every mutation is write or inbox scoped", routes.filter((r) => r.method !== "GET").every((r) => r.scope === "write" || r.scope === "inbox"));
   const missingResponse = routes.filter((route) => {
     const status = route.successStatus ?? (route.method === "POST" ? 201 : route.method === "DELETE" ? 204 : 200);
-    return status !== 204 && !route.response;
+    return status !== 204 && !route.response && !route.binaryResponse;
   });
   equal("every non-204 route declares a response schema", missingResponse.map((r) => r.operationId).join(","), "");
   const refs = JSON.stringify(doc).match(/#\/components\/schemas\/[A-Za-z0-9_]+/g) ?? [];
@@ -476,13 +477,99 @@ try {
   await expectStatus("PATCH /inbox/{id}", await call("PATCH", `/inbox/${message.id}`, { body: { status: "read" } }), 200);
 
   // =========================================================================
+  startGroup("Meta: /me, /search, /export");
+
+  const me = await expectStatus("GET /me", await call("GET", "/me"), 200);
+  equal("…names the key", me?.name, "full");
+  check("…never returns the key or its hash", !JSON.stringify(me).includes(full.key) && !("tokenHash" in (me ?? {})));
+  equal("a write-only key may still call /me", (await call("GET", "/me", { key: writer.key })).status, 200);
+  equal("/me still needs a key", (await call("GET", "/me", { key: null })).status, 401);
+
+  const found = await expectStatus("search by title", await call("GET", "/search?q=kept"), 200);
+  check("…finds the project", found?.some((h) => h.type === "project" && h.path === `/projects/${kept?.id}`));
+  const bodyHit = (await call("GET", "/search?q=stays")).json?.data;
+  check("…a summary match carries a snippet", bodyHit?.some((h) => h.type === "project" && typeof h.snippet === "string"));
+  equal("…types filter narrows", (await call("GET", "/search?q=kept&types=note")).json?.data?.length, 0);
+  equal("a one-character query → 400", (await call("GET", "/search?q=k")).status, 400);
+  equal("an unknown type → 400", (await call("GET", "/search?q=kept&types=bogus")).status, 400);
+
+  const dump = await expectStatus("GET /export", await call("GET", "/export"), 200);
+  equal("…includes projects", dump?.content?.projects?.length, (await repos.projects.list()).length);
+  equal("…includes the inbox for a key with inbox", dump?.content?.contactMessages?.length, 1);
+  const dumpNoInbox = (await call("GET", "/export", { key: contentOnly.key })).json?.data;
+  check("…omits the inbox for a key without it", dumpNoInbox && !("contactMessages" in dumpNoInbox.content));
+  const exportRoute = routes.find((route) => route.operationId === "exportContent");
+  const exportProblems = validate(dump, exportRoute.response);
+  check("…matches its published schema", exportProblems.length === 0, exportProblems.slice(0, 3).join("; "));
+
+  // =========================================================================
+  startGroup("Reordering");
+
+  await call("POST", "/projects", { body: { title: "Second", slug: "second", summary: "Two.", position: 1 } });
+  const p3 = (await call("POST", "/projects", { body: { title: "Third", slug: "third", summary: "Three.", position: 2 } })).json?.data;
+  const othersBefore = (await repos.projects.list()).filter((p) => p.id !== p3.id).map((p) => p.slug);
+  const reordered = await expectStatus("PUT /projects/order", await call("PUT", "/projects/order", { body: { ids: [p3.id] } }), 200);
+  equal("…the listed id comes first", reordered?.[0]?.id, p3.id);
+  equal("…unlisted keep their relative order after it", reordered?.map((p) => p.slug).join(","), ["third", ...othersBefore].join(","));
+  check("…positions are 0..n-1", reordered?.every((p, index) => p.position === index));
+  const badOrder = await call("PUT", "/projects/order", { body: { ids: ["nope"] } });
+  equal("an unknown id → 422", badOrder.status, 422);
+  equal("…and nothing moved", (await repos.projects.list())[0]?.id, p3.id);
+  equal("a duplicate id → 422", (await call("PUT", "/projects/order", { body: { ids: [p3.id, p3.id] } })).status, 422);
+  const skill2 = (await call("POST", "/skills", { body: { categoryId: category?.id, name: "Rust", position: 1 } })).json?.data;
+  const skillOrder = await expectStatus("PUT /skill-categories/{id}/skills/order", await call("PUT", `/skill-categories/${category?.id}/skills/order`, { body: { ids: [skill2.id, skill.id] } }), 200);
+  equal("…skills reorder within their category", skillOrder?.map((s) => s.id).join(","), `${skill2.id},${skill.id}`);
+  equal("a skill id from another collection is refused", (await call("PUT", "/tools/order", { body: { ids: [skill.id] } })).status, 422);
+
+  // =========================================================================
+  startGroup("Child collections");
+
+  const links = await expectStatus("PUT /projects/{id}/links", await call("PUT", `/projects/${kept?.id}/links`, { body: { links: [{ label: "Live", url: "https://example.com", kind: "live" }] } }), 200);
+  equal("…replaces the links", links?.length, 1);
+  equal("GET /projects/{id}/links", (await call("GET", `/projects/${kept?.id}/links`)).json?.data?.[0]?.label, "Live");
+  equal("a links body without links → 422", (await call("PUT", `/projects/${kept?.id}/links`, { body: {} })).status, 422);
+  const techs = await expectStatus("PUT /projects/{id}/technologies", await call("PUT", `/projects/${kept?.id}/technologies`, { body: { technologyIds: [tech.id] } }), 200);
+  equal("…sets the technologies", techs?.[0]?.id, tech.id);
+  const gallery = await expectStatus("PUT /projects/{id}/media", await call("PUT", `/projects/${kept?.id}/media`, { body: { media: [{ mediaAssetId: image.json?.data?.id, caption: "Dot" }] } }), 200);
+  equal("…sets the gallery", gallery?.[0]?.caption, "Dot");
+  equal("child list of a missing project → 404", (await call("GET", "/projects/missing/links")).status, 404);
+  const highlights = await expectStatus("PUT /timeline/{id}/highlights", await call("PUT", `/timeline/${tl?.id}/highlights`, { body: { highlights: [{ content: "A" }, { content: "B" }] } }), 200);
+  equal("…replaces the highlights", highlights?.map((h) => h.content).join(","), "A,B");
+  equal("GET /sections/{id}/alternates", (await call("GET", `/sections/${section?.id}/alternates`)).json?.data?.title?.[0], "Alt one");
+
+  // =========================================================================
+  startGroup("Shortcuts and downloads");
+
+  const published = await expectStatus("POST /projects/{id}/publish", await call("POST", `/projects/${kept?.id}/publish`), 200);
+  equal("…publishes", published?.status, "published");
+  equal("POST /projects/{id}/unpublish → draft", (await call("POST", `/projects/${kept?.id}/unpublish`)).json?.data?.status, "draft");
+  equal("POST /notes/{id}/archive", (await call("POST", `/notes/${note?.id}/archive`)).json?.data?.status, "archived");
+  equal("publish of a missing note → 404", (await call("POST", "/notes/missing/publish")).status, 404);
+  equal("GET /skills lists every skill", (await call("GET", "/skills")).json?.data?.length, 2);
+  equal("GET /skills?categoryId=unknown → 400", (await call("GET", "/skills?categoryId=nope")).status, 400);
+  const stats = await expectStatus("GET /inbox/stats (not shadowed by /inbox/{id})", await call("GET", "/inbox/stats"), 200);
+  equal("…counts", `${stats?.total}/${stats?.read}/${stats?.unread}`, "1/1/0");
+  equal("…needs the inbox permission", (await call("GET", "/inbox/stats", { key: contentOnly.key })).status, 403);
+
+  const downloadRequest = new Request(`${BASE}/media/${image.json?.data?.id}/file`, { headers: { authorization: `Bearer ${full.key}` } });
+  const download = await handleApiRequest(downloadRequest, ["media", image.json?.data?.id, "file"], dependencies);
+  equal("GET /media/{id}/file → 200", download.status, 200);
+  equal("…with the stored content type", download.headers.get("content-type"), "image/png");
+  check("…as an attachment, never inline", (download.headers.get("content-disposition") ?? "").startsWith("attachment"));
+  const downloaded = new Uint8Array(await download.arrayBuffer());
+  check("…byte for byte", downloaded.length === PNG_1x1.length && downloaded.every((byte, i) => byte === PNG_1x1[i]));
+  equal("download of a missing asset → 404", (await call("GET", "/media/missing/file")).status, 404);
+
+  // =========================================================================
   startGroup("Every GET matches its published response schema");
 
   // Collections first, so `{id}` routes can borrow a real id from them.
   const getRoutes = routes.filter((route) => route.method === "GET" && route.response);
   const firstIds = new Map();
+  // Routes that cannot be called without a query parameter.
+  const SAMPLE_QUERY = { searchContent: "?q=ke" };
   for (const route of getRoutes.filter((r) => !r.path.includes("{"))) {
-    const result = await call("GET", route.path);
+    const result = await call("GET", `${route.path}${SAMPLE_QUERY[route.operationId] ?? ""}`);
     equal(`${route.operationId} → 200`, result.status, 200);
     const problems = validate(result.json?.data, route.response);
     check(`${route.operationId} conforms`, problems.length === 0, problems.slice(0, 3).join("; "));

@@ -16,6 +16,8 @@ import type { ApiKey, ApiKeyScope } from "@portfolio/types";
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
+export type RouteScope = ApiKeyScope | "any";
+
 /** What every handler receives. */
 export interface ApiContext {
   readonly repos: Repositories;
@@ -44,8 +46,11 @@ interface RouteBase {
   readonly summary: string;
   /** Longer explanation, Markdown. Written for a developer or an agent. */
   readonly description?: string;
-  /** The permission the key must carry. */
-  readonly scope: ApiKeyScope;
+  /**
+   * The permission the key must carry, or `"any"` for operations about the
+   * caller itself (`/me`) that any valid key may use.
+   */
+  readonly scope: RouteScope;
   /** Status on success. Defaults: POST → 201, DELETE → 204, else 200. */
   readonly successStatus?: 200 | 201 | 204;
   /** Documented query parameters (all optional strings). */
@@ -63,6 +68,11 @@ interface RouteBase {
    * checks real responses against these, so they cannot quietly drift.
    */
   readonly response?: JsonSchema;
+  /**
+   * Set when the handler returns a raw `Response` with a file body rather
+   * than JSON data (downloads). Documents the success response as binary.
+   */
+  readonly binaryResponse?: true;
 }
 
 /** A JSON Schema object, as plain data. */
