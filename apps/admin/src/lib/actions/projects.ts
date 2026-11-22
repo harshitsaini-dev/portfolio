@@ -172,7 +172,19 @@ export async function createProjectAction(
 
     // Relationship writes reference rows that must already exist; a bad id
     // surfaces as a foreign-key ConflictError and is reported as such.
-    await applyRelations(repos, project.id, input);
+    try {
+      await applyRelations(repos, project.id, input);
+    } catch (error) {
+      // The row and its relations are separate writes, so a technology or
+      // media id that no longer exists fails *after* the project does. The
+      // editor was shown an error while a half-made draft stayed behind; a
+      // second attempt then failed on its now-taken slug. Undo the row so a
+      // refused create leaves nothing.
+      await repos.projects.delete(project.id).catch((cleanup: unknown) => {
+        console.error("[admin] could not remove a half-created project", cleanup);
+      });
+      throw error;
+    }
     created = { id: project.id, slug: project.slug };
   } catch (error) {
     return toActionResult(
@@ -226,6 +238,8 @@ export async function updateProjectAction(
       position: input.position,
       periodLabel: input.periodLabel,
       startedOn: input.startedOn,
+      // Was missing, so editing a project's completion date saved nothing.
+      completedOn: input.completedOn,
       iconMediaId: input.iconMediaId,
       coverMediaId: input.coverMediaId,
     });
