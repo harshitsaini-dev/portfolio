@@ -107,15 +107,29 @@ of all three was confirmed present (columns, four tables, six indexes) and the
 three records were added; 0020 was applied normally. `migrations list --local`
 now reports nothing pending.
 
-### Owner actions before the API works in production
+### Deployed (2026-11-22)
 
-1. Apply migration **0020** to remote D1 first, from the repo root:
-   `npx wrangler d1 migrations apply portfolio-cms --remote -c wrangler.d1.jsonc`,
-   then deploy the admin.
-2. If Cloudflare Access is still in front of the admin, add a **Bypass**
-   policy for `/api/v1/*` (or retire Access); otherwise API clients are stopped
-   at the Access login before the key is ever checked.
-3. Create a key at **Operations → API keys**.
+Merged as PR #99 (CI build and e2e green — CI is now pinned to Ubuntu 24.04,
+where Playwright 1.56 can install Chromium).
+
+**Remote D1:** `migrations list --remote` showed 0017–0020 pending, but
+0017–0019 were already fully present in production (every column, all four
+auth tables, all six indexes) — applied earlier without being recorded, exactly
+as locally. A plain `apply` would have failed on 0017's duplicate column. Only
+0020 was applied (`d1 execute --remote --file`, one new empty table), then
+0017–0020 were recorded in `d1_migrations`; `migrations list --remote` now
+reports nothing pending.
+
+**Admin deployed** with `deploy.sh admin`, version
+`300d8aac-54d0-405c-b18f-9a9fdd251b3f`, after the migration. Checked live:
+`/api/v1/openapi.json` 200 (public); `/api/v1/projects` without a key → the
+app's own 401 with `WWW-Authenticate: Bearer`; an unknown key → 401; `/api-keys`
+→ redirect to `/login`; `/login` 200; the public site 200. **Cloudflare Access
+is not in front of the admin**, so no bypass policy is needed. The public site
+was not redeployed: nothing it runs changed.
+
+Not verified live: a call with a real key — creating one needs the owner's
+login. **Owner:** create a key at Operations → API keys and call `GET /api/v1/me`.
 
 
 **Phase 31 — four system screens, and colour in the owner's hands.**
