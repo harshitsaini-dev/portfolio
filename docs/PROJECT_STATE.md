@@ -6,6 +6,118 @@ something passed without running it.
 
 ## Current phase
 
+**Phase 32 — a REST API for the whole CMS, with a public OpenAPI document.**
+
+The owner asked for a way to read and write portfolio content from their other
+projects, and for a public OpenAPI JSON an AI agent can learn the API from in
+one fetch. Both exist. Guide: `docs/API.md`.
+
+### What exists
+
+- **`/api/v1` — 130 operations in 20 groups**: profile, headline
+  alternates, projects, technologies, timeline, education, certifications,
+  skill categories and skills, tools, social links, sections (and their
+  alternates), robot lines, terminal lines, notes, media (multipart upload and
+  download), résumés, site and scene settings, inbox, analytics. Admin auth
+  tables and API keys themselves are deliberately not reachable through it.
+- **Second round (33 more):**
+  - `GET /me` (any valid key — the calling key's name, permissions, expiry),
+    `GET /search?q=` (substring search across ten content types, drafts
+    included, each hit naming the path that reads it), `GET /export` (every
+    collection, each part produced by its own GET handler; contact messages
+    only with `inbox`).
+  - `PUT …/order` for all twelve ordered collections, including skills within
+    a category: listed ids first, unlisted ones keep their order after them,
+    an unknown id is a 422 with nothing moved.
+  - Child lists: `GET`/`PUT /projects/{id}/links|technologies|media`,
+    `GET`/`PUT /timeline/{id}/highlights`, `GET /sections/{id}/alternates`.
+  - `GET /skills` (flat, `?categoryId=`), `GET /media/{id}/file` (stored bytes,
+    as an attachment), `GET /inbox/stats`, and
+    `POST /projects|notes/{id}/publish|unpublish|archive`.
+- **`/api/v1/openapi.json` — public**, generated from the same route list the
+  router serves. Request schemas are converted from the shared Zod schemas
+  (`toRequestJsonSchema` in `packages/schemas`); response schemas are written
+  per entity and checked against real responses by the test suite.
+- **API keys (migration 0020, `api_keys`)** — created and revoked in the admin
+  at **Operations → API keys**. `pfk_` + 256 random bits, shown once, stored as
+  SHA-256 only. Permissions `read`, `write`, `inbox` (write does not imply
+  read; the inbox is separate because it is third-party personal data).
+  Optional expiry; revocation applies on the next request; `last_used_at`
+  touched at most once a minute.
+
+### How it is built
+
+One catch-all route (`app/api/v1/[...path]/route.ts`) feeds one pipeline
+(`lib/api/router.ts`): match → authenticate → scope → read and validate the
+body with the shared schema → repository layer → map errors. No route
+authenticates itself, and a test fails if any other file appears under
+`app/api/v1`. The admin session cookie is never accepted, so there is no CSRF
+surface; no CORS headers are sent, so a key cannot usefully live in a browser.
+Each resource lives in `lib/api/resources/<name>.ts` and mirrors its Server
+Action module's repository calls. A handler may return a raw `Response`
+(downloads); it has still passed every check before it runs.
+
+### Where the API deliberately differs from the admin's actions
+
+- **Singletons** (`/profile`, `/settings/site`, `/settings/scene`) take a
+  merging PATCH validated against the full schema after the merge, so sending
+  one field cannot reset the rest to defaults. `PUT /profile` is the admin
+  form's full replace.
+- **Résumés** check server-side that `mediaAssetId` is a PDF; the admin relies
+  on its picker.
+
+### Defects found and fixed in the admin
+
+1. `updateProjectAction` never passed `completedOn` to the repository, so
+   editing a project's completion date saved nothing.
+2. `createProjectAction` wrote the row before its relations; an unknown
+   technology/media id returned an error but left a half-made draft, and the
+   corrected retry then failed on its own slug. The row is now removed.
+3. The section actions dropped invalid alternates silently and reported
+   success. They are now validated before anything is written, and reported on
+   the `alternates.*` keys the form already renders.
+4. **`/api/backup` exported at most 100 contact messages.** The repository's
+   `list()` is a page (default 100, cap 500); one call silently truncated the
+   backup. `lib/inbox/all-messages.ts` walks every page; the backup and
+   `GET /export` both use it.
+
+`action-regression-tests.mjs` runs the real actions for 1–3: 35 checks, 10 of
+which were run against the previous code and failed there.
+
+Not fixed, noted: the admin inbox page lists the first 100 messages and its
+"N messages, M unread" line counts only those.
+
+### Verification actually performed
+
+`pnpm lint` clean, `pnpm typecheck` clean, `pnpm test` green — including
+`api-tests.mjs` **288/288** (auth refusals, scopes, every error path, a
+create+update through every resource on a real local D1, uploads and a
+byte-for-byte download through the real media service over the in-memory
+bucket, reorder/child-list/meta/shortcut behaviour, every GET — no skips —
+checked against its published response schema, and the `app/api/v1`
+invariant) and `action-regression-tests.mjs` **35/35**. `pnpm build` both
+apps. **Playwright: 55 passed, 3 skipped** — `playwright.config.ts` now starts
+the admin too, and `e2e/admin-api-keys.spec.ts` (desktop and phone) creates a
+key in the browser, calls `/me` with it, checks it is never shown again,
+revokes it by keyboard, sees the next call refused, and deletes it.
+
+**Local dev D1:** 0017–0019 had been applied without records in
+`d1_migrations`, so `migrations apply --local` failed on 0017. Every statement
+of all three was confirmed present (columns, four tables, six indexes) and the
+three records were added; 0020 was applied normally. `migrations list --local`
+now reports nothing pending.
+
+### Owner actions before the API works in production
+
+1. Apply migration **0020** to remote D1 first, from the repo root:
+   `npx wrangler d1 migrations apply portfolio-cms --remote -c wrangler.d1.jsonc`,
+   then deploy the admin.
+2. If Cloudflare Access is still in front of the admin, add a **Bypass**
+   policy for `/api/v1/*` (or retire Access); otherwise API clients are stopped
+   at the Access login before the key is ever checked.
+3. Create a key at **Operations → API keys**.
+
+
 **Phase 31 — four system screens, and colour in the owner's hands.**
 
 ### The screens

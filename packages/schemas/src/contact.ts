@@ -196,3 +196,11 @@ export const contactMessageIdSchema = z
   .max(64, "Too long");
 
 export const contactMessageStatusSchema = z.enum(CONTACT_MESSAGE_STATUSES);
+
+/**
+ * The body of a status change through the REST API: `{ "status": "read" }`.
+ * Strict, like every other mutation body.
+ */
+export const contactMessageStatusUpdateSchema = z
+  .object({ status: contactMessageStatusSchema })
+  .strict();

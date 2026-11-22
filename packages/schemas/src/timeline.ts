@@ -203,6 +203,16 @@ export type TimelineHighlightInputValue = z.infer<
   typeof timelineHighlightInputSchema
 >;
 
+/**
+ * Replacing an entry's highlights on their own (the API's
+ * `PUT /timeline/{id}/highlights`). The same list rule as create and update;
+ * declared separately because the update schema carries a refinement, and a
+ * refined object cannot be `.pick()`ed.
+ */
+export const timelineHighlightsReplaceSchema = z
+  .object({ highlights: highlightList })
+  .strict();
+
 /** Identifies a timeline entry for update/delete. */
 export const timelineEntryIdSchema = z
   .string()

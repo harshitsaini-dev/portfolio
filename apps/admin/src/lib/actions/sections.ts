@@ -114,8 +114,12 @@ export async function createSectionAction(
   await requireAdminIdentity();
 
   const parsed = sectionCreateSchema.safeParse(readPayload(formData));
-  if (!parsed.success) {
-    return validationError(toFieldErrors(parsed.error.issues));
+  const alternates = readAlternates(formData);
+  if (!parsed.success || alternates.kind === "invalid") {
+    return validationError({
+      ...(parsed.success ? {} : toFieldErrors(parsed.error.issues)),
+      ...(alternates.kind === "invalid" ? alternates.fieldErrors : {}),
+    });
   }
 
   try {
@@ -124,7 +128,7 @@ export async function createSectionAction(
     // then assumed here — a read-then-write check is a race the constraint
     // already wins.
     const created = await repos.sections.create(parsed.data);
-    await saveAlternates(repos, created.id, formData);
+    await saveAlternates(repos, created.id, alternates);
   } catch (error) {
     return toActionResult(error, KEY_TAKEN);
   }
@@ -136,37 +140,58 @@ export async function createSectionAction(
   redirect(`${LIST_PATH}?created=1`);
 }
 
+type AlternatesInput =
+  | { readonly kind: "absent" }
+  | { readonly kind: "invalid"; readonly fieldErrors: FieldErrors }
+  | { readonly kind: "valid"; readonly title: string[]; readonly eyebrow: string[] };
+
 /**
- * Replaces a section's rotating-label alternates from the submitted payload.
+ * Reads and validates the rotating-label alternates, before anything is
+ * written.
  *
- * Separate from the section's own patch because the two live in different
- * tables and have different write rules: the section is patched field by
- * field, the alternates are replaced as whole lists.
+ * An absent `alternates` field still means "leave them alone": a form that
+ * does not carry it must not be read as an editor emptying the rotation.
  *
- * An absent or unparseable `alternates` payload clears nothing and writes
- * nothing — a form that does not carry the field must not be read as an
- * editor emptying the rotation. Only a well-formed list is applied.
+ * A present but invalid one is a validation error, reported on the
+ * `alternates.*` keys the form already renders. It used to be dropped
+ * silently, and the save reported success while the editor's alternates were
+ * simply not stored.
  */
-async function saveAlternates(
-  repos: Awaited<ReturnType<typeof getAdminRepositories>>,
-  sectionId: string,
-  formData: FormData,
-): Promise<void> {
+function readAlternates(formData: FormData): AlternatesInput {
   const raw = formData.get("alternates");
-  if (typeof raw !== "string" || raw.length === 0) return;
+  if (typeof raw !== "string" || raw.length === 0) return { kind: "absent" };
 
   let candidate: unknown;
   try {
     candidate = JSON.parse(raw);
   } catch {
-    return;
+    return {
+      kind: "invalid",
+      fieldErrors: { alternates: ["The alternatives could not be read. Please try again."] },
+    };
   }
 
   const parsed = sectionAlternatesSchema.safeParse(candidate);
-  if (!parsed.success) return;
+  if (!parsed.success) {
+    const fieldErrors: FieldErrors = {};
+    for (const issue of parsed.error.issues) {
+      const key = ["alternates", ...issue.path.map(String)].join(".");
+      (fieldErrors[key] ??= []).push(issue.message);
+    }
+    return { kind: "invalid", fieldErrors };
+  }
+  return { kind: "valid", title: parsed.data.title, eyebrow: parsed.data.eyebrow };
+}
 
-  await repos.sections.setAlternates(sectionId, "title", parsed.data.title);
-  await repos.sections.setAlternates(sectionId, "eyebrow", parsed.data.eyebrow);
+/** Replaces both alternate lists. Only ever called with validated input. */
+async function saveAlternates(
+  repos: Awaited<ReturnType<typeof getAdminRepositories>>,
+  sectionId: string,
+  alternates: AlternatesInput,
+): Promise<void> {
+  if (alternates.kind !== "valid") return;
+  await repos.sections.setAlternates(sectionId, "title", alternates.title);
+  await repos.sections.setAlternates(sectionId, "eyebrow", alternates.eyebrow);
 }
 
 export async function updateSectionAction(
@@ -181,8 +206,12 @@ export async function updateSectionAction(
   }
 
   const parsed = sectionUpdateSchema.safeParse(readPayload(formData));
-  if (!parsed.success) {
-    return validationError(toFieldErrors(parsed.error.issues));
+  const alternates = readAlternates(formData);
+  if (!parsed.success || alternates.kind === "invalid") {
+    return validationError({
+      ...(parsed.success ? {} : toFieldErrors(parsed.error.issues)),
+      ...(alternates.kind === "invalid" ? alternates.fieldErrors : {}),
+    });
   }
 
   let updatedId: string;
@@ -193,7 +222,7 @@ export async function updateSectionAction(
     // no path by which this call could rewrite them. Fields absent from the
     // patch stay absent all the way down.
     const updated = await repos.sections.update(idResult.data, parsed.data);
-    await saveAlternates(repos, updated.id, formData);
+    await saveAlternates(repos, updated.id, alternates);
     updatedId = updated.id;
   } catch (error) {
     // A key collision cannot arise here — `key` is not updatable — so the

@@ -23,6 +23,16 @@ deploy` uploads whatever is already in `.open-next/` and does not rebuild, so
 an earlier version of the script shipped three consecutive stale bundles while
 reporting success and fresh Version IDs.
 
+## The REST API (`/api/v1`) and Cloudflare Access
+
+The admin serves a key-authenticated REST API at `/api/v1` and a public
+OpenAPI document at `/api/v1/openapi.json` (guide: `docs/API.md`). It needs
+migration **0020** applied remotely before the admin is deployed. If Cloudflare
+Access still protects the admin Worker, API clients are stopped at the Access
+login; add an Access **Bypass** policy for the path `/api/v1/*` on the admin
+application (a dashboard action for the owner), or retire Access now that the
+admin has its own login. The API's own key check applies either way.
+
 ## Apply migrations BEFORE deploying, never after
 
 A deploy that needs a schema change is two steps in a fixed order:

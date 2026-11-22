@@ -62,6 +62,7 @@ import { NextResponse } from "next/server";
 
 import { AdminUnauthorizedError, requireAdminIdentity } from "@/lib/auth/guard";
 import { getAdminRepositories } from "@/lib/db/binding";
+import { listAllContactMessages } from "@/lib/inbox/all-messages";
 import { getPublicSiteOrigin } from "@/lib/site-origin";
 
 export const dynamic = "force-dynamic";
@@ -132,7 +133,8 @@ export async function GET(): Promise<Response> {
     repos.headlineAlternates.list(),
     repos.media.list(),
     repos.resumes.list(),
-    repos.contactMessages.list(),
+    // Every page, not the repository's default first 100.
+    listAllContactMessages(repos.contactMessages),
   ]);
 
   // Where the bytes actually are. Built from the public site's origin because

@@ -68,14 +68,29 @@ export default defineConfig({
       use: { ...devices["Pixel 7"] },
     },
   ],
-  webServer: {
-    command: "pnpm --filter @portfolio/web dev",
-    url: "http://localhost:3000",
-    // Locally the server is usually already running; reusing it saves a cold
-    // start. CI always starts its own.
-    reuseExistingServer: !process.env.CI,
-    timeout: 180_000,
-    stdout: "pipe",
-    stderr: "pipe",
-  },
+  webServer: [
+    {
+      command: "pnpm --filter @portfolio/web dev",
+      url: "http://localhost:3000",
+      // Locally the server is usually already running; reusing it saves a cold
+      // start. CI always starts its own.
+      reuseExistingServer: !process.env.CI,
+      timeout: 180_000,
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+    {
+      // The admin, for the specs under `e2e/admin-*`. The development
+      // identity is passed here rather than relying on a gitignored
+      // `.env.local`; it only works in a non-production build with no
+      // Cloudflare Access configured, which is exactly what `next dev` is.
+      command: "pnpm --filter @portfolio/admin dev",
+      url: "http://localhost:3001/api/v1/openapi.json",
+      reuseExistingServer: !process.env.CI,
+      timeout: 180_000,
+      stdout: "pipe",
+      stderr: "pipe",
+      env: { ADMIN_DEV_AUTH: "enabled" },
+    },
+  ],
 });

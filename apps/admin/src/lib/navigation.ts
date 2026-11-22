@@ -84,6 +84,9 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
       // Under Operations rather than Content: it describes how the site is
       // doing, not what it says.
       { label: "Analytics", href: "/analytics" },
+      // Keys for the REST API. Operations, not content: it controls who else
+      // may change the content, which is closer to settings than to copy.
+      { label: "API keys", href: "/api-keys" },
     ],
   },
 ];

@@ -43,6 +43,10 @@ import {
   type ContactMessageRepository,
 } from "./repositories/contact-messages.ts";
 import {
+  createApiKeyRepository,
+  type ApiKeyRepository,
+} from "./repositories/api-keys.ts";
+import {
   createAdminAuthRepository,
   type AdminAuthRepository,
 } from "./repositories/admin-auth.ts";
@@ -116,6 +120,7 @@ export interface Repositories {
    * boundary — no page, component or content action touches it.
    */
   readonly adminAuth: AdminAuthRepository;
+  readonly apiKeys: ApiKeyRepository;
 }
 
 export interface CreateRepositoriesOptions {
@@ -157,5 +162,6 @@ export function createRepositories(
     sceneSettings: createSceneSettingsRepository(db, runtime),
     contactMessages: createContactMessageRepository(db, runtime),
     adminAuth: createAdminAuthRepository(db, runtime),
+    apiKeys: createApiKeyRepository(db, runtime),
   };
 }
