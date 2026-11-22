@@ -16,6 +16,22 @@
   Permissions `read`, `write`, `inbox`; optional expiry; last-used time.
 - **Migration 0020** (`api_keys`). Apply it remotely before deploying the admin.
 - **`docs/API.md`**: developer and AI-agent guide.
+- **33 more endpoints** (130 in all): `GET /me`, `GET /search`, `GET /export`;
+  `PUT …/order` for every ordered collection; child lists for project links,
+  technologies and gallery, timeline highlights and section alternates;
+  `GET /skills`, `GET /media/{id}/file`, `GET /inbox/stats`; publish,
+  unpublish and archive shortcuts for projects and notes.
+- **Admin end-to-end test** for the API keys page; Playwright now starts the
+  admin as well as the site.
+
+### Fixed
+
+- Editing a project's completion date in the admin saved nothing.
+- A refused project create (unknown technology or media) left a half-made
+  draft behind, so the corrected retry failed on its own slug.
+- Invalid section alternates were dropped silently while the save reported
+  success; they are now reported on the field.
+- The CMS backup stopped at 100 contact messages.
 
 ## 2026-09-08 — Two overflow fixes on the public site
 

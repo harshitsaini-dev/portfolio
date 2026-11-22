@@ -14,12 +14,26 @@ one fetch. Both exist. Guide: `docs/API.md`.
 
 ### What exists
 
-- **`/api/v1` — 97 operations over 19 resources**: profile, headline
+- **`/api/v1` — 130 operations in 20 groups**: profile, headline
   alternates, projects, technologies, timeline, education, certifications,
   skill categories and skills, tools, social links, sections (and their
-  alternates), robot lines, terminal lines, notes, media (multipart upload),
-  résumés, site and scene settings, inbox, analytics. Admin auth tables and
-  API keys themselves are deliberately not reachable through it.
+  alternates), robot lines, terminal lines, notes, media (multipart upload and
+  download), résumés, site and scene settings, inbox, analytics. Admin auth
+  tables and API keys themselves are deliberately not reachable through it.
+- **Second round (33 more):**
+  - `GET /me` (any valid key — the calling key's name, permissions, expiry),
+    `GET /search?q=` (substring search across ten content types, drafts
+    included, each hit naming the path that reads it), `GET /export` (every
+    collection, each part produced by its own GET handler; contact messages
+    only with `inbox`).
+  - `PUT …/order` for all twelve ordered collections, including skills within
+    a category: listed ids first, unlisted ones keep their order after them,
+    an unknown id is a 422 with nothing moved.
+  - Child lists: `GET`/`PUT /projects/{id}/links|technologies|media`,
+    `GET`/`PUT /timeline/{id}/highlights`, `GET /sections/{id}/alternates`.
+  - `GET /skills` (flat, `?categoryId=`), `GET /media/{id}/file` (stored bytes,
+    as an attachment), `GET /inbox/stats`, and
+    `POST /projects|notes/{id}/publish|unpublish|archive`.
 - **`/api/v1/openapi.json` — public**, generated from the same route list the
   router serves. Request schemas are converted from the shared Zod schemas
   (`toRequestJsonSchema` in `packages/schemas`); response schemas are written
@@ -40,48 +54,58 @@ authenticates itself, and a test fails if any other file appears under
 `app/api/v1`. The admin session cookie is never accepted, so there is no CSRF
 surface; no CORS headers are sent, so a key cannot usefully live in a browser.
 Each resource lives in `lib/api/resources/<name>.ts` and mirrors its Server
-Action module's repository calls.
+Action module's repository calls. A handler may return a raw `Response`
+(downloads); it has still passed every check before it runs.
 
 ### Where the API deliberately differs from the admin's actions
 
-- **Projects:** a create whose technology/media reference fails is undone, so
-  a 409 leaves nothing behind (the action leaves a half-made draft — measured);
-  PATCH sets `completedOn` (the update action never passes it to the
-  repository — see "Pre-existing bugs" below).
 - **Singletons** (`/profile`, `/settings/site`, `/settings/scene`) take a
   merging PATCH validated against the full schema after the merge, so sending
   one field cannot reset the rest to defaults. `PUT /profile` is the admin
   form's full replace.
-- **Section alternates** that fail validation are a 422; the admin action
-  skips them silently.
 - **Résumés** check server-side that `mediaAssetId` is a PDF; the admin relies
   on its picker.
 
-### Pre-existing bugs found (in the admin, not fixed here)
+### Defects found and fixed in the admin
 
-1. `updateProjectAction` never passes `completedOn` to `repos.projects.update`,
-   so editing a project's completion date in the admin does nothing.
-2. `createProjectAction` creates the row before its relations; an invalid
-   technology/media id returns an error but leaves a draft project behind.
-3. The sections action drops invalid alternates silently and reports success.
+1. `updateProjectAction` never passed `completedOn` to the repository, so
+   editing a project's completion date saved nothing.
+2. `createProjectAction` wrote the row before its relations; an unknown
+   technology/media id returned an error but left a half-made draft, and the
+   corrected retry then failed on its own slug. The row is now removed.
+3. The section actions dropped invalid alternates silently and reported
+   success. They are now validated before anything is written, and reported on
+   the `alternates.*` keys the form already renders.
+4. **`/api/backup` exported at most 100 contact messages.** The repository's
+   `list()` is a page (default 100, cap 500); one call silently truncated the
+   backup. `lib/inbox/all-messages.ts` walks every page; the backup and
+   `GET /export` both use it.
+
+`action-regression-tests.mjs` runs the real actions for 1–3: 35 checks, 10 of
+which were run against the previous code and failed there.
+
+Not fixed, noted: the admin inbox page lists the first 100 messages and its
+"N messages, M unread" line counts only those.
 
 ### Verification actually performed
 
-`pnpm lint` clean, `pnpm typecheck` clean, `pnpm test` green (new
-`apps/admin/scripts/api-tests.mjs`: **212/212** — auth refusals, scopes,
-404/405/413/415/422/409 paths, a create+update through every resource on a
-real local D1, uploads through the real media service over the in-memory
-bucket, every GET checked against its published response schema, the
-`app/api/v1` invariant; the migrations smoke test now expects `api_keys`;
-the action-auth sweep covers the three new key actions), `pnpm build` both
-apps. In a browser against `next dev`: created a key on `/api-keys`, used it
-from curl (create → patch → 422 → inbox 403 → delete 204 → 404), revoked it
-in the UI and saw the next call return 401 and "Last used" filled in; the
-page at 375px has no horizontal overflow. Playwright e2e was **not** re-run.
+`pnpm lint` clean, `pnpm typecheck` clean, `pnpm test` green — including
+`api-tests.mjs` **288/288** (auth refusals, scopes, every error path, a
+create+update through every resource on a real local D1, uploads and a
+byte-for-byte download through the real media service over the in-memory
+bucket, reorder/child-list/meta/shortcut behaviour, every GET — no skips —
+checked against its published response schema, and the `app/api/v1`
+invariant) and `action-regression-tests.mjs` **35/35**. `pnpm build` both
+apps. **Playwright: 55 passed, 3 skipped** — `playwright.config.ts` now starts
+the admin too, and `e2e/admin-api-keys.spec.ts` (desktop and phone) creates a
+key in the browser, calls `/me` with it, checks it is never shown again,
+revokes it by keyboard, sees the next call refused, and deletes it.
 
-**Local dev D1 note:** the local database had 0017–0019 applied without
-records in `d1_migrations`, so `migrations apply --local` fails on 0017. 0020
-was applied with `d1 execute --file` and recorded; 0017–0019 were left as found.
+**Local dev D1:** 0017–0019 had been applied without records in
+`d1_migrations`, so `migrations apply --local` failed on 0017. Every statement
+of all three was confirmed present (columns, four tables, six indexes) and the
+three records were added; 0020 was applied normally. `migrations list --local`
+now reports nothing pending.
 
 ### Owner actions before the API works in production
 

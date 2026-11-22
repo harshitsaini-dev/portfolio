@@ -8,7 +8,7 @@ without the admin UI.
 - **Machine-readable reference (public, no key needed):** `GET /api/v1/openapi.json`
   — OpenAPI 3.0, generated from the same code that serves the API, with every
   endpoint, field, limit, permission and response shape.
-- **Endpoints:** 97, across 19 resources (table at the end).
+- **Endpoints:** 130, across 20 groups (table at the end).
 
 > **For AI agents:** fetch `/api/v1/openapi.json` first — it is the complete,
 > authoritative contract. This page is the human guide around it.
@@ -223,6 +223,50 @@ curl -X PATCH "$CMS/settings/site" -H "Authorization: Bearer $KEY" \
 Only `accentColor` changes; the merged result is validated against the full
 settings rules before it is saved.
 
+### Reorder a collection
+
+Every collection with a display order has `PUT …/order` (projects, timeline,
+education, certifications, skill categories, skills within a category, tools,
+social links, sections, robot lines, terminal lines, notes):
+
+```bash
+# Move two projects to the top; everything else keeps its order after them
+curl -X PUT "$CMS/projects/order" -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" -d '{"ids":["<idA>","<idB>"]}'
+```
+
+The response is the whole collection in its new order, in the same shape as
+the collection's `GET`. An id that is not in the collection is a 422 and
+nothing moves.
+
+### Edit one list without resending its parent
+
+`GET`/`PUT /projects/{id}/links`, `/projects/{id}/technologies`,
+`/projects/{id}/media` and `/timeline/{id}/highlights` read or replace one
+child list. `PUT` replaces the list; `[]` clears it.
+
+```bash
+curl -X PUT "$CMS/timeline/<id>/highlights" -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"highlights":[{"content":"Cut build time by 60%"},{"content":"Led a team of 4"}]}'
+```
+
+### Publish, unpublish, archive
+
+`POST /projects/{id}/publish` (and `/unpublish`, `/archive`; the same for
+`/notes/{id}/…`) — no body. The same as PATCHing `status`.
+
+### Find, export, check your key
+
+- `GET /search?q=weather&types=project,note` — substring search across all
+  content, drafts included. Each hit has the `path` that reads the full record.
+- `GET /export` — every collection in one response, each part exactly what its
+  own `GET` returns. Contact messages only if the key has `inbox`.
+- `GET /me` — the calling key's name, permissions and expiry. Works with any
+  valid key; a good first call for an agent.
+- `GET /media/{id}/file` — the stored bytes of any asset (as an attachment).
+- `GET /inbox/stats` — message counts by status.
+
 ## 6. Using it from an AI agent
 
 Give the agent three things:
@@ -232,7 +276,8 @@ Give the agent three things:
    research tasks; add `write` only when it should change content).
 3. An instruction such as:
 
-> Fetch the OpenAPI document at `<url>` and use it as the contract. Authenticate
+> Fetch the OpenAPI document at `<url>` and use it as the contract. Call `GET /me`
+> first to learn what your key may do. Authenticate
 > with `Authorization: Bearer <key>`. Use PATCH with only the fields you mean to
 > change. On a 422, read `error.fields`, fix the request and retry. Never retry a
 > 401 or 403 — report it.
@@ -275,6 +320,24 @@ they do not know.
 
 Paths are relative to `/api/v1`. The OpenAPI document has the fields of each.
 
+### Meta
+
+| Method | Path | Permission | What it does |
+| --- | --- | --- | --- |
+| GET | `/me` | `any` | Describe the calling API key |
+| GET | `/search` | `read` | Search all content |
+| GET | `/export` | `read` | Export everything |
+
+### Inbox
+
+| Method | Path | Permission | What it does |
+| --- | --- | --- | --- |
+| GET | `/inbox/stats` | `inbox` | Count messages by status |
+| GET | `/inbox` | `inbox` | List contact messages |
+| GET | `/inbox/{id}` | `inbox` | Get a contact message |
+| PATCH | `/inbox/{id}` | `inbox` | Change a message's status |
+| DELETE | `/inbox/{id}` | `inbox` | Delete a contact message |
+
 ### Profile
 
 | Method | Path | Permission | What it does |
@@ -300,6 +363,16 @@ Paths are relative to `/api/v1`. The OpenAPI document has the fields of each.
 | POST | `/projects` | `write` | Create a project |
 | PATCH | `/projects/{id}` | `write` | Update a project |
 | DELETE | `/projects/{id}` | `write` | Delete a project |
+| GET | `/projects/{id}/links` | `read` | List a project's links |
+| PUT | `/projects/{id}/links` | `write` | Replace a project's links |
+| GET | `/projects/{id}/technologies` | `read` | List a project's technologies |
+| PUT | `/projects/{id}/technologies` | `write` | Replace a project's technologies |
+| GET | `/projects/{id}/media` | `read` | List a project's gallery |
+| PUT | `/projects/{id}/media` | `write` | Replace a project's gallery |
+| PUT | `/projects/order` | `write` | Reorder projects |
+| POST | `/projects/{id}/publish` | `write` | Publish a project |
+| POST | `/projects/{id}/unpublish` | `write` | Unpublish a project |
+| POST | `/projects/{id}/archive` | `write` | Archive a project |
 
 ### Technologies
 
@@ -322,6 +395,9 @@ Paths are relative to `/api/v1`. The OpenAPI document has the fields of each.
 | POST | `/timeline` | `write` | Create a timeline entry |
 | PATCH | `/timeline/{id}` | `write` | Update a timeline entry |
 | DELETE | `/timeline/{id}` | `write` | Delete a timeline entry |
+| GET | `/timeline/{id}/highlights` | `read` | List a timeline entry's highlights |
+| PUT | `/timeline/{id}/highlights` | `write` | Replace a timeline entry's highlights |
+| PUT | `/timeline/order` | `write` | Reorder timeline entries |
 
 ### Education
 
@@ -332,6 +408,7 @@ Paths are relative to `/api/v1`. The OpenAPI document has the fields of each.
 | POST | `/education` | `write` | Create an education entry |
 | PATCH | `/education/{id}` | `write` | Update an education entry |
 | DELETE | `/education/{id}` | `write` | Delete an education entry |
+| PUT | `/education/order` | `write` | Reorder education entries |
 
 ### Certifications
 
@@ -342,6 +419,7 @@ Paths are relative to `/api/v1`. The OpenAPI document has the fields of each.
 | POST | `/certifications` | `write` | Create a certification |
 | PATCH | `/certifications/{id}` | `write` | Update a certification |
 | DELETE | `/certifications/{id}` | `write` | Delete a certification |
+| PUT | `/certifications/order` | `write` | Reorder certifications |
 
 ### Skills
 
@@ -357,6 +435,9 @@ Paths are relative to `/api/v1`. The OpenAPI document has the fields of each.
 | POST | `/skills` | `write` | Create a skill in a category |
 | PATCH | `/skills/{id}` | `write` | Update a skill |
 | DELETE | `/skills/{id}` | `write` | Delete a skill |
+| PUT | `/skill-categories/order` | `write` | Reorder skill categories |
+| PUT | `/skill-categories/{id}/skills/order` | `write` | Reorder skills in this category |
+| GET | `/skills` | `read` | List skills (all categories) |
 
 ### Tools
 
@@ -367,6 +448,7 @@ Paths are relative to `/api/v1`. The OpenAPI document has the fields of each.
 | POST | `/tools` | `write` | Create a tool |
 | PATCH | `/tools/{id}` | `write` | Update a tool |
 | DELETE | `/tools/{id}` | `write` | Delete a tool |
+| PUT | `/tools/order` | `write` | Reorder tools |
 
 ### Social links
 
@@ -377,6 +459,7 @@ Paths are relative to `/api/v1`. The OpenAPI document has the fields of each.
 | POST | `/social-links` | `write` | Create a social link |
 | PATCH | `/social-links/{id}` | `write` | Update a social link |
 | DELETE | `/social-links/{id}` | `write` | Delete a social link |
+| PUT | `/social-links/order` | `write` | Reorder social links |
 
 ### Sections
 
@@ -389,6 +472,8 @@ Paths are relative to `/api/v1`. The OpenAPI document has the fields of each.
 | PATCH | `/sections/{id}` | `write` | Update a section |
 | PUT | `/sections/{id}/alternates` | `write` | Replace a section's title/eyebrow alternates |
 | DELETE | `/sections/{id}` | `write` | Delete a section |
+| GET | `/sections/{id}/alternates` | `read` | Get a section's title/eyebrow alternates |
+| PUT | `/sections/order` | `write` | Reorder sections |
 
 ### Robot lines
 
@@ -399,6 +484,7 @@ Paths are relative to `/api/v1`. The OpenAPI document has the fields of each.
 | POST | `/robot-lines` | `write` | Create a robot line |
 | PATCH | `/robot-lines/{id}` | `write` | Update a robot line |
 | DELETE | `/robot-lines/{id}` | `write` | Delete a robot line |
+| PUT | `/robot-lines/order` | `write` | Reorder robot lines |
 
 ### Terminal lines
 
@@ -409,6 +495,7 @@ Paths are relative to `/api/v1`. The OpenAPI document has the fields of each.
 | POST | `/terminal-lines` | `write` | Create a terminal line |
 | PATCH | `/terminal-lines/{id}` | `write` | Update a terminal line |
 | DELETE | `/terminal-lines/{id}` | `write` | Delete a terminal line |
+| PUT | `/terminal-lines/order` | `write` | Reorder terminal lines |
 
 ### Notes
 
@@ -420,6 +507,10 @@ Paths are relative to `/api/v1`. The OpenAPI document has the fields of each.
 | POST | `/notes` | `write` | Create a note |
 | PATCH | `/notes/{id}` | `write` | Update a note |
 | DELETE | `/notes/{id}` | `write` | Delete a note |
+| PUT | `/notes/order` | `write` | Reorder notes |
+| POST | `/notes/{id}/publish` | `write` | Publish a note |
+| POST | `/notes/{id}/unpublish` | `write` | Unpublish a note |
+| POST | `/notes/{id}/archive` | `write` | Archive a note |
 
 ### Media
 
@@ -430,6 +521,7 @@ Paths are relative to `/api/v1`. The OpenAPI document has the fields of each.
 | POST | `/media` | `write` | Upload a file |
 | PATCH | `/media/{id}` | `write` | Update a media asset's alt text |
 | DELETE | `/media/{id}` | `write` | Delete a media asset |
+| GET | `/media/{id}/file` | `read` | Download a media file |
 
 ### Resumes
 
@@ -452,18 +544,8 @@ Paths are relative to `/api/v1`. The OpenAPI document has the fields of each.
 | GET | `/settings/scene` | `read` | Get 3D scene settings |
 | PATCH | `/settings/scene` | `write` | Update some 3D scene settings |
 
-### Inbox
-
-| Method | Path | Permission | What it does |
-| --- | --- | --- | --- |
-| GET | `/inbox` | `inbox` | List contact messages |
-| GET | `/inbox/{id}` | `inbox` | Get a contact message |
-| PATCH | `/inbox/{id}` | `inbox` | Change a message's status |
-| DELETE | `/inbox/{id}` | `inbox` | Delete a contact message |
-
 ### Analytics
 
 | Method | Path | Permission | What it does |
 | --- | --- | --- | --- |
 | GET | `/analytics` | `read` | Page-view summary |
-

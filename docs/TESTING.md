@@ -1,5 +1,27 @@
 # Testing
 
+## REST API tests (Phase 32)
+
+- **`apps/admin/scripts/api-tests.mjs`** (288 checks) — the real router and
+  every resource module, called with real `Request` objects over a disposable
+  local D1 with all migrations applied, and the real media service over the
+  in-memory bucket. Covers every authentication and scope refusal, every
+  error status, a create and an update through every resource, reorder, child
+  lists, meta and shortcut endpoints, a byte-for-byte download, and checks
+  every GET's real response against the JSON Schema the public OpenAPI
+  document publishes for it. It also fails if any file other than the
+  catch-all and `openapi.json` appears under `app/api/v1`.
+- **`apps/admin/scripts/action-regression-tests.mjs`** (35 checks) — the real
+  Server Actions for three defects fixed alongside the API (project
+  `completedOn`, half-created projects, silently dropped section alternates)
+  and the API key actions. Ten of its checks were run against the code before
+  the fixes and failed there.
+- **`e2e/admin-api-keys.spec.ts`** — Playwright now starts the admin (port
+  3001, development identity passed in the config) as well as the site. The
+  spec creates a key in the browser, uses it, revokes it by keyboard, confirms
+  the next call is refused, and deletes it. It reads the local development
+  D1, so local migrations must be current.
+
 ## Current state (Phase 9 in progress — media library CMS added)
 
 `pnpm test` runs **twenty-two real suites and one no-op** — **3181 checks**,

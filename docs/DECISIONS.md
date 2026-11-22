@@ -3,6 +3,53 @@
 Notable architectural/tooling decisions and their rationale. Append new
 entries; do not delete history.
 
+## 2026-11-22 — A REST API for the CMS
+
+### One catch-all route and one pipeline, not a file per resource
+
+Every `/api/v1` request enters `app/api/v1/[...path]/route.ts` and goes
+through `lib/api/router.ts`: match, authenticate, check scope, validate, run,
+map errors. Resources are data — `ApiRoute` values — not route files. The
+alternative, a `route.ts` per resource, would mean 20 places that each have to
+remember to authenticate; the project has already shipped one unguarded route
+handler that way (see the protected route-handler invariant). The API test
+suite fails if any other file appears under `app/api/v1`.
+
+### API keys, not the admin session
+
+The API accepts only `Authorization: Bearer pfk_…`, never the session cookie.
+A cookie-authenticated API is a CSRF surface, and the consumers are servers,
+scripts and agents, which have no cookie jar to speak of. Keys are stored as
+SHA-256, not PBKDF2: they carry 256 bits of randomness, so there is no
+dictionary for a slow hash to defend against, and a fast hash keeps
+authentication to one indexed lookup. `write` deliberately does not imply
+`read`, and `inbox` is separate from both, so the admin's key list says
+exactly what each key can do.
+
+### The OpenAPI document is generated, and its response half is tested
+
+Request schemas come from the shared Zod schemas via `z.toJSONSchema` (zod
+4.4.3, already a dependency of `packages/schemas` — no new package). Response
+schemas cannot be generated — the domain types are TypeScript only — so they
+are written by hand and the test suite validates every GET's real response
+against them, failing on any undeclared or missing key. A document that drifts
+from the API is worse than none for an agent, which trusts it completely.
+
+### No CORS, no per-key rate limit
+
+No `Access-Control-*` headers: a key in browser JavaScript is published, so a
+browser that tries is refused by design. Only `openapi.json` is readable
+cross-origin. There is no rate limit per key: keys cannot be guessed, the
+consumers are the owner's own, and a misbehaving one is revoked rather than
+throttled. Revisit if a key is ever given to a third party.
+
+### Reorder by partial list
+
+`PUT …/order` takes the ids to move to the front and keeps everything else in
+its existing order behind them. Requiring the complete list would make "pin
+these two" a read-modify-write that races the admin; a partial list cannot
+lose a row it did not mention.
+
 ## 2026-09-08 — Two overflow bugs, one shape
 
 ### The terminal's block caret is gone, not repositioned
