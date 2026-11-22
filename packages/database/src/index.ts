@@ -70,6 +70,7 @@ export type {
 } from "./repositories/settings.ts";
 export type { ContactMessageRepository } from "./repositories/contact-messages.ts";
 export type { AdminAuthRepository } from "./repositories/admin-auth.ts";
+export type { ApiKeyRepository } from "./repositories/api-keys.ts";
 export type {
   AnalyticsRepository,
   AnalyticsSummary,

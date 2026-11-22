@@ -6,6 +6,94 @@ something passed without running it.
 
 ## Current phase
 
+**Phase 32 — a REST API for the whole CMS, with a public OpenAPI document.**
+
+The owner asked for a way to read and write portfolio content from their other
+projects, and for a public OpenAPI JSON an AI agent can learn the API from in
+one fetch. Both exist. Guide: `docs/API.md`.
+
+### What exists
+
+- **`/api/v1` — 97 operations over 19 resources**: profile, headline
+  alternates, projects, technologies, timeline, education, certifications,
+  skill categories and skills, tools, social links, sections (and their
+  alternates), robot lines, terminal lines, notes, media (multipart upload),
+  résumés, site and scene settings, inbox, analytics. Admin auth tables and
+  API keys themselves are deliberately not reachable through it.
+- **`/api/v1/openapi.json` — public**, generated from the same route list the
+  router serves. Request schemas are converted from the shared Zod schemas
+  (`toRequestJsonSchema` in `packages/schemas`); response schemas are written
+  per entity and checked against real responses by the test suite.
+- **API keys (migration 0020, `api_keys`)** — created and revoked in the admin
+  at **Operations → API keys**. `pfk_` + 256 random bits, shown once, stored as
+  SHA-256 only. Permissions `read`, `write`, `inbox` (write does not imply
+  read; the inbox is separate because it is third-party personal data).
+  Optional expiry; revocation applies on the next request; `last_used_at`
+  touched at most once a minute.
+
+### How it is built
+
+One catch-all route (`app/api/v1/[...path]/route.ts`) feeds one pipeline
+(`lib/api/router.ts`): match → authenticate → scope → read and validate the
+body with the shared schema → repository layer → map errors. No route
+authenticates itself, and a test fails if any other file appears under
+`app/api/v1`. The admin session cookie is never accepted, so there is no CSRF
+surface; no CORS headers are sent, so a key cannot usefully live in a browser.
+Each resource lives in `lib/api/resources/<name>.ts` and mirrors its Server
+Action module's repository calls.
+
+### Where the API deliberately differs from the admin's actions
+
+- **Projects:** a create whose technology/media reference fails is undone, so
+  a 409 leaves nothing behind (the action leaves a half-made draft — measured);
+  PATCH sets `completedOn` (the update action never passes it to the
+  repository — see "Pre-existing bugs" below).
+- **Singletons** (`/profile`, `/settings/site`, `/settings/scene`) take a
+  merging PATCH validated against the full schema after the merge, so sending
+  one field cannot reset the rest to defaults. `PUT /profile` is the admin
+  form's full replace.
+- **Section alternates** that fail validation are a 422; the admin action
+  skips them silently.
+- **Résumés** check server-side that `mediaAssetId` is a PDF; the admin relies
+  on its picker.
+
+### Pre-existing bugs found (in the admin, not fixed here)
+
+1. `updateProjectAction` never passes `completedOn` to `repos.projects.update`,
+   so editing a project's completion date in the admin does nothing.
+2. `createProjectAction` creates the row before its relations; an invalid
+   technology/media id returns an error but leaves a draft project behind.
+3. The sections action drops invalid alternates silently and reports success.
+
+### Verification actually performed
+
+`pnpm lint` clean, `pnpm typecheck` clean, `pnpm test` green (new
+`apps/admin/scripts/api-tests.mjs`: **212/212** — auth refusals, scopes,
+404/405/413/415/422/409 paths, a create+update through every resource on a
+real local D1, uploads through the real media service over the in-memory
+bucket, every GET checked against its published response schema, the
+`app/api/v1` invariant; the migrations smoke test now expects `api_keys`;
+the action-auth sweep covers the three new key actions), `pnpm build` both
+apps. In a browser against `next dev`: created a key on `/api-keys`, used it
+from curl (create → patch → 422 → inbox 403 → delete 204 → 404), revoked it
+in the UI and saw the next call return 401 and "Last used" filled in; the
+page at 375px has no horizontal overflow. Playwright e2e was **not** re-run.
+
+**Local dev D1 note:** the local database had 0017–0019 applied without
+records in `d1_migrations`, so `migrations apply --local` fails on 0017. 0020
+was applied with `d1 execute --file` and recorded; 0017–0019 were left as found.
+
+### Owner actions before the API works in production
+
+1. Apply migration **0020** to remote D1 first, from the repo root:
+   `npx wrangler d1 migrations apply portfolio-cms --remote -c wrangler.d1.jsonc`,
+   then deploy the admin.
+2. If Cloudflare Access is still in front of the admin, add a **Bypass**
+   policy for `/api/v1/*` (or retire Access); otherwise API clients are stopped
+   at the Access login before the key is ever checked.
+3. Create a key at **Operations → API keys**.
+
+
 **Phase 31 — four system screens, and colour in the owner's hands.**
 
 ### The screens

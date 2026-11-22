@@ -186,6 +186,8 @@ const EXPECTED_TABLES = [
   "admin_sessions",
   "admin_verification_codes",
   "admin_rate_limits",
+  // 0020 — keys for the REST API at /api/v1.
+  "api_keys",
 ];
 
 const EXPECTED_INDEXES = [

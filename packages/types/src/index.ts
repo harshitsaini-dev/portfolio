@@ -5,6 +5,7 @@
 // domain shapes, not database rows — row decoding is private to
 // `@portfolio/database`.
 export * from "./admin-auth.ts";
+export * from "./api-keys.ts";
 export * from "./content.ts";
 
 // Phase 9 adds the structural object-storage contract. It lives here rather

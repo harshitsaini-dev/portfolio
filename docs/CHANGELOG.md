@@ -1,6 +1,22 @@
 
 # Changelog
 
+## 2026-11-22 — A REST API for the CMS
+
+### Added
+
+- **`/api/v1`**: 97 operations covering everything the admin edits — read,
+  create, update (merging `PATCH`), delete, media upload, résumé switching,
+  inbox status, analytics. Authenticated by API key; every body validated by
+  the shared schemas; every write through the repository layer.
+- **`/api/v1/openapi.json`**: a public OpenAPI 3.0 document generated from the
+  routes themselves, with request schemas converted from Zod and response
+  schemas checked against real responses in tests.
+- **Operations → API keys** in the admin: create (shown once), revoke, delete.
+  Permissions `read`, `write`, `inbox`; optional expiry; last-used time.
+- **Migration 0020** (`api_keys`). Apply it remotely before deploying the admin.
+- **`docs/API.md`**: developer and AI-agent guide.
+
 ## 2026-09-08 — Two overflow fixes on the public site
 
 ### Fixed

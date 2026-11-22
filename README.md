@@ -111,6 +111,7 @@ symlinks, which Windows refuses without Developer Mode.
 - [docs/DECISIONS.md](docs/DECISIONS.md) — every architectural decision and why, including the ones that turned out wrong
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — system structure
 - [docs/DATABASE.md](docs/DATABASE.md) — the data model
+- [docs/API.md](docs/API.md) — the CMS REST API (`/api/v1`) and its public OpenAPI document
 - [docs/DESIGN.md](docs/DESIGN.md) — design system
 - [docs/TESTING.md](docs/TESTING.md) — testing approach
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — deployment, and which steps are a human's

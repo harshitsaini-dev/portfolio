@@ -752,6 +752,12 @@ their aggregate rather than exposed as top-level CRUD:
   rather than `create`/`update`, because identity is fixed and the schema
   permits zero rows.
 - The rest map one repository to one table.
+- **`apiKeys`** owns `api_keys` (migration 0020): keys for the REST API at
+  `/api/v1`. Stores the SHA-256 of each key, never the key; `create` refuses
+  anything that is not a 64-character hex digest, and `getByTokenHash` refuses
+  to query with one. `scopes` is a space-separated subset of `read write
+  inbox`, and an unknown word fails the row decode rather than granting
+  anything. Revoked rows are kept. See `docs/API.md`.
 
 ### Relationship writes and D1 `batch()`
 
